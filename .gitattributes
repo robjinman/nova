@@ -1,0 +1,2 @@
+data/resources/textures/skybox/*.png filter=lfs diff=lfs merge=lfs -text
+data/resources/textures/*.png filter=lfs diff=lfs merge=lfs -text
