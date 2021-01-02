@@ -6,10 +6,15 @@ Building from source
 
 ### Linux
 
-Install the development dependencies
+Install the development dependencies. On Ubuntu 20, run
 
 ```
-        sudo apt-get install build-essential libvulkan-dev
+        sudo apt install \
+          build-essential \
+          libvulkan-dev \
+          vulkan-validationLayers-dev \
+          libgmock-dev \
+          spirv-tools
 ```
 
 To build third-party libraries, from the project root, run
@@ -17,7 +22,7 @@ To build third-party libraries, from the project root, run
 ```
         mkdir -p vendor/build/linux
         cd vendor/build/linux
-        cmake -G "Unix Makefiles" ../..
+        cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release ../..
         make -j4
 ```
 
