@@ -12,9 +12,7 @@ Install the development dependencies. On Ubuntu 20, run
         sudo apt install \
           build-essential \
           libvulkan-dev \
-          vulkan-validationLayers-dev \
-          libgmock-dev \
-          spirv-tools
+          vulkan-validationLayers-dev
 ```
 
 To build third-party libraries, from the project root, run
