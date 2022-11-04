@@ -2,7 +2,6 @@
 #include <vector>
 #include <algorithm>
 #include <cstring>
-#include <sstream>
 #include <optional>
 #include <fstream>
 #include <set>
@@ -15,28 +14,9 @@
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 
+#include "application.hpp"
+#include "exception.hpp"
 #include "version.hpp"
-
-class Exception : public std::runtime_error {
-public:
-  Exception(const std::string& msg, const std::string& file, int line)
-    : runtime_error(msg + " (file: " + file + ", line: " + std::to_string(line) + ")") {}
-};
-
-#define EXCEPTION(msg) \
-  { \
-    std::stringstream ss; \
-    ss << msg; \
-    throw Exception(ss.str(), __FILE__, __LINE__); \
-  }
-
-#define VK_CHECK(fnCall, msg) \
-  { \
-    VkResult code = fnCall; \
-    if (code != VK_SUCCESS) { \
-      EXCEPTION(msg << " (result: " << code << ")"); \
-    } \
-  }
 
 namespace {
 
@@ -86,9 +66,10 @@ struct SwapChainSupportDetails {
   std::vector<VkPresentModeKHR> presentModes;
 };
 
-class Application {
+class Application : public IApplication {
 public:
-  void run();
+  void run() override;
+  ~Application() override {}
 
 private:
   static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -155,6 +136,10 @@ private:
   std::vector<VkFence> m_inFlightFences;
   std::vector<VkFence> m_imagesInFlight;
 };
+
+ApplicationPtr CreateApplication() {
+  return std::make_unique<Application>();
+}
 
 VkShaderModule Application::createShaderModule(const std::vector<char>& code) const {
   VkShaderModuleCreateInfo createInfo{};
@@ -975,27 +960,4 @@ void Application::cleanUp() {
   vkDestroyInstance(m_instance, nullptr);
   glfwDestroyWindow(m_window);
   glfwTerminate();
-}
-
-int main() {
-  std::cout << "Vulkan Test Lab - Version "
-            << VulkanTestLab_VERSION_MAJOR
-            << "."
-            << VulkanTestLab_VERSION_MINOR
-#ifndef NDEBUG
-            << " (Debug)"
-#endif
-            << std::endl;
-
-  Application app;
-
-  try {
-    app.run();
-  }
-  catch(const std::exception& e) {
-    std::cerr << e.what() << std::endl;
-    return EXIT_FAILURE;
-  }
-
-  return EXIT_SUCCESS;
 }
