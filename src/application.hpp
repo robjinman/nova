@@ -2,12 +2,12 @@
 
 #include <memory>
 
-class IApplication {
+class Application {
 public:
   virtual void run() = 0;
-  virtual ~IApplication() {}
+  virtual ~Application() {}
 };
 
-using ApplicationPtr = std::unique_ptr<IApplication>;
+using ApplicationPtr = std::unique_ptr<Application>;
 
 ApplicationPtr CreateApplication();

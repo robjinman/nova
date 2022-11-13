@@ -66,10 +66,10 @@ struct SwapChainSupportDetails {
   std::vector<VkPresentModeKHR> presentModes;
 };
 
-class Application : public IApplication {
+class ApplicationImpl : public Application {
 public:
   void run() override;
-  ~Application() override {}
+  ~ApplicationImpl() override {}
 
 private:
   static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -138,10 +138,10 @@ private:
 };
 
 ApplicationPtr CreateApplication() {
-  return std::make_unique<Application>();
+  return std::make_unique<ApplicationImpl>();
 }
 
-VkShaderModule Application::createShaderModule(const std::vector<char>& code) const {
+VkShaderModule ApplicationImpl::createShaderModule(const std::vector<char>& code) const {
   VkShaderModuleCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
   createInfo.codeSize = code.size();
@@ -154,7 +154,9 @@ VkShaderModule Application::createShaderModule(const std::vector<char>& code) co
   return shaderModule;
 }
 
-VkExtent2D Application::chooseSwapChainExtent(const VkSurfaceCapabilitiesKHR& capabilities) const {
+VkExtent2D ApplicationImpl::chooseSwapChainExtent(
+  const VkSurfaceCapabilitiesKHR& capabilities) const {
+
   if (capabilities.currentExtent.width == UINT32_MAX) {
     VkExtent2D extent{};
 
@@ -170,7 +172,7 @@ VkExtent2D Application::chooseSwapChainExtent(const VkSurfaceCapabilitiesKHR& ca
   }
 }
 
-VkPresentModeKHR Application::chooseSwapChainPresentMode(
+VkPresentModeKHR ApplicationImpl::chooseSwapChainPresentMode(
   const std::vector<VkPresentModeKHR>& availableModes) const {
 
   for (auto& mode : availableModes) {
@@ -182,7 +184,7 @@ VkPresentModeKHR Application::chooseSwapChainPresentMode(
   return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkSurfaceFormatKHR Application::chooseSwapChainSurfaceFormat(
+VkSurfaceFormatKHR ApplicationImpl::chooseSwapChainSurfaceFormat(
   const std::vector<VkSurfaceFormatKHR>& availableFormats) const {
 
   for (const auto& format : availableFormats) {
@@ -197,7 +199,7 @@ VkSurfaceFormatKHR Application::chooseSwapChainSurfaceFormat(
   return availableFormats[0];
 }
 
-void Application::createSwapChain() {
+void ApplicationImpl::createSwapChain() {
   auto swapChainSupport = querySwapChainSupport(m_physicalDevice);
   auto surfaceFormat = chooseSwapChainSurfaceFormat(swapChainSupport.formats);
   auto presentMode = chooseSwapChainPresentMode(swapChainSupport.presentModes);
@@ -250,7 +252,7 @@ void Application::createSwapChain() {
   m_swapChainExtent = extent;
 }
 
-SwapChainSupportDetails Application::querySwapChainSupport(VkPhysicalDevice device) const {
+SwapChainSupportDetails ApplicationImpl::querySwapChainSupport(VkPhysicalDevice device) const {
   SwapChainSupportDetails details;
 
   VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, m_surface, &details.capabilities),
@@ -281,7 +283,7 @@ SwapChainSupportDetails Application::querySwapChainSupport(VkPhysicalDevice devi
   return details;
 }
 
-QueueFamilyIndices Application::findQueueFamilies(VkPhysicalDevice device) const {
+QueueFamilyIndices ApplicationImpl::findQueueFamilies(VkPhysicalDevice device) const {
   QueueFamilyIndices indices;
 
   uint32_t queueFamilyCount = 0;
@@ -310,14 +312,14 @@ QueueFamilyIndices Application::findQueueFamilies(VkPhysicalDevice device) const
   return indices;
 }
 
-void Application::run() {
+void ApplicationImpl::run() {
   createWindow();
   initVulkan();
   mainLoop();
   cleanUp();
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL Application::debugCallback(
+VKAPI_ATTR VkBool32 VKAPI_CALL ApplicationImpl::debugCallback(
   VkDebugUtilsMessageSeverityFlagBitsEXT /*severity*/,
   VkDebugUtilsMessageTypeFlagsEXT /*type*/,
   const VkDebugUtilsMessengerCallbackDataEXT* data,
@@ -328,7 +330,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Application::debugCallback(
   return VK_FALSE;
 }
 
-std::vector<const char*> Application::getRequiredExtensions() const {
+std::vector<const char*> ApplicationImpl::getRequiredExtensions() const {
   std::vector<const char*> extensions;
 
   uint32_t glfwExtensionCount = 0;
@@ -345,7 +347,7 @@ std::vector<const char*> Application::getRequiredExtensions() const {
   return extensions;
 }
 
-bool Application::checkDeviceExtensionSupport(VkPhysicalDevice device) const {
+bool ApplicationImpl::checkDeviceExtensionSupport(VkPhysicalDevice device) const {
   uint32_t count;
   VK_CHECK(vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr),
            "Failed to enumerate device extensions");
@@ -363,7 +365,7 @@ bool Application::checkDeviceExtensionSupport(VkPhysicalDevice device) const {
   return true;
 }
 
-void Application::checkValidationLayerSupport() const {
+void ApplicationImpl::checkValidationLayerSupport() const {
   uint32_t layerCount;
   VK_CHECK(vkEnumerateInstanceLayerProperties(&layerCount, nullptr),
            "Failed to enumerate instance layer properties");
@@ -382,7 +384,7 @@ void Application::checkValidationLayerSupport() const {
   }
 }
 
-bool Application::isPhysicalDeviceSuitable(VkPhysicalDevice device) const {
+bool ApplicationImpl::isPhysicalDeviceSuitable(VkPhysicalDevice device) const {
   bool extensionsSupported = checkDeviceExtensionSupport(device);
 
   if (!extensionsSupported) {
@@ -398,7 +400,7 @@ bool Application::isPhysicalDeviceSuitable(VkPhysicalDevice device) const {
   return swapChainAdequate && indices.isComplete();
 }
 
-void Application::createWindow() {
+void ApplicationImpl::createWindow() {
   glfwInit();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Don't create OpenGL context
@@ -407,7 +409,7 @@ void Application::createWindow() {
   m_window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan window", nullptr, nullptr);
 }
 
-void Application::createLogicalDevice() {
+void ApplicationImpl::createLogicalDevice() {
   auto indices = findQueueFamilies(m_physicalDevice);
   std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
   std::set<uint32_t> uniqueQueueFamilies = {
@@ -451,7 +453,7 @@ void Application::createLogicalDevice() {
   vkGetDeviceQueue(m_device, indices.presentFamily.value(), 0, &m_presentQueue);
 }
 
-void Application::createImageViews() {
+void ApplicationImpl::createImageViews() {
   m_swapChainImageViews.resize(m_swapChainImages.size());
 
   for (size_t i = 0; i < m_swapChainImages.size(); ++i) {
@@ -475,7 +477,7 @@ void Application::createImageViews() {
   }
 }
 
-void Application::createGraphicsPipeline() {
+void ApplicationImpl::createGraphicsPipeline() {
   auto vertShaderCode = readFile("shaders/vertex/shader.spv");
   auto fragShaderCode = readFile("shaders/fragment/shader.spv");
 
@@ -612,7 +614,7 @@ void Application::createGraphicsPipeline() {
   vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
 }
 
-void Application::createRenderPass() {
+void ApplicationImpl::createRenderPass() {
   VkAttachmentDescription colourAttachment{};
   colourAttachment.format = m_swapChainImageFormat;
   colourAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -654,7 +656,7 @@ void Application::createRenderPass() {
            "Failed to create render pass");
 }
 
-void Application::createFramebuffers() {
+void ApplicationImpl::createFramebuffers() {
   m_swapChainFramebuffers.resize(m_swapChainImageViews.size());
 
   for (size_t i = 0; i < m_swapChainImageViews.size(); ++i) {
@@ -674,7 +676,7 @@ void Application::createFramebuffers() {
   }
 }
 
-void Application::createCommandPool() {
+void ApplicationImpl::createCommandPool() {
   QueueFamilyIndices queueFamilyIndices = findQueueFamilies(m_physicalDevice);
   VkCommandPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -685,7 +687,7 @@ void Application::createCommandPool() {
            "Failed to create command pool");
 }
 
-void Application::createCommandBuffers() {
+void ApplicationImpl::createCommandBuffers() {
   m_commandBuffers.resize(m_swapChainFramebuffers.size());
 
   VkCommandBufferAllocateInfo allocInfo{};
@@ -725,7 +727,7 @@ void Application::createCommandBuffers() {
   }
 }
 
-void Application::createSyncObjects() {
+void ApplicationImpl::createSyncObjects() {
   m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
   m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
   m_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
@@ -748,7 +750,7 @@ void Application::createSyncObjects() {
   }
 }
 
-void Application::initVulkan() {
+void ApplicationImpl::initVulkan() {
   createInstance();
 #ifndef NDEBUG
   setupDebugMessenger();
@@ -766,14 +768,14 @@ void Application::initVulkan() {
   createSyncObjects();
 }
 
-void Application::createSurface() {
+void ApplicationImpl::createSurface() {
   assert(m_window != nullptr);
 
   VK_CHECK(glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surface),
            "Failed to create window surface");
 }
 
-void Application::pickPhysicalDevice() {
+void ApplicationImpl::pickPhysicalDevice() {
   uint32_t deviceCount = 0;
   VK_CHECK(vkEnumeratePhysicalDevices(m_instance, &deviceCount, nullptr),
            "Failed to enumerate physical devices");
@@ -796,7 +798,7 @@ void Application::pickPhysicalDevice() {
   m_physicalDevice = *physicalDevice;
 }
 
-void Application::createInstance() {
+void ApplicationImpl::createInstance() {
 #ifndef NDEBUG
   checkValidationLayerSupport();
 #endif
@@ -835,7 +837,7 @@ void Application::createInstance() {
   VK_CHECK(vkCreateInstance(&createInfo, nullptr, &m_instance), "Failed to create instance");
 }
 
-VkDebugUtilsMessengerCreateInfoEXT Application::getDebugMessengerCreateInfo() const {
+VkDebugUtilsMessengerCreateInfoEXT ApplicationImpl::getDebugMessengerCreateInfo() const {
   VkDebugUtilsMessengerCreateInfoEXT createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
   createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
@@ -849,7 +851,7 @@ VkDebugUtilsMessengerCreateInfoEXT Application::getDebugMessengerCreateInfo() co
   return createInfo;
 }
 
-void Application::setupDebugMessenger() {
+void ApplicationImpl::setupDebugMessenger() {
   auto createInfo = getDebugMessengerCreateInfo();
 
   auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
@@ -861,7 +863,7 @@ void Application::setupDebugMessenger() {
            "Error setting up debug messenger");
 }
 
-void Application::drawFrame() {
+void ApplicationImpl::drawFrame() {
   VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
            "Error waiting for fence");
 
@@ -916,7 +918,7 @@ void Application::drawFrame() {
   m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void Application::mainLoop() {
+void ApplicationImpl::mainLoop() {
   //glm::mat4 matrix;
   //glm::vec4 vec;
   //auto test = matrix * vec;
@@ -929,13 +931,13 @@ void Application::mainLoop() {
   VK_CHECK(vkDeviceWaitIdle(m_device), "Error waiting for device to be idle");
 }
 
-void Application::destroyDebugMessenger() {
+void ApplicationImpl::destroyDebugMessenger() {
   auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
     vkGetInstanceProcAddr(m_instance, "vkDestroyDebugUtilsMessengerEXT"));
   func(m_instance, m_debugMessenger, nullptr);
 }
 
-void Application::cleanUp() {
+void ApplicationImpl::cleanUp() {
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     vkDestroySemaphore(m_device, m_imageAvailableSemaphores[i], nullptr);
     vkDestroySemaphore(m_device, m_renderFinishedSemaphores[i], nullptr);
