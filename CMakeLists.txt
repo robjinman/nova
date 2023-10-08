@@ -51,7 +51,7 @@ target_link_libraries(${TARGET_NAME} vulkan glm::glm glfw)
 
 set(COMPILER_FLAGS -Wextra -Wall)
 set(DEBUG_FLAGS ${COMPILER_FLAGS} -g)
-set(RELEASE_FLAGS ${COMPILER_FLAGS} -O3)
+set(RELEASE_FLAGS ${COMPILER_FLAGS} -O3 -DNDEBUG)
 
 target_compile_options(${TARGET_NAME} PUBLIC "$<$<CONFIG:DEBUG>:${DEBUG_FLAGS}>")
 target_compile_options(${TARGET_NAME} PUBLIC "$<$<CONFIG:RELEASE>:${RELEASE_FLAGS}>")

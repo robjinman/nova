@@ -832,8 +832,6 @@ void ApplicationImpl::createInstance() {
   createInfo.enabledExtensionCount = extensions.size();
   createInfo.ppEnabledExtensionNames = extensions.data();
 
-  createInfo.enabledLayerCount = 0;
-
   VK_CHECK(vkCreateInstance(&createInfo, nullptr, &m_instance), "Failed to create instance");
 }
 
