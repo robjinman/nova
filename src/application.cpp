@@ -140,8 +140,11 @@ private:
   void createRenderPass();
   void createFramebuffers();
   void createCommandPool();
-  void createVertexBuffer();
-  void createCommandBuffers();
+  void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+  void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+    VkBuffer& buffer, VkDeviceMemory& bufferMemory) const;
+  void createVertexBuffer(const std::vector<Vertex>& vertices);
+  void createCommandBuffers(const std::vector<Vertex>& vertices);
   void createSyncObjects();
   void drawFrame();
 
@@ -727,7 +730,7 @@ void ApplicationImpl::createCommandPool() {
            "Failed to create command pool");
 }
 
-void ApplicationImpl::createCommandBuffers() {
+void ApplicationImpl::createCommandBuffers(const std::vector<Vertex>& vertices) {
   m_commandBuffers.resize(m_swapChainFramebuffers.size());
 
   VkCommandBufferAllocateInfo allocInfo{};
@@ -763,7 +766,7 @@ void ApplicationImpl::createCommandBuffers() {
     VkBuffer vertexBuffers[] = { m_vertexBuffer };
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);
-    uint32_t numVertices = 3; // TODO
+    uint32_t numVertices = vertices.size();
     vkCmdDraw(m_commandBuffers[i], numVertices, 1, 0, 0);
     vkCmdEndRenderPass(m_commandBuffers[i]);
 
@@ -771,24 +774,55 @@ void ApplicationImpl::createCommandBuffers() {
   }
 }
 
-void ApplicationImpl::createVertexBuffer() {
-  std::vector<Vertex> vertices{
-    Vertex{glm::vec2{ 0.0, -0.5 }, glm::vec3{ 1.0, 0.0, 0.0 }},
-    Vertex{glm::vec2{ 0.5, 0.5 }, glm::vec3{ 0.0, 1.0, 0.0 }},
-    Vertex{glm::vec2{ -0.5, 0.5 }, glm::vec3{ 0.0, 0.0, 1.0 }}
-  };
+void ApplicationImpl::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+  VkCommandBufferAllocateInfo allocInfo{};
+  allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  allocInfo.commandPool = m_commandPool; // TODO: Separate pool for temp buffers?
+  allocInfo.commandBufferCount = 1;
+  
+  VkCommandBuffer commandBuffer;
+  vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer);
+  
+  VkCommandBufferBeginInfo beginInfo{};
+  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+  
+  vkBeginCommandBuffer(commandBuffer, &beginInfo);
+  
+  VkBufferCopy copyRegion{};
+  copyRegion.srcOffset = 0;
+  copyRegion.dstOffset = 0;
+  copyRegion.size = size;
+  vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+  
+  vkEndCommandBuffer(commandBuffer);
+  
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer;
+  
+  vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+  vkQueueWaitIdle(m_graphicsQueue); // Use fence if doing multiple transfers simultaneously
+  
+  vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
+}
+
+void ApplicationImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+  VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) const {
 
   VkBufferCreateInfo bufferInfo{};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  bufferInfo.size = sizeof(vertices[0]) * vertices.size();
-  bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+  bufferInfo.size = size;
+  bufferInfo.usage = usage;
   bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
   bufferInfo.flags = 0;
 
-  VK_CHECK(vkCreateBuffer(m_device, &bufferInfo, nullptr, &m_vertexBuffer),
+  VK_CHECK(vkCreateBuffer(m_device, &bufferInfo, nullptr, &buffer),
                           "Failed to create vertex buffer");
 
-  auto findMemoryType = [this](uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+  auto findMemoryType = [this, properties](uint32_t typeFilter) {
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
 
@@ -804,23 +838,40 @@ void ApplicationImpl::createVertexBuffer() {
   };
 
   VkMemoryRequirements memRequirements;
-  vkGetBufferMemoryRequirements(m_device, m_vertexBuffer, &memRequirements);
+  vkGetBufferMemoryRequirements(m_device, buffer, &memRequirements);
 
   VkMemoryAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocInfo.allocationSize = memRequirements.size;
-  allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits);
 
-  VK_CHECK(vkAllocateMemory(m_device, &allocInfo, nullptr, &m_vertexBufferMemory),
+  VK_CHECK(vkAllocateMemory(m_device, &allocInfo, nullptr, &bufferMemory),
            "Failed to allocate memory for vertex buffer");
+
+  vkBindBufferMemory(m_device, buffer, bufferMemory, 0);
+}
+
+void ApplicationImpl::createVertexBuffer(const std::vector<Vertex>& vertices) {
+  VkDeviceSize size = sizeof(vertices[0]) * vertices.size();
   
-  vkBindBufferMemory(m_device, m_vertexBuffer, m_vertexBufferMemory, 0);
-  
+  VkBuffer stagingBuffer;
+  VkDeviceMemory stagingBufferMemory;
+  createBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+    stagingBuffer, stagingBufferMemory);
+
   void* data = nullptr;
-  vkMapMemory(m_device, m_vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-  memcpy(data, vertices.data(), static_cast<size_t>(bufferInfo.size));
-  vkUnmapMemory(m_device, m_vertexBufferMemory);
+  vkMapMemory(m_device, stagingBufferMemory, 0, size, 0, &data);
+  memcpy(data, vertices.data(), size);
+  vkUnmapMemory(m_device, stagingBufferMemory);
+
+  createBuffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_vertexBuffer, m_vertexBufferMemory);
+
+  copyBuffer(stagingBuffer, m_vertexBuffer, size);
+  
+  vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+  vkFreeMemory(m_device, stagingBufferMemory, nullptr);
 }
 
 void ApplicationImpl::createSyncObjects() {
@@ -847,6 +898,12 @@ void ApplicationImpl::createSyncObjects() {
 }
 
 void ApplicationImpl::initVulkan() {
+  std::vector<Vertex> vertices{
+    Vertex{glm::vec2{ 0.0, -0.5 }, glm::vec3{ 1.0, 0.0, 0.0 }},
+    Vertex{glm::vec2{ 0.5, 0.5 }, glm::vec3{ 0.0, 1.0, 0.0 }},
+    Vertex{glm::vec2{ -0.5, 0.5 }, glm::vec3{ 0.0, 0.0, 1.0 }}
+  };
+
   createInstance();
 #ifndef NDEBUG
   setupDebugMessenger();
@@ -860,8 +917,8 @@ void ApplicationImpl::initVulkan() {
   createGraphicsPipeline();
   createFramebuffers();
   createCommandPool();
-  createVertexBuffer();
-  createCommandBuffers();
+  createVertexBuffer(vertices);
+  createCommandBuffers(vertices);
   createSyncObjects();
 }
 
