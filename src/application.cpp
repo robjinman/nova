@@ -51,6 +51,40 @@ std::vector<char> readFile(const std::string& filename) {
 
 }
 
+struct Vertex {
+  glm::vec2 pos;
+  glm::vec3 colour;
+  
+  static VkVertexInputBindingDescription getBindingDescription();
+  static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions();
+};
+
+VkVertexInputBindingDescription Vertex::getBindingDescription() {
+  VkVertexInputBindingDescription binding{};
+  
+  binding.binding = 0;
+  binding.stride = sizeof(Vertex);
+  binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+  
+  return binding;
+}
+
+std::array<VkVertexInputAttributeDescription, 2> Vertex::getAttributeDescriptions() {
+  std::array<VkVertexInputAttributeDescription, 2> attributes;
+  
+  attributes[0].binding = 0;
+  attributes[0].location = 0;
+  attributes[0].format = VK_FORMAT_R32G32_SFLOAT;
+  attributes[0].offset = offsetof(Vertex, pos);
+
+  attributes[1].binding = 0;
+  attributes[1].location = 1;
+  attributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+  attributes[1].offset = offsetof(Vertex, colour);
+
+  return attributes;
+}
+
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphicsFamily;
   std::optional<uint32_t> presentFamily;
@@ -106,6 +140,7 @@ private:
   void createRenderPass();
   void createFramebuffers();
   void createCommandPool();
+  void createVertexBuffer();
   void createCommandBuffers();
   void createSyncObjects();
   void drawFrame();
@@ -128,6 +163,8 @@ private:
   VkRenderPass m_renderPass;
   VkPipelineLayout m_pipelineLayout;
   VkPipeline m_graphicsPipeline;
+  VkBuffer m_vertexBuffer;
+  VkDeviceMemory m_vertexBufferMemory;
   VkCommandPool m_commandPool;
   size_t m_currentFrame = 0;
 
@@ -496,12 +533,15 @@ void ApplicationImpl::createGraphicsPipeline() {
   fragShaderStageInfo.module = fragShaderModule;
   fragShaderStageInfo.pName = "main";
 
+  auto bindingDescription = Vertex::getBindingDescription();
+  auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
   VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
   vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-  vertexInputInfo.vertexBindingDescriptionCount = 0;
-  vertexInputInfo.pVertexBindingDescriptions = nullptr;
-  vertexInputInfo.vertexAttributeDescriptionCount = 0;
-  vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+  vertexInputInfo.vertexBindingDescriptionCount = 1;
+  vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+  vertexInputInfo.vertexAttributeDescriptionCount = attributeDescriptions.size();
+  vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
   VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
   inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -720,11 +760,67 @@ void ApplicationImpl::createCommandBuffers() {
 
     vkCmdBeginRenderPass(m_commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
-    vkCmdDraw(m_commandBuffers[i], 3, 1, 0, 0);
+    VkBuffer vertexBuffers[] = { m_vertexBuffer };
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);
+    uint32_t numVertices = 3; // TODO
+    vkCmdDraw(m_commandBuffers[i], numVertices, 1, 0, 0);
     vkCmdEndRenderPass(m_commandBuffers[i]);
 
     VK_CHECK(vkEndCommandBuffer(m_commandBuffers[i]), "Failed to record command buffer");
   }
+}
+
+void ApplicationImpl::createVertexBuffer() {
+  std::vector<Vertex> vertices{
+    Vertex{glm::vec2{ 0.0, -0.5 }, glm::vec3{ 1.0, 0.0, 0.0 }},
+    Vertex{glm::vec2{ 0.5, 0.5 }, glm::vec3{ 0.0, 1.0, 0.0 }},
+    Vertex{glm::vec2{ -0.5, 0.5 }, glm::vec3{ 0.0, 0.0, 1.0 }}
+  };
+
+  VkBufferCreateInfo bufferInfo{};
+  bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+  bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+  bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  bufferInfo.flags = 0;
+
+  VK_CHECK(vkCreateBuffer(m_device, &bufferInfo, nullptr, &m_vertexBuffer),
+                          "Failed to create vertex buffer");
+
+  auto findMemoryType = [this](uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; ++i) {
+      if (typeFilter & (1 << i) &&
+        (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+
+        return i;
+      }
+    }
+
+    EXCEPTION("Failed to find suitable memory type");
+  };
+
+  VkMemoryRequirements memRequirements;
+  vkGetBufferMemoryRequirements(m_device, m_vertexBuffer, &memRequirements);
+
+  VkMemoryAllocateInfo allocInfo{};
+  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  allocInfo.allocationSize = memRequirements.size;
+  allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits,
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+  VK_CHECK(vkAllocateMemory(m_device, &allocInfo, nullptr, &m_vertexBufferMemory),
+           "Failed to allocate memory for vertex buffer");
+  
+  vkBindBufferMemory(m_device, m_vertexBuffer, m_vertexBufferMemory, 0);
+  
+  void* data = nullptr;
+  vkMapMemory(m_device, m_vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+  memcpy(data, vertices.data(), static_cast<size_t>(bufferInfo.size));
+  vkUnmapMemory(m_device, m_vertexBufferMemory);
 }
 
 void ApplicationImpl::createSyncObjects() {
@@ -764,6 +860,7 @@ void ApplicationImpl::initVulkan() {
   createGraphicsPipeline();
   createFramebuffers();
   createCommandPool();
+  createVertexBuffer();
   createCommandBuffers();
   createSyncObjects();
 }
@@ -952,6 +1049,8 @@ void ApplicationImpl::cleanUp() {
     vkDestroyImageView(m_device, imageView, nullptr);
   }
   vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
+  vkDestroyBuffer(m_device, m_vertexBuffer, nullptr);
+  vkFreeMemory(m_device, m_vertexBufferMemory, nullptr);
 #ifndef NDEBUG
   destroyDebugMessenger();
 #endif
