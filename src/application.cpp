@@ -49,8 +49,6 @@ std::vector<char> readFile(const std::string& filename) {
   return bytes;
 }
 
-}
-
 struct Vertex {
   glm::vec2 pos;
   glm::vec3 colour;
@@ -176,10 +174,6 @@ private:
   std::vector<VkFence> m_inFlightFences;
   std::vector<VkFence> m_imagesInFlight;
 };
-
-ApplicationPtr CreateApplication() {
-  return std::make_unique<ApplicationImpl>();
-}
 
 VkShaderModule ApplicationImpl::createShaderModule(const std::vector<char>& code) const {
   VkShaderModuleCreateInfo createInfo{};
@@ -787,7 +781,7 @@ void ApplicationImpl::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDevic
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-  
+
   vkBeginCommandBuffer(commandBuffer, &beginInfo);
   
   VkBufferCopy copyRegion{};
@@ -820,7 +814,7 @@ void ApplicationImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
   bufferInfo.flags = 0;
 
   VK_CHECK(vkCreateBuffer(m_device, &bufferInfo, nullptr, &buffer),
-                          "Failed to create vertex buffer");
+                          "Failed to create buffer");
 
   auto findMemoryType = [this, properties](uint32_t typeFilter) {
     VkPhysicalDeviceMemoryProperties memProperties;
@@ -846,7 +840,7 @@ void ApplicationImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
   allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits);
 
   VK_CHECK(vkAllocateMemory(m_device, &allocInfo, nullptr, &bufferMemory),
-           "Failed to allocate memory for vertex buffer");
+           "Failed to allocate memory for buffer");
 
   vkBindBufferMemory(m_device, buffer, bufferMemory, 0);
 }
@@ -1117,3 +1111,10 @@ void ApplicationImpl::cleanUp() {
   glfwDestroyWindow(m_window);
   glfwTerminate();
 }
+
+}
+
+ApplicationPtr CreateApplication() {
+  return std::make_unique<ApplicationImpl>();
+}
+
