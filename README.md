@@ -32,3 +32,9 @@ To build the app, from project root, run
         cmake -G "Unix Makefiles" ../..
         make -j4
 ```
+
+To-Do
+-----
+
+* Swap chain recreation on window resize and minimization
+
