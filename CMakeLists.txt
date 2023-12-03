@@ -45,6 +45,7 @@ target_include_directories(
   PRIVATE
     "${PROJECT_BINARY_DIR}/include" # Location of version.hpp
     "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/vendor/stb/include"
 )
 
 target_link_libraries(${TARGET_NAME} vulkan glm::glm glfw)
@@ -95,3 +96,8 @@ add_custom_target(vert_shaders DEPENDS ${VERT_SHADER_BINARIES})
 
 add_dependencies(${TARGET_NAME} frag_shaders)
 add_dependencies(${TARGET_NAME} vert_shaders)
+
+add_custom_target(
+  link_textures ALL
+  COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_SOURCE_DIR}/textures ${PROJECT_BINARY_DIR}/textures
+)
