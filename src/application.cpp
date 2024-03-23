@@ -14,6 +14,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include <array>
 #include <iostream>
 #include <vector>
 #include <algorithm>

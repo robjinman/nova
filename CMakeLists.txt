@@ -16,20 +16,28 @@ endif()
 message("Building ${CMAKE_BUILD_TYPE} configuration...")
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
-include(common)
-
-set(VENDOR_DIR ${PROJECT_SOURCE_DIR}/vendor/build/${PLATFORM_NAME})
-list(APPEND CMAKE_PREFIX_PATH "${VENDOR_DIR}/glfw_bin/lib/cmake")
-list(APPEND CMAKE_PREFIX_PATH "${VENDOR_DIR}/glm_src/src/libglm/cmake/glm")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Vulkan REQUIRED)
-find_package(glfw3 REQUIRED)
-find_package(glm REQUIRED)
 
-set(GLSLC_EXE "${VENDOR_DIR}/shaderc/bin/glslc")
+include(FetchContent)
+set(FETCHCONTENT_BASE_DIR ${PROJECT_SOURCE_DIR}/dependencies/${CMAKE_BUILD_TYPE})
+
+FetchContent_Declare(glfw
+  URL https://github.com/glfw/glfw/archive/refs/tags/3.4.tar.gz
+  DOWNLOAD_EXTRACT_TIMESTAMP ON
+)
+
+FetchContent_MakeAvailable(glfw)
+
+FetchContent_Declare(glm
+  URL https://github.com/g-truc/glm/archive/refs/tags/1.0.1.tar.gz
+  DOWNLOAD_EXTRACT_TIMESTAMP ON
+)
+
+FetchContent_MakeAvailable(glm)
 
 configure_file(
   "${PROJECT_SOURCE_DIR}/src/version_in.hpp"
@@ -48,19 +56,27 @@ target_include_directories(
     "${PROJECT_SOURCE_DIR}/vendor/stb/include"
 )
 
-target_link_libraries(${TARGET_NAME} vulkan glm::glm glfw)
+target_link_libraries(${TARGET_NAME} Vulkan::Vulkan glm::glm glfw)
 
-set(COMPILER_FLAGS -Wextra -Wall)
-set(DEBUG_FLAGS ${COMPILER_FLAGS} -g)
-set(RELEASE_FLAGS ${COMPILER_FLAGS} -O3 -DNDEBUG)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  set(COMPILE_FLAGS -Wextra -Wall)
+  set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
+  set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  set(COMPILE_FLAGS /W4)
+  set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS})
+  set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} /O2)
+endif()
 
-target_compile_options(${TARGET_NAME} PUBLIC "$<$<CONFIG:DEBUG>:${DEBUG_FLAGS}>")
-target_compile_options(${TARGET_NAME} PUBLIC "$<$<CONFIG:RELEASE>:${RELEASE_FLAGS}>")
+target_compile_options(${TARGET_NAME} PUBLIC "$<$<CONFIG:DEBUG>:${DEBUG_COMPILE_FLAGS}>")
+target_compile_options(${TARGET_NAME} PUBLIC "$<$<CONFIG:RELEASE>:${RELEASE_COMPILE_FLAGS}>")
 
 set(SHADER_BINARY_DIR "${PROJECT_BINARY_DIR}/shaders")
 
 file(GLOB FRAG_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/shaders/fragment/*.glsl")
 file(GLOB VERT_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/shaders/vertex/*.glsl")
+
+find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
 
 set(FRAG_SHADER_BINARIES "")
 foreach(SHADER_SOURCE ${FRAG_SHADER_SOURCES})
@@ -71,7 +87,7 @@ foreach(SHADER_SOURCE ${FRAG_SHADER_SOURCES})
   add_custom_command(
     OUTPUT ${SHADER_BINARY}
     COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_BINARY_DIR}/fragment"
-    COMMAND ${GLSLC_EXE} -fshader-stage=fragment ${SHADER_SOURCE} -o ${SHADER_BINARY}
+    COMMAND ${glslc_executable} -fshader-stage=fragment ${SHADER_SOURCE} -o ${SHADER_BINARY}
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
     MAIN_DEPENDENCY ${SHADER_SOURCE}
   )
@@ -87,7 +103,7 @@ foreach(SHADER_SOURCE ${VERT_SHADER_SOURCES})
   add_custom_command(
     OUTPUT ${SHADER_BINARY}
     COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_BINARY_DIR}/vertex"
-    COMMAND ${GLSLC_EXE} -fshader-stage=vertex ${SHADER_SOURCE} -o ${SHADER_BINARY}
+    COMMAND ${glslc_executable} -fshader-stage=vertex ${SHADER_SOURCE} -o ${SHADER_BINARY}
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
     MAIN_DEPENDENCY ${SHADER_SOURCE}
   )
