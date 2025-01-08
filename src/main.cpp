@@ -2,7 +2,8 @@
 #include "application.hpp"
 #include "version.hpp"
 
-int main() {
+int main()
+{
   std::cout << "Vulkan Test Lab - Version "
             << VulkanTestLab_VERSION_MAJOR
             << "."

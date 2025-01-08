@@ -3,7 +3,8 @@
 #include <string>
 #include <memory>
 
-class Logger {
+class Logger
+{
   public:
     virtual void debug(const std::string& msg, bool newline = true) = 0;
     virtual void info(const std::string& msg, bool newline = true) = 0;

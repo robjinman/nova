@@ -3,7 +3,7 @@
 #include <sstream>
 
 #define STR(x) [&]() {\
-  std::stringstream ss; \
-  ss << x; \
-  return ss.str(); \
+  std::stringstream MAC_ss; \
+  MAC_ss << x; \
+  return MAC_ss.str(); \
 }()
