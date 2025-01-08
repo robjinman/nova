@@ -1,7 +1,11 @@
 #include "logger.hpp"
 #include <iostream>
 
-class LoggerImpl : public Logger {
+namespace
+{
+
+class LoggerImpl : public Logger
+{
   public:
     LoggerImpl(std::ostream& errorStream, std::ostream& warningStream, std::ostream& infoStream,
       std::ostream& debugStream)
@@ -24,7 +28,8 @@ class LoggerImpl : public Logger {
     void endMessage(std::ostream& stream, bool newline) const;
 };
 
-void LoggerImpl::endMessage(std::ostream& stream, bool newline) const {
+void LoggerImpl::endMessage(std::ostream& stream, bool newline) const
+{
   if (newline) {
     stream << std::endl;
   }
@@ -33,28 +38,34 @@ void LoggerImpl::endMessage(std::ostream& stream, bool newline) const {
   }
 }
 
-void LoggerImpl::debug(const std::string& msg, bool newline) {
+void LoggerImpl::debug(const std::string& msg, bool newline)
+{
   m_debug << "[ DEBUG ] " << msg;
   endMessage(m_debug, newline);
 }
 
-void LoggerImpl::info(const std::string& msg, bool newline) {
+void LoggerImpl::info(const std::string& msg, bool newline)
+{
   m_info << "[ INFO ] " << msg;
   endMessage(m_info, newline);
 }
 
-void LoggerImpl::warn(const std::string& msg, bool newline) {
+void LoggerImpl::warn(const std::string& msg, bool newline)
+{
   m_warning << "[ WARNING ] " << msg;
   endMessage(m_warning, newline);
 }
 
-void LoggerImpl::error(const std::string& msg, bool newline) {
+void LoggerImpl::error(const std::string& msg, bool newline)
+{
   m_error << "[ ERROR ] " << msg;
   endMessage(m_error, newline);
 }
 
-LoggerPtr createLogger(std::ostream& errorStream, std::ostream& warningStream,
-  std::ostream& infoStream, std::ostream& debugStream) {
+} // namespace
 
+LoggerPtr createLogger(std::ostream& errorStream, std::ostream& warningStream,
+  std::ostream& infoStream, std::ostream& debugStream)
+{
   return std::make_unique<LoggerImpl>(errorStream, warningStream, infoStream, debugStream);
 }

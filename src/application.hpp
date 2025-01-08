@@ -2,7 +2,8 @@
 
 #include <memory>
 
-class Application {
+class Application
+{
 public:
   virtual void run() = 0;
   virtual ~Application() {}

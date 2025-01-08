@@ -4,7 +4,8 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-class Renderer {
+class Renderer
+{
 public:
   virtual void beginFrame() = 0;
   virtual void endFrame() = 0;

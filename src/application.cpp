@@ -6,12 +6,17 @@
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-class ApplicationImpl : public Application {
+namespace
+{
+
+class ApplicationImpl : public Application
+{
 public:
   void run() override;
 };
 
-void ApplicationImpl::run() {
+void ApplicationImpl::run()
+{
   glfwInit();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Don't create OpenGL context
@@ -37,6 +42,9 @@ void ApplicationImpl::run() {
   glfwTerminate();
 }
 
-ApplicationPtr CreateApplication() {
+} // namespace
+
+ApplicationPtr CreateApplication()
+{
   return std::make_unique<ApplicationImpl>();
 }

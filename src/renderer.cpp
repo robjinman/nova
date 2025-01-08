@@ -24,7 +24,8 @@
 #include <chrono>
 #include <map>
 
-namespace {
+namespace
+{
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -36,7 +37,8 @@ const std::vector<const char*> DeviceExtensions = {
   VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-std::vector<char> readFile(const std::string& filename) {
+std::vector<char> readFile(const std::string& filename)
+{
   std::ifstream fin(filename, std::ios::ate | std::ios::binary);
 
   if (!fin.is_open()) {
@@ -52,7 +54,8 @@ std::vector<char> readFile(const std::string& filename) {
   return bytes;
 }
 
-struct Vertex {
+struct Vertex
+{
   glm::vec3 pos;
   glm::vec3 colour;
   glm::vec2 texCoord;
@@ -61,13 +64,15 @@ struct Vertex {
   static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
 };
 
-struct UniformBufferObject {
+struct UniformBufferObject
+{
   glm::mat4 model;
   glm::mat4 view;
   glm::mat4 proj;
 };
 
-VkVertexInputBindingDescription Vertex::getBindingDescription() {
+VkVertexInputBindingDescription Vertex::getBindingDescription()
+{
   VkVertexInputBindingDescription binding{};
 
   binding.binding = 0;
@@ -77,7 +82,8 @@ VkVertexInputBindingDescription Vertex::getBindingDescription() {
   return binding;
 }
 
-std::array<VkVertexInputAttributeDescription, 3> Vertex::getAttributeDescriptions() {
+std::array<VkVertexInputAttributeDescription, 3> Vertex::getAttributeDescriptions()
+{
   std::array<VkVertexInputAttributeDescription, 3> attributes{};
   
   attributes[0].binding = 0;
@@ -98,7 +104,8 @@ std::array<VkVertexInputAttributeDescription, 3> Vertex::getAttributeDescription
   return attributes;
 }
 
-struct QueueFamilyIndices {
+struct QueueFamilyIndices
+{
   std::optional<uint32_t> graphicsFamily;
   std::optional<uint32_t> presentFamily;
 
@@ -107,13 +114,15 @@ struct QueueFamilyIndices {
   }
 };
 
-struct SwapChainSupportDetails {
+struct SwapChainSupportDetails
+{
   VkSurfaceCapabilitiesKHR capabilities;
   std::vector<VkSurfaceFormatKHR> formats;
   std::vector<VkPresentModeKHR> presentModes;
 };
 
-class RendererImpl : public Renderer {
+class RendererImpl : public Renderer
+{
 public:
   RendererImpl(GLFWwindow& window, Logger& logger);
 
@@ -236,13 +245,14 @@ private:
   std::vector<uint16_t> m_indices;
 };
 
-bool RendererImpl::hasStencilComponent(VkFormat format) const {
+bool RendererImpl::hasStencilComponent(VkFormat format) const
+{
   return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 }
 
 uint32_t RendererImpl::findMemoryType(uint32_t typeFilter,
-  VkMemoryPropertyFlags properties) const {
-
+  VkMemoryPropertyFlags properties) const
+{
   VkPhysicalDeviceMemoryProperties memProperties;
   vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
 
@@ -259,8 +269,8 @@ uint32_t RendererImpl::findMemoryType(uint32_t typeFilter,
 
 RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
   : m_window(window)
-  , m_logger(logger) {
-
+  , m_logger(logger)
+{
   m_vertices = {
     {{ -0.5f, -0.5f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }},
     {{ 0.5f, -0.5f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }},
@@ -281,7 +291,8 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
   initVulkan();
 }
 
-VkShaderModule RendererImpl::createShaderModule(const std::vector<char>& code) {
+VkShaderModule RendererImpl::createShaderModule(const std::vector<char>& code)
+{
   VkShaderModuleCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
   createInfo.codeSize = code.size();
@@ -295,8 +306,8 @@ VkShaderModule RendererImpl::createShaderModule(const std::vector<char>& code) {
 }
 
 VkExtent2D RendererImpl::chooseSwapChainExtent(
-  const VkSurfaceCapabilitiesKHR& capabilities) const {
-
+  const VkSurfaceCapabilitiesKHR& capabilities) const
+{
   if (capabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
     int width = 0;
     int height = 0;
@@ -320,8 +331,8 @@ VkExtent2D RendererImpl::chooseSwapChainExtent(
 }
 
 VkPresentModeKHR RendererImpl::chooseSwapChainPresentMode(
-  const std::vector<VkPresentModeKHR>& availableModes) const {
-
+  const std::vector<VkPresentModeKHR>& availableModes) const
+{
   for (auto& mode : availableModes) {
     if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
       return mode;
@@ -332,8 +343,8 @@ VkPresentModeKHR RendererImpl::chooseSwapChainPresentMode(
 }
 
 VkSurfaceFormatKHR RendererImpl::chooseSwapChainSurfaceFormat(
-  const std::vector<VkSurfaceFormatKHR>& availableFormats) const {
-
+  const std::vector<VkSurfaceFormatKHR>& availableFormats) const
+{
   for (const auto& format : availableFormats) {
     if (format.format == VK_FORMAT_B8G8R8A8_SRGB &&
         format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
@@ -346,7 +357,8 @@ VkSurfaceFormatKHR RendererImpl::chooseSwapChainSurfaceFormat(
   return availableFormats[0];
 }
 
-void RendererImpl::createSwapChain() {
+void RendererImpl::createSwapChain()
+{
   auto swapChainSupport = querySwapChainSupport(m_physicalDevice);
   auto surfaceFormat = chooseSwapChainSurfaceFormat(swapChainSupport.formats);
   auto presentMode = chooseSwapChainPresentMode(swapChainSupport.presentModes);
@@ -399,7 +411,8 @@ void RendererImpl::createSwapChain() {
   m_swapChainExtent = extent;
 }
 
-void RendererImpl::cleanupSwapChain() {
+void RendererImpl::cleanupSwapChain()
+{
   vkDestroyImageView(m_device, m_depthImageView, nullptr);
   vkDestroyImage(m_device, m_depthImage, nullptr);
   vkFreeMemory(m_device, m_depthImageMemory, nullptr);
@@ -413,7 +426,8 @@ void RendererImpl::cleanupSwapChain() {
   vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
 }
 
-void RendererImpl::recreateSwapChain() {
+void RendererImpl::recreateSwapChain()
+{
   int width = 0;
   int height = 0;
   glfwGetFramebufferSize(&m_window, &width, &height);
@@ -434,7 +448,8 @@ void RendererImpl::recreateSwapChain() {
   // example, the window has moved from a standard to a high dynamic range monitor.
 }
 
-SwapChainSupportDetails RendererImpl::querySwapChainSupport(VkPhysicalDevice device) const {
+SwapChainSupportDetails RendererImpl::querySwapChainSupport(VkPhysicalDevice device) const
+{
   SwapChainSupportDetails details;
 
   VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, m_surface, &details.capabilities),
@@ -459,7 +474,8 @@ SwapChainSupportDetails RendererImpl::querySwapChainSupport(VkPhysicalDevice dev
   return details;
 }
 
-QueueFamilyIndices RendererImpl::findQueueFamilies(VkPhysicalDevice device) const {
+QueueFamilyIndices RendererImpl::findQueueFamilies(VkPhysicalDevice device) const
+{
   QueueFamilyIndices indices;
 
   uint32_t queueFamilyCount = 0;
@@ -489,21 +505,23 @@ QueueFamilyIndices RendererImpl::findQueueFamilies(VkPhysicalDevice device) cons
   return indices;
 }
 
-void RendererImpl::onFramebufferResize(GLFWwindow* window, int, int) {
+void RendererImpl::onFramebufferResize(GLFWwindow* window, int, int)
+{
   auto app = reinterpret_cast<RendererImpl*>(glfwGetWindowUserPointer(window));
   app->m_framebufferResized = true;
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL RendererImpl::debugCallback(
   VkDebugUtilsMessageSeverityFlagBitsEXT, VkDebugUtilsMessageTypeFlagsEXT,
-  const VkDebugUtilsMessengerCallbackDataEXT* data, void*) {
-
+  const VkDebugUtilsMessengerCallbackDataEXT* data, void*)
+{
   std::cerr << "Validation layer: " << data->pMessage << std::endl;
 
   return VK_FALSE;
 }
 
-std::vector<const char*> RendererImpl::getRequiredExtensions() const {
+std::vector<const char*> RendererImpl::getRequiredExtensions() const
+{
   std::vector<const char*> extensions;
 
   uint32_t glfwExtensionCount = 0;
@@ -520,7 +538,8 @@ std::vector<const char*> RendererImpl::getRequiredExtensions() const {
   return extensions;
 }
 
-bool RendererImpl::checkDeviceExtensionSupport(VkPhysicalDevice device) const {
+bool RendererImpl::checkDeviceExtensionSupport(VkPhysicalDevice device) const
+{
   uint32_t count;
   VK_CHECK(vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr),
     "Failed to enumerate device extensions");
@@ -541,7 +560,8 @@ bool RendererImpl::checkDeviceExtensionSupport(VkPhysicalDevice device) const {
   return true;
 }
 
-void RendererImpl::checkValidationLayerSupport() const {
+void RendererImpl::checkValidationLayerSupport() const
+{
   uint32_t layerCount;
   VK_CHECK(vkEnumerateInstanceLayerProperties(&layerCount, nullptr),
     "Failed to enumerate instance layer properties");
@@ -560,7 +580,8 @@ void RendererImpl::checkValidationLayerSupport() const {
   }
 }
 
-bool RendererImpl::isPhysicalDeviceSuitable(VkPhysicalDevice device) const {
+bool RendererImpl::isPhysicalDeviceSuitable(VkPhysicalDevice device) const
+{
   bool extensionsSupported = checkDeviceExtensionSupport(device);
 
   if (!extensionsSupported) {
@@ -579,7 +600,8 @@ bool RendererImpl::isPhysicalDeviceSuitable(VkPhysicalDevice device) const {
   return swapChainAdequate && indices.isComplete() && supportedFeatures.samplerAnisotropy;
 }
 
-void RendererImpl::createLogicalDevice() {
+void RendererImpl::createLogicalDevice()
+{
   auto indices = findQueueFamilies(m_physicalDevice);
   std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
   std::set<uint32_t> uniqueQueueFamilies = {
@@ -625,8 +647,8 @@ void RendererImpl::createLogicalDevice() {
 }
 
 VkImageView RendererImpl::createImageView(VkImage image, VkFormat format,
-  VkImageAspectFlags aspectFlags) {
-
+  VkImageAspectFlags aspectFlags)
+{
   VkImageViewCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
   createInfo.image = image;
@@ -650,7 +672,8 @@ VkImageView RendererImpl::createImageView(VkImage image, VkFormat format,
   return imageView;
 }
 
-void RendererImpl::createImageViews() {
+void RendererImpl::createImageViews()
+{
   m_swapChainImageViews.resize(m_swapChainImages.size());
 
   for (size_t i = 0; i < m_swapChainImages.size(); ++i) {
@@ -659,7 +682,8 @@ void RendererImpl::createImageViews() {
   }
 }
 
-void RendererImpl::createDescriptorSetLayout() {
+void RendererImpl::createDescriptorSetLayout()
+{
   VkDescriptorSetLayoutBinding uboLayoutBinding{};
   uboLayoutBinding.binding = 0;
   uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -688,7 +712,8 @@ void RendererImpl::createDescriptorSetLayout() {
     "Failed to create descriptor set layout");
 }
 
-void RendererImpl::createGraphicsPipeline() {
+void RendererImpl::createGraphicsPipeline()
+{
   auto vertShaderCode = readFile("shaders/vertex/shader.spv");
   auto fragShaderCode = readFile("shaders/fragment/shader.spv");
 
@@ -835,7 +860,8 @@ void RendererImpl::createGraphicsPipeline() {
   vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
 }
 
-void RendererImpl::createRenderPass() {
+void RendererImpl::createRenderPass()
+{
   VkAttachmentDescription colourAttachment{};
   colourAttachment.format = m_swapChainImageFormat;
   colourAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -900,7 +926,8 @@ void RendererImpl::createRenderPass() {
     "Failed to create render pass");
 }
 
-void RendererImpl::createFramebuffers() {
+void RendererImpl::createFramebuffers()
+{
   m_swapChainFramebuffers.resize(m_swapChainImageViews.size());
 
   for (size_t i = 0; i < m_swapChainImageViews.size(); ++i) {
@@ -920,7 +947,8 @@ void RendererImpl::createFramebuffers() {
   }
 }
 
-void RendererImpl::createCommandPool() {
+void RendererImpl::createCommandPool()
+{
   QueueFamilyIndices queueFamilyIndices = findQueueFamilies(m_physicalDevice);
   VkCommandPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -931,7 +959,8 @@ void RendererImpl::createCommandPool() {
     "Failed to create command pool");
 }
 
-void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+{
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   beginInfo.flags = 0;
@@ -966,7 +995,8 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
   VK_CHECK(vkEndCommandBuffer(commandBuffer), "Failed to record command buffer");
 }
 
-void RendererImpl::createCommandBuffers() {
+void RendererImpl::createCommandBuffers()
+{
   m_commandBuffers.resize(m_swapChainFramebuffers.size());
 
   VkCommandBufferAllocateInfo allocInfo{};
@@ -979,7 +1009,8 @@ void RendererImpl::createCommandBuffers() {
     "Failed to allocate command buffers");
 }
 
-VkCommandBuffer RendererImpl::beginSingleTimeCommands() {
+VkCommandBuffer RendererImpl::beginSingleTimeCommands()
+{
   VkCommandBufferAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -998,7 +1029,8 @@ VkCommandBuffer RendererImpl::beginSingleTimeCommands() {
   return commandBuffer;
 }
 
-void RendererImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
+void RendererImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
+{
   vkEndCommandBuffer(commandBuffer);
   
   VkSubmitInfo submitInfo{};
@@ -1013,8 +1045,8 @@ void RendererImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
 }
 
 void RendererImpl::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
-  VkImageLayout newLayout) {
-
+  VkImageLayout newLayout)
+{
   VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
   VkImageMemoryBarrier barrier{};
@@ -1059,8 +1091,8 @@ void RendererImpl::transitionImageLayout(VkImage image, VkFormat format, VkImage
 
 void RendererImpl::createImage(uint32_t width, uint32_t height, VkFormat format,
   VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image,
-  VkDeviceMemory& imageMemory) {
-
+  VkDeviceMemory& imageMemory)
+{
   VkImageCreateInfo imageInfo{};
   imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
   imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -1093,12 +1125,14 @@ void RendererImpl::createImage(uint32_t width, uint32_t height, VkFormat format,
   vkBindImageMemory(m_device, image, imageMemory, 0);
 }
 
-void RendererImpl::createTextureImageView() {
+void RendererImpl::createTextureImageView()
+{
   m_textureImageView = createImageView(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB,
     VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
-void RendererImpl::createTextureImage() {
+void RendererImpl::createTextureImage()
+{
   int width = 0;
   int height = 0;
   int channels = 0;
@@ -1140,8 +1174,8 @@ void RendererImpl::createTextureImage() {
 }
 
 void RendererImpl::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
-  uint32_t height) {
-
+  uint32_t height)
+{
   VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
   VkBufferImageCopy region{};
@@ -1163,7 +1197,8 @@ void RendererImpl::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t wi
   endSingleTimeCommands(commandBuffer);
 }
 
-void RendererImpl::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+void RendererImpl::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+{
   VkCommandBuffer commandBuffer = beginSingleTimeCommands();
   
   VkBufferCopy copyRegion{};
@@ -1176,8 +1211,8 @@ void RendererImpl::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSi
 }
 
 void RendererImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-  VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
-
+  VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
+{
   VkBufferCreateInfo bufferInfo{};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   bufferInfo.size = size;
@@ -1201,7 +1236,8 @@ void RendererImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
   vkBindBufferMemory(m_device, buffer, bufferMemory, 0);
 }
 
-void RendererImpl::createVertexBuffer() {
+void RendererImpl::createVertexBuffer()
+{
   VkDeviceSize size = sizeof(m_vertices[0]) * m_vertices.size();
   
   VkBuffer stagingBuffer;
@@ -1224,7 +1260,8 @@ void RendererImpl::createVertexBuffer() {
   vkFreeMemory(m_device, stagingBufferMemory, nullptr);
 }
 
-void RendererImpl::createIndexBuffer() {
+void RendererImpl::createIndexBuffer()
+{
   VkDeviceSize size = sizeof(m_indices[0]) * m_indices.size();
 
   VkBuffer stagingBuffer;
@@ -1247,7 +1284,8 @@ void RendererImpl::createIndexBuffer() {
   vkFreeMemory(m_device, stagingBufferMemory, nullptr);
 }
 
-void RendererImpl::createUniformBuffers() {
+void RendererImpl::createUniformBuffers()
+{
   VkDeviceSize size = sizeof(UniformBufferObject);
 
   m_uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1263,7 +1301,8 @@ void RendererImpl::createUniformBuffers() {
   }
 }
 
-void RendererImpl::createDescriptorPool() {
+void RendererImpl::createDescriptorPool()
+{
   std::array<VkDescriptorPoolSize, 2> poolSizes{};
 
   poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1282,7 +1321,8 @@ void RendererImpl::createDescriptorPool() {
     "Failed to create descriptor pool");
 }
 
-void RendererImpl::createDescriptorSets() {
+void RendererImpl::createDescriptorSets()
+{
   std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_descriptorSetLayout);
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -1326,7 +1366,8 @@ void RendererImpl::createDescriptorSets() {
   }
 }
 
-void RendererImpl::createSyncObjects() {
+void RendererImpl::createSyncObjects()
+{
   m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
   m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
   m_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1348,7 +1389,8 @@ void RendererImpl::createSyncObjects() {
   }
 }
 
-VkFormat RendererImpl::findDepthFormat() const {
+VkFormat RendererImpl::findDepthFormat() const
+{
   auto findSupportedFormat = [this](const std::vector<VkFormat>& candidates, VkImageTiling tiling,
     VkFormatFeatureFlags features) {
 
@@ -1376,7 +1418,8 @@ VkFormat RendererImpl::findDepthFormat() const {
   }, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 }
 
-void RendererImpl::createDepthResources() {
+void RendererImpl::createDepthResources()
+{
   VkFormat depthFormat = findDepthFormat();
 
   createImage(m_swapChainExtent.width, m_swapChainExtent.height, depthFormat,
@@ -1386,7 +1429,8 @@ void RendererImpl::createDepthResources() {
   m_depthImageView = createImageView(m_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
-void RendererImpl::createTextureSampler() {
+void RendererImpl::createTextureSampler()
+{
   VkPhysicalDeviceProperties properties{};
   vkGetPhysicalDeviceProperties(m_physicalDevice, &properties);
 
@@ -1412,7 +1456,8 @@ void RendererImpl::createTextureSampler() {
     "Failed to create texture sampler");
 }
 
-void RendererImpl::initVulkan() {
+void RendererImpl::initVulkan()
+{
   createInstance();
 #ifndef NDEBUG
   setupDebugMessenger();
@@ -1440,12 +1485,14 @@ void RendererImpl::initVulkan() {
   createSyncObjects();
 }
 
-void RendererImpl::createSurface() {
+void RendererImpl::createSurface()
+{
   VK_CHECK(glfwCreateWindowSurface(m_instance, &m_window, nullptr, &m_surface),
     "Failed to create window surface");
 }
 
-void RendererImpl::pickPhysicalDevice() {
+void RendererImpl::pickPhysicalDevice()
+{
   uint32_t deviceCount = 0;
   VK_CHECK(vkEnumeratePhysicalDevices(m_instance, &deviceCount, nullptr),
     "Failed to enumerate physical devices");
@@ -1515,7 +1562,8 @@ void RendererImpl::pickPhysicalDevice() {
   m_physicalDevice = devices[index];
 }
 
-void RendererImpl::createInstance() {
+void RendererImpl::createInstance()
+{
 #ifndef NDEBUG
   checkValidationLayerSupport();
 #endif
@@ -1551,7 +1599,8 @@ void RendererImpl::createInstance() {
   VK_CHECK(vkCreateInstance(&createInfo, nullptr, &m_instance), "Failed to create instance");
 }
 
-VkDebugUtilsMessengerCreateInfoEXT RendererImpl::getDebugMessengerCreateInfo() const {
+VkDebugUtilsMessengerCreateInfoEXT RendererImpl::getDebugMessengerCreateInfo() const
+{
   VkDebugUtilsMessengerCreateInfoEXT createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
   createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
@@ -1565,7 +1614,8 @@ VkDebugUtilsMessengerCreateInfoEXT RendererImpl::getDebugMessengerCreateInfo() c
   return createInfo;
 }
 
-void RendererImpl::setupDebugMessenger() {
+void RendererImpl::setupDebugMessenger()
+{
   auto createInfo = getDebugMessengerCreateInfo();
 
   auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
@@ -1577,7 +1627,8 @@ void RendererImpl::setupDebugMessenger() {
     "Error setting up debug messenger");
 }
 
-void RendererImpl::updateUniformBuffer() {
+void RendererImpl::updateUniformBuffer()
+{
   static auto startTime = std::chrono::high_resolution_clock::now();
   auto currentTime = std::chrono::high_resolution_clock::now();
   auto diff = currentTime - startTime;
@@ -1598,7 +1649,8 @@ void RendererImpl::updateUniformBuffer() {
   memcpy(m_uniformBuffersMapped[m_currentFrame], &ubo, sizeof(ubo));
 }
 
-void RendererImpl::beginFrame() {
+void RendererImpl::beginFrame()
+{
   VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
     "Error waiting for fence");
 
@@ -1623,7 +1675,8 @@ void RendererImpl::beginFrame() {
   updateUniformBuffer();
 }
 
-void RendererImpl::endFrame() {
+void RendererImpl::endFrame()
+{
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -1666,13 +1719,15 @@ void RendererImpl::endFrame() {
   m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void RendererImpl::destroyDebugMessenger() {
+void RendererImpl::destroyDebugMessenger()
+{
   auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
     vkGetInstanceProcAddr(m_instance, "vkDestroyDebugUtilsMessengerEXT"));
   func(m_instance, m_debugMessenger, nullptr);
 }
 
-RendererImpl::~RendererImpl() {
+RendererImpl::~RendererImpl()
+{
   vkDeviceWaitIdle(m_device);
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
@@ -1707,7 +1762,7 @@ RendererImpl::~RendererImpl() {
   vkDestroyInstance(m_instance, nullptr);
 }
 
-}
+} // namespace
 
 RendererPtr CreateRenderer(GLFWwindow& window, Logger& logger) {
   return std::make_unique<RendererImpl>(window, logger);
