@@ -1,40 +1,62 @@
-Vulkan Test Lab
-===============
+nova
+====
 
 Building from source
 --------------------
 
-### Linux
+### Prerequisites
 
-Install the development dependencies. On Ubuntu 20, run
+#### linux
+
+* cmake
+* vcpkg
+* Vulkan SDK
+
+#### OS X
+
+* XCode
+* cmake
+* vcpkg
+* Vulkan SDK
+* homebrew
+
+#### Windows
+
+* Visual Studio 17 2022
+* cmake
+* vcpkg
+* Vulkan SDK
+
+Make sure everything you need is on your PATH, including objdump.exe, which should be installed with Visual Studio. You can find the location of objdump by opening a Native Tools command prompt and typing `where objdump`.
+
+### Build
+
+To build, just run the relevant workflow from the project root.
+
+To see the list of workflows
 
 ```
-        sudo apt install \
-          build-essential \
-          libvulkan-dev \
-          vulkan-validationLayers-dev
+    cmake --workflow --list-presets
 ```
 
-To build third-party libraries, from the project root, run
+For example, to make a debug build on linux
 
 ```
-        mkdir -p vendor/build/linux
-        cd vendor/build/linux
-        cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release ../..
-        make -j4
+    cmake --workflow --preset=linux-debug
 ```
 
-To build the app, from project root, run
+You can also run the configure/build steps separately
 
 ```
-        mkdir -p build/linux
-        cd build/linux
-        cmake -G "Unix Makefiles" ../..
-        make -j4
+    cmake --preset=linux-debug
+    cmake --build --preset=linux-debug
 ```
 
-To-Do
------
+#### Building icon set for OSX
 
-* Swap chain recreation on window resize and minimization
+```
+    brew install imagemagick
 
+    cd ./osx
+    ./build_icon_set ./icon.png
+```
