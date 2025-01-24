@@ -55,11 +55,15 @@ elseif(PLATFORM_OSX)
   set(COMPILE_FLAGS -Wextra -Wall)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
-  set(CPACK_BUNDLE_NAME "Nova")
-  set(CPACK_BUNDLE_PLIST "${CMAKE_SOURCE_DIR}/osx/Info.plist")
-  set(CPACK_BUNDLE_ICON "${CMAKE_SOURCE_DIR}/osx/nova.icns")
-  set(CPACK_BUNDLE_STARTUP_COMMAND "${TARGET_NAME}")
   add_executable(${TARGET_NAME} ${CPP_SOURCES})
+  set_target_properties(${TARGET_NAME} PROPERTIES
+    MACOSX_BUNDLE TRUE
+    MACOSX_BUNDLE_GUI_IDENTIFIER "nova"
+    MACOSX_BUNDLE_BUNDLE_NAME "Nova"
+    MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
+    MACOSX_BUNDLE_ICON_FILE "nova.icns"
+  )
 endif()
 
 target_include_directories(${TARGET_NAME}
@@ -120,11 +124,33 @@ add_custom_target(
 set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ".")
 include(InstallRequiredSystemLibraries)
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/textures" DESTINATION ".")
-install(DIRECTORY "${PROJECT_BINARY_DIR}/shaders" DESTINATION ".")
+if (PLATFORM_OSX)
+  install(TARGETS ${TARGET_NAME}
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION .
+  )
+  install(DIRECTORY "${PROJECT_SOURCE_DIR}/textures"
+    DESTINATION "${TARGET_NAME}.app/Contents/Resources")
+  install(DIRECTORY "${PROJECT_BINARY_DIR}/shaders"
+    DESTINATION "${TARGET_NAME}.app/Contents/Resources")
+  install(FILES "${PROJECT_SOURCE_DIR}/osx/nova.icns"
+    DESTINATION "${TARGET_NAME}.app/Contents/Resources")
+  install(FILES "/usr/local/lib/libMoltenVK.dylib"
+    DESTINATION "${TARGET_NAME}.app/Contents/Frameworks")
+  install(FILES "${PROJECT_SOURCE_DIR}/osx/MoltenVK_icd.json"
+    DESTINATION "${TARGET_NAME}.app/Contents/Resources/vulkan/icd.d")
 
-if (PLATFORM_LINUX OR PLATFORM_WINDOWS)
+  install(CODE "
+    include(BundleUtilities)
+    message(\"${CMAKE_INSTALL_PREFIX}/${TARGET_NAME}.app\")
+    fixup_bundle(\"${CMAKE_INSTALL_PREFIX}/${TARGET_NAME}.app\" \"${CMAKE_INSTALL_PREFIX}/${TARGET_NAME}.app/Contents/Frameworks/libMoltenVK.dylib\" \"\")
+    " COMPONENT Runtime)
+
+  install(CODE "execute_process(COMMAND codesign --deep --force --sign - ${CMAKE_INSTALL_PREFIX}/${TARGET_NAME}.app)")
+else()
   install(TARGETS ${TARGET_NAME} DESTINATION ".")
+  install(DIRECTORY "${PROJECT_SOURCE_DIR}/textures" DESTINATION ".")
+  install(DIRECTORY "${PROJECT_BINARY_DIR}/shaders" DESTINATION ".")
 endif()
 
 set(CPACK_PACKAGE_VENDOR "Rob Jinman")

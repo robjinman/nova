@@ -52,7 +52,11 @@ You can also run the configure/build steps separately
     cmake --build --preset=linux-debug
 ```
 
-#### Building icon set for OSX
+### Creating deployables
+
+#### OS X
+
+Build icon set for OSX
 
 ```
     brew install imagemagick
@@ -60,3 +64,9 @@ You can also run the configure/build steps separately
     cd ./osx
     ./build_icon_set ./icon.png
 ```
+
+After running the osx-release preset, create an .app bundle with
+
+'''
+    cmake --install ./build/osx/release
+'''
