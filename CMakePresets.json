@@ -34,7 +34,10 @@
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALLED_DIR": "${sourceDir}/build/osx/vcpkg_installed",
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/osx/release/package",
+        "CMAKE_MACOSX_RPATH": true,
+        "CMAKE_INSTALL_RPATH": "/usr/local/lib"
       }
     },
     {
@@ -116,11 +119,6 @@
       "generators": ["ZIP"]
     },
     {
-      "name": "osx-app",
-      "configurePreset": "osx-release",
-      "generators": ["Bundle"]
-    },
-    {
       "name": "windows-zip",
       "configurePreset": "windows-release",
       "generators": ["ZIP"]
@@ -184,10 +182,6 @@
         {
           "type": "build",
           "name": "osx-release"
-        },
-        {
-          "type": "package",
-          "name": "osx-app"
         }
       ]
     },
