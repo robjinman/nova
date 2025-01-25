@@ -142,7 +142,6 @@ if (PLATFORM_OSX)
 
   install(CODE "
     include(BundleUtilities)
-    message(\"${CMAKE_INSTALL_PREFIX}/${TARGET_NAME}.app\")
     fixup_bundle(\"${CMAKE_INSTALL_PREFIX}/${TARGET_NAME}.app\" \"${CMAKE_INSTALL_PREFIX}/${TARGET_NAME}.app/Contents/Frameworks/libMoltenVK.dylib\" \"\")
     " COMPONENT Runtime)
 
