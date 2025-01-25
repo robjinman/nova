@@ -4,12 +4,6 @@
 #include "logger.hpp"
 #include "utils.hpp"
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
@@ -57,15 +51,16 @@ std::vector<char> readFile(const std::string& filename)
   return bytes;
 }
 
-struct Vertex
+struct ModelData
 {
-  glm::vec3 pos;
-  glm::vec3 colour;
-  glm::vec2 texCoord;
-  
-  static VkVertexInputBindingDescription getBindingDescription();
-  static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
+  ModelPtr model;
+  VkBuffer vertexBuffer;
+  VkDeviceMemory vertexBufferMemory;
+  VkBuffer indexBuffer;
+  VkDeviceMemory indexBufferMemory;
 };
+
+using ModelDataPtr = std::unique_ptr<ModelData>;
 
 struct UniformBufferObject
 {
@@ -74,7 +69,7 @@ struct UniformBufferObject
   glm::mat4 proj;
 };
 
-VkVertexInputBindingDescription Vertex::getBindingDescription()
+VkVertexInputBindingDescription getBindingDescription()
 {
   VkVertexInputBindingDescription binding{};
 
@@ -85,7 +80,7 @@ VkVertexInputBindingDescription Vertex::getBindingDescription()
   return binding;
 }
 
-std::array<VkVertexInputAttributeDescription, 3> Vertex::getAttributeDescriptions()
+std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions()
 {
   std::array<VkVertexInputAttributeDescription, 3> attributes{};
   
@@ -129,8 +124,9 @@ class RendererImpl : public Renderer
 public:
   RendererImpl(GLFWwindow& window, Logger& logger);
 
-  void beginFrame() override;
-  void endFrame() override;
+  void update() override;
+  ModelId addModel(ModelPtr model) override;
+  void removeModel(ModelId id) override;
 
   ~RendererImpl() override;
 
@@ -141,6 +137,8 @@ private:
 
   static void onFramebufferResize(GLFWwindow* window, int width, int height);
 
+  void beginFrame();
+  void endFrame();
   void initVulkan();
   void createInstance();
   void createSurface();
@@ -174,12 +172,12 @@ private:
   void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
   void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
     VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-  void createVertexBuffer();
+  VkBuffer createVertexBuffer(const VertexList& vertices, VkDeviceMemory& vertexBufferMemory);
   void createTextureImage();
   void createTextureImageView();
   void createTextureSampler();
   void createDepthResources();
-  void createIndexBuffer();
+  VkBuffer createIndexBuffer(const IndexList& indices, VkDeviceMemory& indexBufferMemory);
   void createUniformBuffers();
   void createDescriptorPool();
   void createDescriptorSets();
@@ -220,10 +218,6 @@ private:
   VkDescriptorSetLayout m_descriptorSetLayout;
   VkPipelineLayout m_pipelineLayout;
   VkPipeline m_graphicsPipeline;
-  VkBuffer m_vertexBuffer;
-  VkDeviceMemory m_vertexBufferMemory;
-  VkBuffer m_indexBuffer;
-  VkDeviceMemory m_indexBufferMemory;
   VkImage m_textureImage;
   VkDeviceMemory m_textureImageMemory;
   VkImageView m_textureImageView;
@@ -244,9 +238,42 @@ private:
   std::vector<VkSemaphore> m_renderFinishedSemaphores;
   std::vector<VkFence> m_inFlightFences;
 
-  std::vector<Vertex> m_vertices;
-  std::vector<uint16_t> m_indices;
+  std::map<ModelId, ModelDataPtr> m_models;
 };
+
+void RendererImpl::update()
+{
+  beginFrame();
+  endFrame();
+}
+
+ModelId RendererImpl::addModel(ModelPtr model)
+{
+  static ModelId nextModelId = 0;
+
+  auto data = std::make_unique<ModelData>();
+  data->model = std::move(model);
+  data->vertexBuffer = createVertexBuffer(data->model->vertices, data->vertexBufferMemory);
+  data->indexBuffer = createIndexBuffer(data->model->indices, data->indexBufferMemory);
+
+  ModelId id = nextModelId++;
+  m_models[id] = std::move(data);
+}
+
+void RendererImpl::removeModel(ModelId id)
+{
+  auto i = m_models.find(id);
+  if (i == m_models.end()) {
+    return;
+  }
+
+  vkDestroyBuffer(m_device, i->second->indexBuffer, nullptr);
+  vkFreeMemory(m_device, i->second->indexBufferMemory, nullptr);
+  vkDestroyBuffer(m_device, i->second->vertexBuffer, nullptr);
+  vkFreeMemory(m_device, i->second->vertexBufferMemory, nullptr);
+
+  m_models.erase(i);
+}
 
 bool RendererImpl::hasStencilComponent(VkFormat format) const
 {
@@ -274,23 +301,6 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
   : m_window(window)
   , m_logger(logger)
 {
-  m_vertices = {
-    {{ -0.5f, -0.5f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }},
-    {{ 0.5f, -0.5f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }},
-    {{ 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f }},
-    {{ -0.5f, 0.5f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f }},
-
-    {{ -0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }},
-    {{ 0.5f, -0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }},
-    {{ 0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f }},
-    {{ -0.5f, 0.5f, -0.5f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f }}
-  };
-
-  m_indices = {
-    0, 1, 2, 2, 3, 0,
-    4, 5, 6, 6, 7, 4
-  };
-
   initVulkan();
 }
 
@@ -740,8 +750,8 @@ void RendererImpl::createGraphicsPipeline()
   fragShaderStageInfo.module = fragShaderModule;
   fragShaderStageInfo.pName = "main";
 
-  auto bindingDescription = Vertex::getBindingDescription();
-  auto attributeDescriptions = Vertex::getAttributeDescriptions();
+  auto bindingDescription = getBindingDescription();
+  auto attributeDescriptions = getAttributeDescriptions();
 
   VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
   vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -990,14 +1000,18 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
   renderPassInfo.pClearValues = clearValues.data();
 
   vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-  vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
-  VkBuffer vertexBuffers[] = { m_vertexBuffer };
-  VkDeviceSize offsets[] = { 0 };
-  vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-  vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1,
-    &m_descriptorSets[m_currentFrame], 0, nullptr);
-  vkCmdDrawIndexed(commandBuffer, m_indices.size(), 1, 0, 0, 0);
+  for (auto& i : m_models) {
+    auto& model = i.second;
+
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+    VkBuffer vertexBuffers[] = { model->vertexBuffer };
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(commandBuffer, model->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1,
+      &m_descriptorSets[m_currentFrame], 0, nullptr);
+    vkCmdDrawIndexed(commandBuffer, model->model->indices.size(), 1, 0, 0, 0);
+  }
   vkCmdEndRenderPass(commandBuffer);
 
   VK_CHECK(vkEndCommandBuffer(commandBuffer), "Failed to record command buffer");
@@ -1244,10 +1258,11 @@ void RendererImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
   vkBindBufferMemory(m_device, buffer, bufferMemory, 0);
 }
 
-void RendererImpl::createVertexBuffer()
+VkBuffer RendererImpl::createVertexBuffer(const VertexList& vertices,
+  VkDeviceMemory& vertexBufferMemory)
 {
-  VkDeviceSize size = sizeof(m_vertices[0]) * m_vertices.size();
-  
+  VkDeviceSize size = sizeof(vertices[0]) * vertices.size();
+
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
   createBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -1256,21 +1271,25 @@ void RendererImpl::createVertexBuffer()
 
   void* data = nullptr;
   vkMapMemory(m_device, stagingBufferMemory, 0, size, 0, &data);
-  memcpy(data, m_vertices.data(), size);
+  memcpy(data, vertices.data(), size);
   vkUnmapMemory(m_device, stagingBufferMemory);
 
+  VkBuffer vertexBuffer = VK_NULL_HANDLE;
   createBuffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_vertexBuffer, m_vertexBufferMemory);
+    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
 
-  copyBuffer(stagingBuffer, m_vertexBuffer, size);
-  
+  copyBuffer(stagingBuffer, vertexBuffer, size);
+
   vkDestroyBuffer(m_device, stagingBuffer, nullptr);
   vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+
+  return vertexBuffer;
 }
 
-void RendererImpl::createIndexBuffer()
+VkBuffer RendererImpl::createIndexBuffer(const IndexList& indices,
+  VkDeviceMemory& indexBufferMemory)
 {
-  VkDeviceSize size = sizeof(m_indices[0]) * m_indices.size();
+  VkDeviceSize size = sizeof(indices[0]) * indices.size();
 
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
@@ -1280,16 +1299,19 @@ void RendererImpl::createIndexBuffer()
 
   void* data = nullptr;
   vkMapMemory(m_device, stagingBufferMemory, 0, size, 0, &data);
-  memcpy(data, m_indices.data(), size);
+  memcpy(data, indices.data(), size);
   vkUnmapMemory(m_device, stagingBufferMemory);
 
+  VkBuffer indexBuffer = VK_NULL_HANDLE;
   createBuffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_indexBuffer, m_indexBufferMemory);
+    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
 
-  copyBuffer(stagingBuffer, m_indexBuffer, size);
+  copyBuffer(stagingBuffer, indexBuffer, size);
   
   vkDestroyBuffer(m_device, stagingBuffer, nullptr);
   vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+
+  return indexBuffer;
 }
 
 void RendererImpl::createUniformBuffers()
@@ -1484,8 +1506,6 @@ void RendererImpl::initVulkan()
   createTextureImage();
   createTextureImageView();
   createTextureSampler();
-  createVertexBuffer();
-  createIndexBuffer();
   createUniformBuffers();
   createDescriptorPool();
   createDescriptorSets();
@@ -1588,7 +1608,9 @@ void RendererImpl::createInstance()
   VkInstanceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   createInfo.pApplicationInfo = &appInfo;
+#ifdef __APPLE__
   createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
 #ifdef NDEBUG
   createInfo.enabledLayerCount = 0;
   createInfo.pNext = nullptr;
@@ -1755,10 +1777,9 @@ RendererImpl::~RendererImpl()
   }
   vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
-  vkDestroyBuffer(m_device, m_indexBuffer, nullptr);
-  vkFreeMemory(m_device, m_indexBufferMemory, nullptr);
-  vkDestroyBuffer(m_device, m_vertexBuffer, nullptr);
-  vkFreeMemory(m_device, m_vertexBufferMemory, nullptr);
+  for (auto& i : m_models) {
+    removeModel(i.first);
+  }
   vkDestroySampler(m_device, m_textureSampler, nullptr);
   vkDestroyImageView(m_device, m_textureImageView, nullptr);
   vkDestroyImage(m_device, m_textureImage, nullptr);
