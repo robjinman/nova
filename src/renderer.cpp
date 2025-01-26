@@ -1837,12 +1837,12 @@ RendererImpl::~RendererImpl()
   for (size_t i = 0; i < m_descriptorSetLayouts.size(); ++i) {
     vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayouts[i], nullptr);
   }
-  for (auto& i : m_models) {
-    removeModel(i.first);
+  while (!m_models.empty()) {
+    removeModel(m_models.begin()->first);
   }
   vkDestroySampler(m_device, m_textureSampler, nullptr);
-  for (auto& i : m_textures) {
-    removeTexture(i.first);
+  while (!m_textures.empty()) {
+    removeTexture(m_textures.begin()->first);
   }
 #ifndef NDEBUG
   destroyDebugMessenger();
