@@ -41,6 +41,30 @@ TexturePtr loadTexture(const std::string& filePath)
   return texture;
 }
 
+ModelPtr createModel(TextureId texture, const glm::mat4& transform)
+{
+  ModelPtr model = std::make_unique<Model>();
+  model->vertices = {
+    {{ -0.5f, -0.5f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }},
+    {{ 0.5f, -0.5f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }},
+    {{ 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f }},
+    {{ -0.5f, 0.5f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f }},
+
+    {{ -0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }},
+    {{ 0.5f, -0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }},
+    {{ 0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f }},
+    {{ -0.5f, 0.5f, -0.5f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f }}
+  };
+  model->indices = {
+    0, 1, 2, 2, 3, 0,
+    4, 5, 6, 6, 7, 4
+  };
+  model->texture = texture;
+  model->transform = transform;
+
+  return model;
+}
+
 void ApplicationImpl::run()
 {
   glfwInit();
@@ -55,32 +79,29 @@ void ApplicationImpl::run()
   {
     auto renderer = CreateRenderer(*window, *logger);
 
-    auto texture = loadTexture("textures/texture.png");
-    auto textureId = renderer->addTexture(std::move(texture));
+    auto texture1 = loadTexture("textures/texture1.png");
+    auto texture1Id = renderer->addTexture(std::move(texture1));
 
-    ModelPtr model = std::make_unique<Model>();
-    model->vertices = {
-      {{ -0.5f, -0.5f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }},
-      {{ 0.5f, -0.5f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }},
-      {{ 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f }},
-      {{ -0.5f, 0.5f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f }},
+    auto texture2 = loadTexture("textures/texture2.png");  // TODO
+    auto texture2Id = renderer->addTexture(std::move(texture2));
 
-      {{ -0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }},
-      {{ 0.5f, -0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }},
-      {{ 0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f }},
-      {{ -0.5f, 0.5f, -0.5f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f }}
-    };
-    model->indices = {
-      0, 1, 2, 2, 3, 0,
-      4, 5, 6, 6, 7, 4
-    };
-    model->texture = textureId;
+    auto model1 = createModel(texture1Id, glm::translate(glm::mat4(1), glm::vec3(-1, 0, 0)));
+    auto model2 = createModel(texture2Id, glm::translate(glm::mat4(1), glm::vec3(1, 0, 0)));
 
-    renderer->addModel(std::move(model));
+    auto model1Id = renderer->addModel(std::move(model1));
+    auto model2Id = renderer->addModel(std::move(model2));
 
     while(!glfwWindowShouldClose(window)) {
       glfwPollEvents();
-      renderer->update();
+      renderer->beginFrame();
+
+      renderer->setModelTransform(model1Id, glm::rotate(renderer->getModelTransform(model1Id),
+        glm::radians(90.f / 1000.f), glm::vec3(0.f, 0.f, 1.f)));
+
+      renderer->setModelTransform(model2Id, glm::rotate(renderer->getModelTransform(model2Id),
+        glm::radians(90.f / 1000.f), glm::vec3(0.f, 0.f, 1.f)));
+
+      renderer->endFrame();
     }
   }
 

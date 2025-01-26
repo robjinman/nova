@@ -11,7 +11,6 @@
 #include <optional>
 #include <fstream>
 #include <set>
-#include <chrono>
 #include <map>
 
 namespace
@@ -71,9 +70,7 @@ using ModelDataPtr = std::unique_ptr<ModelData>;
 
 struct UniformBufferObject
 {
-  glm::mat4 model;
-  glm::mat4 view;
-  glm::mat4 proj;
+  glm::mat4 viewProjectionMatrix;
 };
 
 VkVertexInputBindingDescription getBindingDescription()
@@ -131,13 +128,17 @@ class RendererImpl : public Renderer
 public:
   RendererImpl(GLFWwindow& window, Logger& logger);
 
-  void update() override;
+  void beginFrame();
+  void endFrame();
 
   TextureId addTexture(TexturePtr texture) override;
   void removeTexture(TextureId id) override;
 
   ModelId addModel(ModelPtr model) override;
   void removeModel(ModelId id) override;
+
+  glm::mat4 getModelTransform(ModelId modelId) const override;
+  void setModelTransform(ModelId modelId, const glm::mat4& transform) override;
 
   ~RendererImpl() override;
 
@@ -148,8 +149,6 @@ private:
 
   static void onFramebufferResize(GLFWwindow* window, int width, int height);
 
-  void beginFrame();
-  void endFrame();
   void initVulkan();
   void createInstance();
   void createSurface();
@@ -249,12 +248,6 @@ private:
   std::map<ModelId, ModelDataPtr> m_models;
   std::map<TextureId, TextureDataPtr> m_textures;
 };
-
-void RendererImpl::update()
-{
-  beginFrame();
-  endFrame();
-}
 
 ModelId RendererImpl::addModel(ModelPtr model)
 {
@@ -877,12 +870,17 @@ void RendererImpl::createGraphicsPipeline()
   colourBlending.blendConstants[2] = 0.0f;
   colourBlending.blendConstants[3] = 0.0f;
 
+  VkPushConstantRange pushConstants;
+  pushConstants.offset = 0;
+  pushConstants.size = sizeof(glm::mat4);
+  pushConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = m_descriptorSetLayouts.size();
   pipelineLayoutInfo.pSetLayouts = m_descriptorSetLayouts.data();
-  pipelineLayoutInfo.pushConstantRangeCount = 0;
-  pipelineLayoutInfo.pPushConstantRanges = nullptr;
+  pipelineLayoutInfo.pushConstantRangeCount = 1;
+  pipelineLayoutInfo.pPushConstantRanges = &pushConstants;
   VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout),
     "Failed to create pipeline layout");
 
@@ -1060,6 +1058,8 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
       &m_uboDescriptorSets[m_currentFrame], 0, nullptr);
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1,
       &texture.descriptorSet, 0, nullptr);
+    vkCmdPushConstants(commandBuffer, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0,
+      sizeof(glm::mat4), &model->model->transform);
     vkCmdDrawIndexed(commandBuffer, model->model->indices.size(), 1, 0, 0, 0);
   }
   vkCmdEndRenderPass(commandBuffer);
@@ -1713,24 +1713,27 @@ void RendererImpl::setupDebugMessenger()
     "Error setting up debug messenger");
 }
 
+glm::mat4 RendererImpl::getModelTransform(ModelId modelId) const
+{
+  return m_models.at(modelId)->model->transform;
+}
+
+void RendererImpl::setModelTransform(ModelId modelId, const glm::mat4& transform)
+{
+  m_models.at(modelId)->model->transform = transform;
+}
+
 void RendererImpl::updateUniformBuffer()
 {
-  static auto startTime = std::chrono::high_resolution_clock::now();
-  auto currentTime = std::chrono::high_resolution_clock::now();
-  auto diff = currentTime - startTime;
-  float time = std::chrono::duration<float, std::chrono::seconds::period>(diff).count();
-
-  // TODO: Use push constants
-
   UniformBufferObject ubo{};
-  ubo.model = glm::rotate(glm::mat4(1.f), time * glm::radians(90.f), glm::vec3(0.f, 0.f, 1.f));
-
-  ubo.view = glm::lookAt(glm::vec3(2.f, 2.f, 2.f), glm::vec3(0.f, 0.f, 0.f),
+  auto view = glm::lookAt(glm::vec3(2.f, 2.f, 2.f), glm::vec3(0.f, 0.f, 0.f),
     glm::vec3(0.f, 0.f, 1.f));
 
   float aspectRatio = m_swapChainExtent.width / static_cast<float>(m_swapChainExtent.height);
-  ubo.proj = glm::perspective(glm::radians(45.f), aspectRatio, 0.1f, 10.f);
-  ubo.proj[1][1] *= -1;
+  auto proj = glm::perspective(glm::radians(45.f), aspectRatio, 0.1f, 10.f);
+  proj[1][1] *= -1;
+
+  ubo.viewProjectionMatrix = proj * view;
 
   memcpy(m_uniformBuffersMapped[m_currentFrame], &ubo, sizeof(ubo));
 }
