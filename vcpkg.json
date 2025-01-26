@@ -2,7 +2,6 @@
   "dependencies": [
     "glfw3",
     "glm",
-    "stb",
-    "tinyobjloader"
+    "stb"
   ]
 }

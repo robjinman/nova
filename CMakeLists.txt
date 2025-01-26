@@ -33,7 +33,6 @@ find_package(Vulkan REQUIRED)
 find_package(glm REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(Stb REQUIRED)
-find_package(tinyobjloader REQUIRED)
 
 configure_file(
   "${PROJECT_SOURCE_DIR}/src/version_in.hpp"
@@ -77,7 +76,6 @@ target_link_libraries(${TARGET_NAME}
   Vulkan::Vulkan
   glm::glm
   glfw
-  tinyobjloader::tinyobjloader
 )
 
 target_compile_options(${TARGET_NAME} PUBLIC "$<$<CONFIG:DEBUG>:${DEBUG_COMPILE_FLAGS}>")
