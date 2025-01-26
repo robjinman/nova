@@ -67,6 +67,10 @@ Build icon set for OSX
 
 After running the osx-release preset, create an .app bundle with
 
-'''
+```
     cmake --install ./build/osx/release
-'''
+```
+
+#### Windows and Linux
+
+Zip bundles are created by the release presets.
