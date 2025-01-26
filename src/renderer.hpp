@@ -39,6 +39,7 @@ struct Model
   VertexList vertices;
   IndexList indices;
   TextureId texture = 0;
+  glm::mat4 transform;
 };
 
 using ModelPtr = std::unique_ptr<Model>;
@@ -46,13 +47,17 @@ using ModelPtr = std::unique_ptr<Model>;
 class Renderer
 {
 public:
-  virtual void update() = 0;
+  virtual void beginFrame() = 0;
+  virtual void endFrame() = 0;
 
   virtual TextureId addTexture(TexturePtr texture) = 0;
   virtual void removeTexture(TextureId id) = 0;
 
   virtual ModelId addModel(ModelPtr model) = 0;
   virtual void removeModel(ModelId id) = 0;
+
+  virtual glm::mat4 getModelTransform(ModelId modelId) const = 0;
+  virtual void setModelTransform(ModelId modelId, const glm::mat4& transform) = 0;
 
   virtual ~Renderer() {}
 };
