@@ -1,3 +1,4 @@
+#include "time.hpp"
 #include "application.hpp"
 #include "renderer.hpp"
 #include "logger.hpp"
@@ -76,35 +77,40 @@ void ApplicationImpl::run()
 
   LoggerPtr logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
 
-  {
-    auto renderer = CreateRenderer(*window, *logger);
+  auto renderer = CreateRenderer(*window, *logger);
 
-    auto texture1 = loadTexture("data/textures/texture1.png");
-    auto texture1Id = renderer->addTexture(std::move(texture1));
+  auto texture1 = loadTexture("data/textures/texture1.png");
+  auto texture1Id = renderer->addTexture(std::move(texture1));
 
-    auto texture2 = loadTexture("data/textures/texture2.png");
-    auto texture2Id = renderer->addTexture(std::move(texture2));
+  auto texture2 = loadTexture("data/textures/texture2.png");
+  auto texture2Id = renderer->addTexture(std::move(texture2));
 
-    //auto model1 = createModel(texture1Id, glm::translate(glm::mat4(1), glm::vec3(-1, 0, 0)));
-    auto model2 = loadModel("data/models/monkey.obj");
-    model2->texture = texture2Id;
+  //auto model1 = createModel(texture1Id, glm::translate(glm::mat4(1), glm::vec3(-1, 0, 0)));
+  auto model2 = loadModel("data/models/monkey.obj");
+  model2->texture = texture2Id;
 
-    //auto model1Id = renderer->addModel(std::move(model1));
-    auto model2Id = renderer->addModel(std::move(model2));
+  //auto model1Id = renderer->addModel(std::move(model1));
+  auto model2Id = renderer->addModel(std::move(model2));
 
-    while(!glfwWindowShouldClose(window)) {
-      glfwPollEvents();
-      renderer->beginFrame();
+  Timer timer;
+  FrameRateLimiter frameRateLimiter(60);
 
-      //renderer->setModelTransform(model1Id, glm::rotate(renderer->getModelTransform(model1Id),
-      //  glm::radians(90.f / 100.f), glm::vec3(0.f, 1.f, 0.f)));
+  while(!glfwWindowShouldClose(window)) {
+    glfwPollEvents();
+    renderer->beginFrame();
 
-      renderer->setModelTransform(model2Id, glm::rotate(renderer->getModelTransform(model2Id),
-        glm::radians(90.f / 100.f), glm::vec3(0.f, 1.f, 0.f)));
+    //renderer->setModelTransform(model1Id, glm::rotate(renderer->getModelTransform(model1Id),
+    //  glm::radians(90.f / 100.f), glm::vec3(0.f, 1.f, 0.f)));
 
-      renderer->endFrame();
-    }
+    renderer->setModelTransform(model2Id, glm::rotate(glm::mat4(1),
+      glm::radians<float>((90.f * timer.elapsed())), glm::vec3(0.f, 1.f, 0.f)));
+
+    renderer->endFrame();
+
+    frameRateLimiter.wait();
   }
+
+  renderer.reset();
 
   glfwDestroyWindow(window);
   glfwTerminate();

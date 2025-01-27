@@ -9,6 +9,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <memory>
 #include <vector>
+#include <string>
 
 struct Vertex
 {
