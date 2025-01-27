@@ -13,6 +13,14 @@
 #include <set>
 #include <map>
 
+#define VK_CHECK(fnCall, msg) \
+  { \
+    VkResult MAC_code = fnCall; \
+    if (MAC_code != VK_SUCCESS) { \
+      EXCEPTION(msg << " (result: " << MAC_code << ")"); \
+    } \
+  }
+
 namespace
 {
 
@@ -128,8 +136,8 @@ class RendererImpl : public Renderer
 public:
   RendererImpl(GLFWwindow& window, Logger& logger);
 
-  void beginFrame();
-  void endFrame();
+  void beginFrame() override;
+  void endFrame() override;
 
   TextureId addTexture(TexturePtr texture) override;
   void removeTexture(TextureId id) override;
@@ -1726,8 +1734,8 @@ void RendererImpl::setModelTransform(ModelId modelId, const glm::mat4& transform
 void RendererImpl::updateUniformBuffer()
 {
   UniformBufferObject ubo{};
-  auto view = glm::lookAt(glm::vec3(2.f, 2.f, 2.f), glm::vec3(0.f, 0.f, 0.f),
-    glm::vec3(0.f, 0.f, 1.f));
+  auto view = glm::lookAt(glm::vec3(0.f, 0.f, 4.f), glm::vec3(0.f, 0.f, 0.f),
+    glm::vec3(0.f, 1.f, 0.f)); // TODO
 
   float aspectRatio = m_swapChainExtent.width / static_cast<float>(m_swapChainExtent.height);
   auto proj = glm::perspective(glm::radians(45.f), aspectRatio, 0.1f, 10.f);
