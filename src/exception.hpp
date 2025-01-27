@@ -18,10 +18,7 @@ public:
     throw Exception(MAC_ss.str(), __FILE__, __LINE__); \
   }
 
-#define VK_CHECK(fnCall, msg) \
-  { \
-    VkResult MAC_code = fnCall; \
-    if (MAC_code != VK_SUCCESS) { \
-      EXCEPTION(msg << " (result: " << MAC_code << ")"); \
-    } \
+#define ASSERT(MAC_cond, MAC_msg) \
+  if (!(MAC_cond)) { \
+    EXCEPTION(MAC_msg); \
   }

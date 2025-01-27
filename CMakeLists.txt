@@ -117,8 +117,8 @@ add_dependencies(${TARGET_NAME} frag_shaders)
 add_dependencies(${TARGET_NAME} vert_shaders)
 
 add_custom_target(
-  link_textures ALL
-  COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_SOURCE_DIR}/textures ${PROJECT_BINARY_DIR}/textures
+  link_data ALL
+  COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_SOURCE_DIR}/data ${PROJECT_BINARY_DIR}/data
 )
 
 set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ".")
@@ -129,7 +129,7 @@ if (PLATFORM_OSX)
     BUNDLE DESTINATION .
     RUNTIME DESTINATION .
   )
-  install(DIRECTORY "${PROJECT_SOURCE_DIR}/textures"
+  install(DIRECTORY "${PROJECT_SOURCE_DIR}/data"
     DESTINATION "${TARGET_NAME}.app/Contents/Resources")
   install(DIRECTORY "${PROJECT_BINARY_DIR}/shaders"
     DESTINATION "${TARGET_NAME}.app/Contents/Resources")
@@ -148,7 +148,7 @@ if (PLATFORM_OSX)
   install(CODE "execute_process(COMMAND codesign --deep --force --sign - ${CMAKE_INSTALL_PREFIX}/${TARGET_NAME}.app)")
 else()
   install(TARGETS ${TARGET_NAME} DESTINATION ".")
-  install(DIRECTORY "${PROJECT_SOURCE_DIR}/textures" DESTINATION ".")
+  install(DIRECTORY "${PROJECT_SOURCE_DIR}/data" DESTINATION ".")
   install(DIRECTORY "${PROJECT_BINARY_DIR}/shaders" DESTINATION ".")
 endif()
 
