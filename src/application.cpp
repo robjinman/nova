@@ -79,27 +79,28 @@ void ApplicationImpl::run()
   {
     auto renderer = CreateRenderer(*window, *logger);
 
-    auto texture1 = loadTexture("textures/texture1.png");
+    auto texture1 = loadTexture("data/textures/texture1.png");
     auto texture1Id = renderer->addTexture(std::move(texture1));
 
-    auto texture2 = loadTexture("textures/texture2.png");  // TODO
+    auto texture2 = loadTexture("data/textures/texture2.png");
     auto texture2Id = renderer->addTexture(std::move(texture2));
 
-    auto model1 = createModel(texture1Id, glm::translate(glm::mat4(1), glm::vec3(-1, 0, 0)));
-    auto model2 = createModel(texture2Id, glm::translate(glm::mat4(1), glm::vec3(1, 0, 0)));
+    //auto model1 = createModel(texture1Id, glm::translate(glm::mat4(1), glm::vec3(-1, 0, 0)));
+    auto model2 = loadModel("data/models/monkey.obj");
+    model2->texture = texture2Id;
 
-    auto model1Id = renderer->addModel(std::move(model1));
+    //auto model1Id = renderer->addModel(std::move(model1));
     auto model2Id = renderer->addModel(std::move(model2));
 
     while(!glfwWindowShouldClose(window)) {
       glfwPollEvents();
       renderer->beginFrame();
 
-      renderer->setModelTransform(model1Id, glm::rotate(renderer->getModelTransform(model1Id),
-        glm::radians(90.f / 1000.f), glm::vec3(0.f, 0.f, 1.f)));
+      //renderer->setModelTransform(model1Id, glm::rotate(renderer->getModelTransform(model1Id),
+      //  glm::radians(90.f / 100.f), glm::vec3(0.f, 1.f, 0.f)));
 
       renderer->setModelTransform(model2Id, glm::rotate(renderer->getModelTransform(model2Id),
-        glm::radians(90.f / 1000.f), glm::vec3(0.f, 0.f, 1.f)));
+        glm::radians(90.f / 100.f), glm::vec3(0.f, 1.f, 0.f)));
 
       renderer->endFrame();
     }
