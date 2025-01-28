@@ -5,11 +5,15 @@
 class Camera
 {
   public:
+    Camera();
+
     void translate(const Vec3f& delta);
     void rotate(float deltaPitch, float deltaYaw);
-
-    Mat4x4f getTransform() const;
+    const Vec3f& getDirection() const;
+    const Vec3f& getPosition() const;
+    Mat4x4f  getMatrix() const;
 
   private:
-    Mat4x4f m_transform = Mat4x4f(1);
+    Vec3f m_position;
+    Vec3f m_direction;
 };

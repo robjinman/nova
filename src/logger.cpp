@@ -8,11 +8,7 @@ class LoggerImpl : public Logger
 {
   public:
     LoggerImpl(std::ostream& errorStream, std::ostream& warningStream, std::ostream& infoStream,
-      std::ostream& debugStream)
-      : m_error(errorStream)
-      , m_warning(warningStream)
-      , m_info(infoStream)
-      , m_debug(debugStream) {}
+      std::ostream& debugStream);
 
     void debug(const std::string& msg, bool newline = true) override;
     void info(const std::string& msg, bool newline = true) override;
@@ -27,6 +23,15 @@ class LoggerImpl : public Logger
 
     void endMessage(std::ostream& stream, bool newline) const;
 };
+
+LoggerImpl::LoggerImpl(std::ostream& errorStream, std::ostream& warningStream,
+  std::ostream& infoStream, std::ostream& debugStream)
+  : m_error(errorStream)
+  , m_warning(warningStream)
+  , m_info(infoStream)
+  , m_debug(debugStream)
+{
+}
 
 void LoggerImpl::endMessage(std::ostream& stream, bool newline) const
 {

@@ -270,7 +270,7 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
 
   float aspectRatio = m_swapChainExtent.width / static_cast<float>(m_swapChainExtent.height);
 
-  m_projectionMatrix = glm::perspective(glm::radians(45.f), aspectRatio, 0.1f, 10.f);
+  m_projectionMatrix = glm::perspective(glm::radians(45.f), aspectRatio, 0.1f, 1000.f);
   m_projectionMatrix[1][1] *= -1;
 }
 
@@ -351,7 +351,7 @@ void RendererImpl::endFrame()
 void RendererImpl::updateUniformBuffer(const Camera& camera)
 {
   UniformBufferObject ubo{};
-  ubo.viewProjectionMatrix = m_projectionMatrix * glm::inverse(camera.getTransform());
+  ubo.viewProjectionMatrix = m_projectionMatrix * camera.getMatrix();
 
   memcpy(m_uniformBuffersMapped[m_currentFrame], &ubo, sizeof(ubo));
 }

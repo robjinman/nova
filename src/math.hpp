@@ -9,5 +9,7 @@
 using float_t = float;
 
 using Mat4x4f = glm::mat<4, 4, float_t, glm::highp>;
+using Vec4f = glm::vec<4, float_t, glm::highp>;
 using Vec3f = glm::vec<3, float_t, glm::highp>;
 using Vec2f = glm::vec<2, float_t, glm::highp>;
+using Vec2i = glm::vec<2, int>;
