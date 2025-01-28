@@ -1754,8 +1754,7 @@ void RendererImpl::createInstance()
   VkApplicationInfo appInfo{};
   appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   appInfo.pApplicationName = "Hello Triangle";
-  appInfo.applicationVersion = VK_MAKE_VERSION(VulkanTestLab_VERSION_MAJOR,
-    VulkanTestLab_VERSION_MINOR, 0);
+  appInfo.applicationVersion = VK_MAKE_VERSION(Nova_VERSION_MAJOR, Nova_VERSION_MINOR, 0);
   appInfo.pEngineName = "No Engine";
   appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
   appInfo.apiVersion = VK_API_VERSION_1_0;
@@ -1869,7 +1868,8 @@ RendererImpl::~RendererImpl()
 
 } // namespace
 
-RendererPtr CreateRenderer(GLFWwindow& window, Logger& logger) {
+RendererPtr createRenderer(GLFWwindow& window, Logger& logger)
+{
   return std::make_unique<RendererImpl>(window, logger);
 }
 

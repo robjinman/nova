@@ -40,3 +40,4 @@ struct Model
 using ModelPtr = std::unique_ptr<Model>;
 
 ModelPtr loadModel(const std::string& objFilePath);
+TexturePtr loadTexture(const std::string& filePath);

@@ -26,4 +26,4 @@ using RendererPtr = std::unique_ptr<Renderer>;
 class GLFWwindow;
 class Logger;
 
-RendererPtr CreateRenderer(GLFWwindow& window, Logger& logger);
+RendererPtr createRenderer(GLFWwindow& window, Logger& logger);
