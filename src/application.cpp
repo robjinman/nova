@@ -3,6 +3,9 @@
 #include "renderer.hpp"
 #include "logger.hpp"
 #include "exception.hpp"
+#include "camera.hpp"
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <iostream>
@@ -42,30 +45,6 @@ TexturePtr loadTexture(const std::string& filePath)
   return texture;
 }
 
-ModelPtr createModel(TextureId texture, const glm::mat4& transform)
-{
-  ModelPtr model = std::make_unique<Model>();
-  model->vertices = {
-    {{ -0.5f, -0.5f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }},
-    {{ 0.5f, -0.5f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }},
-    {{ 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f }},
-    {{ -0.5f, 0.5f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f }},
-
-    {{ -0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }},
-    {{ 0.5f, -0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }},
-    {{ 0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f }},
-    {{ -0.5f, 0.5f, -0.5f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f }}
-  };
-  model->indices = {
-    0, 1, 2, 2, 3, 0,
-    4, 5, 6, 6, 7, 4
-  };
-  model->texture = texture;
-  model->transform = transform;
-
-  return model;
-}
-
 void ApplicationImpl::run()
 {
   glfwInit();
@@ -85,27 +64,32 @@ void ApplicationImpl::run()
   auto texture2 = loadTexture("data/textures/texture2.png");
   auto texture2Id = renderer->addTexture(std::move(texture2));
 
-  //auto model1 = createModel(texture1Id, glm::translate(glm::mat4(1), glm::vec3(-1, 0, 0)));
+  auto model1 = loadModel("data/models/monkey.obj");
+  model1->texture = texture1Id;
   auto model2 = loadModel("data/models/monkey.obj");
   model2->texture = texture2Id;
 
-  //auto model1Id = renderer->addModel(std::move(model1));
+  auto model1Id = renderer->addModel(std::move(model1));
   auto model2Id = renderer->addModel(std::move(model2));
+
+  Mat4x4f model1Translation = glm::translate(Mat4x4f(1), Vec3f(-1.5, 0, 0));
+  Mat4x4f model2Translation = glm::translate(Mat4x4f(1), Vec3f(1.5, 0, 0));
 
   Timer timer;
   FrameRateLimiter frameRateLimiter(60);
 
+  Camera camera;
+  camera.translate(Vec3f(0, 0, 8));
+
   while(!glfwWindowShouldClose(window)) {
     glfwPollEvents();
-    renderer->beginFrame();
+    renderer->setModelTransform(model1Id, model1Translation * glm::rotate(Mat4x4f(1),
+      glm::radians<float>((90.f * timer.elapsed())), Vec3f(0.f, 1.f, 0.f)));
 
-    //renderer->setModelTransform(model1Id, glm::rotate(renderer->getModelTransform(model1Id),
-    //  glm::radians(90.f / 100.f), glm::vec3(0.f, 1.f, 0.f)));
+    renderer->setModelTransform(model2Id, model2Translation * glm::rotate(Mat4x4f(1),
+      glm::radians<float>((-90.f * timer.elapsed())), Vec3f(0.f, 1.f, 0.f)));
 
-    renderer->setModelTransform(model2Id, glm::rotate(glm::mat4(1),
-      glm::radians<float>((90.f * timer.elapsed())), glm::vec3(0.f, 1.f, 0.f)));
-
-    renderer->endFrame();
+    renderer->update(camera);
 
     frameRateLimiter.wait();
   }
