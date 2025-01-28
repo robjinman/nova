@@ -2,7 +2,10 @@
 #include "exception.hpp"
 #include "version.hpp"
 #include "logger.hpp"
+#include "camera.hpp"
 #include "utils.hpp"
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 #include <array>
 #include <iostream>
 #include <vector>
@@ -39,17 +42,17 @@ const std::vector<const char*> DeviceExtensions = {
 
 std::vector<char> readFile(const std::string& filename)
 {
-  std::ifstream fin(filename, std::ios::ate | std::ios::binary);
+  std::ifstream stream(filename, std::ios::ate | std::ios::binary);
 
-  if (!fin.is_open()) {
+  if (!stream.is_open()) {
     EXCEPTION("Failed to open file " << filename);
   }
 
-  size_t fileSize = fin.tellg();
+  size_t fileSize = stream.tellg();
   std::vector<char> bytes(fileSize);
 
-  fin.seekg(0);
-  fin.read(bytes.data(), fileSize);
+  stream.seekg(0);
+  stream.read(bytes.data(), fileSize);
 
   return bytes;
 }
@@ -78,7 +81,7 @@ using ModelDataPtr = std::unique_ptr<ModelData>;
 
 struct UniformBufferObject
 {
-  glm::mat4 viewProjectionMatrix;
+  Mat4x4f viewProjectionMatrix;
 };
 
 VkVertexInputBindingDescription getBindingDescription()
@@ -136,8 +139,7 @@ class RendererImpl : public Renderer
 public:
   RendererImpl(GLFWwindow& window, Logger& logger);
 
-  void beginFrame() override;
-  void endFrame() override;
+  void update(const Camera& camera) override;
 
   TextureId addTexture(TexturePtr texture) override;
   void removeTexture(TextureId id) override;
@@ -145,8 +147,8 @@ public:
   ModelId addModel(ModelPtr model) override;
   void removeModel(ModelId id) override;
 
-  glm::mat4 getModelTransform(ModelId modelId) const override;
-  void setModelTransform(ModelId modelId, const glm::mat4& transform) override;
+  Mat4x4f getModelTransform(ModelId modelId) const override;
+  void setModelTransform(ModelId modelId, const Mat4x4f& transform) override;
 
   ~RendererImpl() override;
 
@@ -202,7 +204,7 @@ private:
   void createCommandBuffers();
   void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
   void createSyncObjects();
-  void updateUniformBuffer();
+  void updateUniformBuffer(const Camera& camera);
   VkFormat findDepthFormat() const;
   uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
   void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
@@ -213,6 +215,8 @@ private:
   void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
     VkImageLayout newLayout);
   bool hasStencilComponent(VkFormat format) const;
+  void beginFrame();
+  void endFrame();
 
   GLFWwindow& m_window;
   Logger& m_logger;
@@ -248,6 +252,7 @@ private:
   VkCommandPool m_commandPool;
   size_t m_currentFrame = 0;
   bool m_framebufferResized = false;
+  Mat4x4f m_projectionMatrix;
 
   std::vector<VkSemaphore> m_imageAvailableSemaphores;
   std::vector<VkSemaphore> m_renderFinishedSemaphores;
@@ -256,6 +261,100 @@ private:
   std::map<ModelId, ModelDataPtr> m_models;
   std::map<TextureId, TextureDataPtr> m_textures;
 };
+
+RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
+  : m_window(window)
+  , m_logger(logger)
+{
+  initVulkan();
+
+  float aspectRatio = m_swapChainExtent.width / static_cast<float>(m_swapChainExtent.height);
+
+  m_projectionMatrix = glm::perspective(glm::radians(45.f), aspectRatio, 0.1f, 10.f);
+  m_projectionMatrix[1][1] *= -1;
+}
+
+void RendererImpl::update(const Camera& camera)
+{
+  beginFrame();
+  updateUniformBuffer(camera);
+  endFrame();
+}
+
+void RendererImpl::beginFrame()
+{
+  VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
+    "Error waiting for fence");
+
+  VkResult acqImgResult = vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX,
+    m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_imageIndex);
+
+  if (acqImgResult == VK_ERROR_OUT_OF_DATE_KHR) {
+    recreateSwapChain();
+    return;
+  }
+  else if (acqImgResult != VK_SUCCESS && acqImgResult != VK_SUBOPTIMAL_KHR) {
+    EXCEPTION("Error obtaining image from swap chain");
+  }
+
+  VK_CHECK(vkResetFences(m_device, 1, &m_inFlightFences[m_currentFrame]), "Error resetting fence");
+
+  vkResetCommandBuffer(m_commandBuffers[m_imageIndex], 0);
+
+  recordCommandBuffer(m_commandBuffers[m_imageIndex], m_imageIndex);
+}
+
+void RendererImpl::endFrame()
+{
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+  VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[m_currentFrame] };
+  submitInfo.waitSemaphoreCount = 1;
+  submitInfo.pWaitSemaphores = waitSemaphores;
+  VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+  submitInfo.pWaitDstStageMask = waitStages;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &m_commandBuffers[m_imageIndex];
+
+  VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_currentFrame] };
+  submitInfo.signalSemaphoreCount = 1;
+  submitInfo.pSignalSemaphores = signalSemaphores;
+
+  VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_inFlightFences[m_currentFrame]),
+    "Failed to submit draw command buffer");
+
+  VkPresentInfoKHR presentInfo{};
+  presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  presentInfo.waitSemaphoreCount = 1;
+  presentInfo.pWaitSemaphores = signalSemaphores;
+  VkSwapchainKHR swapChains[] = { m_swapChain };
+  presentInfo.swapchainCount = 1;
+  presentInfo.pSwapchains = swapChains;
+  presentInfo.pImageIndices = &m_imageIndex;
+  presentInfo.pResults = nullptr;
+
+  VkResult presentResult = vkQueuePresentKHR(m_presentQueue, &presentInfo);
+  if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR
+    || m_framebufferResized) {
+    
+    m_framebufferResized = false;
+    recreateSwapChain();
+  }
+  else if (presentResult != VK_SUCCESS) {
+    EXCEPTION("Failed to present swap chain image");
+  }
+
+  m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+void RendererImpl::updateUniformBuffer(const Camera& camera)
+{
+  UniformBufferObject ubo{};
+  ubo.viewProjectionMatrix = m_projectionMatrix * glm::inverse(camera.getTransform());
+
+  memcpy(m_uniformBuffersMapped[m_currentFrame], &ubo, sizeof(ubo));
+}
 
 ModelId RendererImpl::addModel(ModelPtr model)
 {
@@ -321,13 +420,6 @@ uint32_t RendererImpl::findMemoryType(uint32_t typeFilter,
   }
 
   EXCEPTION("Failed to find suitable memory type");
-}
-
-RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
-  : m_window(window)
-  , m_logger(logger)
-{
-  initVulkan();
 }
 
 VkShaderModule RendererImpl::createShaderModule(const std::vector<char>& code)
@@ -880,7 +972,7 @@ void RendererImpl::createGraphicsPipeline()
 
   VkPushConstantRange pushConstants;
   pushConstants.offset = 0;
-  pushConstants.size = sizeof(glm::mat4);
+  pushConstants.size = sizeof(Mat4x4f);
   pushConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -1067,7 +1159,7 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1,
       &texture.descriptorSet, 0, nullptr);
     vkCmdPushConstants(commandBuffer, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0,
-      sizeof(glm::mat4), &model->model->transform);
+      sizeof(Mat4x4f), &model->model->transform);
     vkCmdDrawIndexed(commandBuffer, model->model->indices.size(), 1, 0, 0, 0);
   }
   vkCmdEndRenderPass(commandBuffer);
@@ -1721,99 +1813,14 @@ void RendererImpl::setupDebugMessenger()
     "Error setting up debug messenger");
 }
 
-glm::mat4 RendererImpl::getModelTransform(ModelId modelId) const
+Mat4x4f RendererImpl::getModelTransform(ModelId modelId) const
 {
   return m_models.at(modelId)->model->transform;
 }
 
-void RendererImpl::setModelTransform(ModelId modelId, const glm::mat4& transform)
+void RendererImpl::setModelTransform(ModelId modelId, const Mat4x4f& transform)
 {
   m_models.at(modelId)->model->transform = transform;
-}
-
-void RendererImpl::updateUniformBuffer()
-{
-  UniformBufferObject ubo{};
-  auto view = glm::lookAt(glm::vec3(0.f, 0.f, 4.f), glm::vec3(0.f, 0.f, 0.f),
-    glm::vec3(0.f, 1.f, 0.f)); // TODO
-
-  float aspectRatio = m_swapChainExtent.width / static_cast<float>(m_swapChainExtent.height);
-  auto proj = glm::perspective(glm::radians(45.f), aspectRatio, 0.1f, 10.f);
-  proj[1][1] *= -1;
-
-  ubo.viewProjectionMatrix = proj * view;
-
-  memcpy(m_uniformBuffersMapped[m_currentFrame], &ubo, sizeof(ubo));
-}
-
-void RendererImpl::beginFrame()
-{
-  VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
-    "Error waiting for fence");
-
-  VkResult acqImgResult = vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX,
-    m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_imageIndex);
-
-  if (acqImgResult == VK_ERROR_OUT_OF_DATE_KHR) {
-    recreateSwapChain();
-    return;
-  }
-  else if (acqImgResult != VK_SUCCESS && acqImgResult != VK_SUBOPTIMAL_KHR) {
-    EXCEPTION("Error obtaining image from swap chain");
-  }
-
-  VK_CHECK(vkResetFences(m_device, 1, &m_inFlightFences[m_currentFrame]), "Error resetting fence");
-
-  vkResetCommandBuffer(m_commandBuffers[m_imageIndex], 0);
-
-  recordCommandBuffer(m_commandBuffers[m_imageIndex], m_imageIndex);
-
-  // TODO
-  updateUniformBuffer();
-}
-
-void RendererImpl::endFrame()
-{
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-  VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[m_currentFrame] };
-  submitInfo.waitSemaphoreCount = 1;
-  submitInfo.pWaitSemaphores = waitSemaphores;
-  VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-  submitInfo.pWaitDstStageMask = waitStages;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &m_commandBuffers[m_imageIndex];
-
-  VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_currentFrame] };
-  submitInfo.signalSemaphoreCount = 1;
-  submitInfo.pSignalSemaphores = signalSemaphores;
-
-  VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_inFlightFences[m_currentFrame]),
-    "Failed to submit draw command buffer");
-
-  VkPresentInfoKHR presentInfo{};
-  presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-  presentInfo.waitSemaphoreCount = 1;
-  presentInfo.pWaitSemaphores = signalSemaphores;
-  VkSwapchainKHR swapChains[] = { m_swapChain };
-  presentInfo.swapchainCount = 1;
-  presentInfo.pSwapchains = swapChains;
-  presentInfo.pImageIndices = &m_imageIndex;
-  presentInfo.pResults = nullptr;
-
-  VkResult presentResult = vkQueuePresentKHR(m_presentQueue, &presentInfo);
-  if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR
-    || m_framebufferResized) {
-    
-    m_framebufferResized = false;
-    recreateSwapChain();
-  }
-  else if (presentResult != VK_SUCCESS) {
-    EXCEPTION("Failed to present swap chain image");
-  }
-
-  m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void RendererImpl::destroyDebugMessenger()
