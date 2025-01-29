@@ -1,7 +1,26 @@
 {
   "dependencies": [
+    "gtest",
     "glfw3",
     "tinyxml2",
     "stb"
+  ],
+  "overrides": [
+    {
+      "name": "gtest",
+      "version": "1.14.0"
+    },
+    {
+      "name": "glfw3",
+      "version": "3.4"
+    },
+    {
+      "name": "tinyxml2",
+      "version": "9.0.0"
+    },
+    {
+      "name": "stb",
+      "version": "2023-04-11"
+    }
   ]
 }
