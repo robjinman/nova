@@ -34,7 +34,7 @@ struct Model
   VertexList vertices;
   IndexList indices;
   TextureId texture = 0;
-  Mat4x4f transform = Mat4x4f(1);
+  Mat4x4f transform = identityMatrix<float, 4>();
 };
 
 using ModelPtr = std::unique_ptr<Model>;

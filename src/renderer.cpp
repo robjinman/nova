@@ -15,6 +15,7 @@
 #include <fstream>
 #include <set>
 #include <map>
+#include <cassert>
 
 #define VK_CHECK(fnCall, msg) \
   { \
@@ -270,8 +271,8 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
 
   float aspectRatio = m_swapChainExtent.width / static_cast<float>(m_swapChainExtent.height);
 
-  m_projectionMatrix = glm::perspective(glm::radians(45.f), aspectRatio, 0.1f, 1000.f);
-  m_projectionMatrix[1][1] *= -1;
+  m_projectionMatrix = perspective(degreesToRadians(45.f), aspectRatio, 0.1f, 1000.f);
+  m_projectionMatrix.set(1, 1, m_projectionMatrix.at(1, 1) * -1);
 }
 
 void RendererImpl::update(const Camera& camera)

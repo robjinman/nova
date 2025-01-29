@@ -21,7 +21,7 @@ class Application
 
     void run();
     void onKeyboardInput(int key, int action);
-    void onMouseMove(double x, double y);
+    void onMouseMove(float_t x, float_t y);
     void onMouseClick();
 
   private:
@@ -53,7 +53,7 @@ void Application::onKeyboardInput(GLFWwindow*, int key, int, int action, int)
 void Application::onMouseMove(GLFWwindow*, double x, double y)
 {
   if (m_instance) {
-    m_instance->onMouseMove(x, y);
+    m_instance->onMouseMove(static_cast<float_t>(x), static_cast<float_t>(y));
   }
 }
 
@@ -105,7 +105,7 @@ void Application::onKeyboardInput(int code, int action)
   }
 }
 
-void Application::onMouseMove(double x, double y)
+void Application::onMouseMove(float_t x, float_t y)
 {
   Vec2f delta = (Vec2f{x, y} - m_lastMousePos) / Vec2f{WIDTH , HEIGHT};
   m_game->onMouseMove(delta);
@@ -126,7 +126,7 @@ void Application::enterInputCapture()
   double x = 0;
   double y = 0;
   glfwGetCursorPos(m_window, &x, &y);
-  m_lastMousePos = { x, y };
+  m_lastMousePos = { static_cast<float_t>(x), static_cast<float_t>(y) };
 }
 
 void Application::exitInputCapture()

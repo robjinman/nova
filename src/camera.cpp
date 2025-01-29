@@ -1,8 +1,8 @@
 #include "camera.hpp"
 
 Camera::Camera()
-  : m_position(0, 0, 0)
-  , m_direction(0, 0, -1)
+  : m_position{0, 0, 0}
+  , m_direction{0, 0, -1}
 {
 }
 
@@ -13,18 +13,14 @@ void Camera::translate(const Vec3f& delta)
 
 void Camera::rotate(float deltaPitch, float deltaYaw)
 {
-  static const Vec3f vertical = Vec3f{0, 1, 0};
-
-  Vec4f v{m_direction, 1};
-  auto pitch = glm::rotate(Mat4x4f(1), deltaPitch, glm::cross(m_direction, vertical));
-  auto yaw = glm::rotate(Mat4x4f(1), deltaYaw, vertical);
-  m_direction = yaw * pitch * v;
-  m_direction = glm::normalize(m_direction);
+  auto pitch = rotationMatrix3x3(m_direction.cross(Vec3f{0, 1, 0}), deltaPitch);
+  auto yaw = rotationMatrix3x3(Vec3f{0, 1, 0}, deltaYaw);
+  m_direction = (yaw * pitch * m_direction).normalise();
 }
 
 Mat4x4f Camera::getMatrix() const
 {
-  return glm::lookAt(m_position, m_position + m_direction, Vec3f{0, 1, 0});
+  return lookAt(m_position, m_position + m_direction);
 }
 
 const Vec3f& Camera::getPosition() const
