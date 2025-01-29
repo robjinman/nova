@@ -31,6 +31,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Vulkan REQUIRED)
 find_package(glfw3 REQUIRED)
+find_package(tinyxml2 REQUIRED)
 find_package(Stb REQUIRED)
 
 configure_file(
@@ -73,6 +74,7 @@ target_include_directories(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
   Vulkan::Vulkan
+  tinyxml2::tinyxml2
   glfw
 )
 
