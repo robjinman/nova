@@ -10,7 +10,7 @@ namespace
 {
 
 const double MOUSE_LOOK_SPEED = 2.5;
-const float_t PLAYER_SPEED = 4.f;
+const float_t PLAYER_SPEED = 0.5f;
 
 class GameImpl : public Game
 {
@@ -105,6 +105,7 @@ void GameImpl::handleKeyboardInput()
   dir.y = 0;
 
   if (dir != Vec3f{}) {
+    dir = glm::normalize(dir);
     m_camera.translate(dir * PLAYER_SPEED);
   }
 }

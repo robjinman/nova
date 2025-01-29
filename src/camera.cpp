@@ -18,7 +18,8 @@ void Camera::rotate(float deltaPitch, float deltaYaw)
   Vec4f v{m_direction, 1};
   auto pitch = glm::rotate(Mat4x4f(1), deltaPitch, glm::cross(m_direction, vertical));
   auto yaw = glm::rotate(Mat4x4f(1), deltaYaw, vertical);
-  m_direction = glm::normalize(yaw * pitch * v);
+  m_direction = yaw * pitch * v;
+  m_direction = glm::normalize(m_direction);
 }
 
 Mat4x4f Camera::getMatrix() const
