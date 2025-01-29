@@ -1,4 +1,3 @@
-#include "version.hpp"
 #include "logger.hpp"
 #include "game.hpp"
 #include "renderer.hpp"
@@ -145,7 +144,7 @@ int main()
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Don't create OpenGL context
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-  std::string title = STR("Nova " << Nova_VERSION_MAJOR << "." << Nova_VERSION_MINOR);
+  std::string title = versionString();
   auto window = glfwCreateWindow(WIDTH, HEIGHT, title.c_str(), nullptr, nullptr);
 
   try {

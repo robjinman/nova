@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.27)
 set(VERSION_MAJOR 0)
 set(VERSION_MINOR 1)
 set(PROJECT_NAME Nova)
-set(TARGET_NAME nova)
 
 project(${PROJECT_NAME})
 
@@ -15,6 +14,9 @@ endif()
 
 message("System name is ${CMAKE_SYSTEM_NAME}")
 message("Building ${CMAKE_BUILD_TYPE} configuration...")
+
+set(EXE_TARGET "nova")
+set(LIB_TARGET "libnova")
 
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
   set(PLATFORM_LINUX 1)
@@ -45,18 +47,21 @@ if(PLATFORM_LINUX)
   set(COMPILE_FLAGS -Wextra -Wall)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
-  add_executable(${TARGET_NAME} ${CPP_SOURCES})
+  add_library(${LIB_TARGET} ${CPP_SOURCES})
+  add_executable(${EXE_TARGET} "${PROJECT_SOURCE_DIR}/src/application.cpp")
 elseif(PLATFORM_WINDOWS)
   set(COMPILE_FLAGS /W4)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS})
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} /O2)
-  add_executable(${TARGET_NAME} ${CPP_SOURCES})
+  add_library(${LIB_TARGET} ${CPP_SOURCES})
+  add_executable(${EXE_TARGET} "${PROJECT_SOURCE_DIR}/src/application.cpp")
 elseif(PLATFORM_OSX)
   set(COMPILE_FLAGS -Wextra -Wall)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
-  add_executable(${TARGET_NAME} ${CPP_SOURCES})
-  set_target_properties(${TARGET_NAME} PROPERTIES
+  add_library(${LIB_TARGET} ${CPP_SOURCES})
+  add_executable(${EXE_TARGET} "${PROJECT_SOURCE_DIR}/src/application.cpp")
+  set_target_properties(${EXE_TARGET} PROPERTIES
     MACOSX_BUNDLE TRUE
     MACOSX_BUNDLE_GUI_IDENTIFIER "nova"
     MACOSX_BUNDLE_BUNDLE_NAME "Nova"
@@ -66,20 +71,26 @@ elseif(PLATFORM_OSX)
   )
 endif()
 
-target_include_directories(${TARGET_NAME}
-  PRIVATE
+target_include_directories(${LIB_TARGET}
+  PUBLIC
     "${PROJECT_BINARY_DIR}/include" # Location of version.hpp
     "${PROJECT_SOURCE_DIR}/src"
 )
 
-target_link_libraries(${TARGET_NAME}
-  Vulkan::Vulkan
-  tinyxml2::tinyxml2
-  glfw
+target_link_libraries(${LIB_TARGET}
+  PUBLIC
+    Vulkan::Vulkan
+    tinyxml2::tinyxml2
 )
 
-target_compile_options(${TARGET_NAME} PUBLIC "$<$<CONFIG:DEBUG>:${DEBUG_COMPILE_FLAGS}>")
-target_compile_options(${TARGET_NAME} PUBLIC "$<$<CONFIG:RELEASE>:${RELEASE_COMPILE_FLAGS}>")
+target_link_libraries(${EXE_TARGET}
+  PRIVATE
+    ${LIB_TARGET}
+    glfw
+)
+
+target_compile_options(${LIB_TARGET} PUBLIC "$<$<CONFIG:DEBUG>:${DEBUG_COMPILE_FLAGS}>")
+target_compile_options(${LIB_TARGET} PUBLIC "$<$<CONFIG:RELEASE>:${RELEASE_COMPILE_FLAGS}>")
 
 file(GLOB FRAG_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/shaders/fragment/*.glsl")
 file(GLOB VERT_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/shaders/vertex/*.glsl")
@@ -113,8 +124,8 @@ endfunction()
 compile_shaders(frag_shaders ${FRAG_SHADER_SOURCES} fragment "${PROJECT_BINARY_DIR}/shaders")
 compile_shaders(vert_shaders ${VERT_SHADER_SOURCES} vertex "${PROJECT_BINARY_DIR}/shaders")
 
-add_dependencies(${TARGET_NAME} frag_shaders)
-add_dependencies(${TARGET_NAME} vert_shaders)
+add_dependencies(${LIB_TARGET} frag_shaders)
+add_dependencies(${LIB_TARGET} vert_shaders)
 
 add_custom_target(
   link_data ALL
@@ -125,29 +136,29 @@ set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ".")
 include(InstallRequiredSystemLibraries)
 
 if (PLATFORM_OSX)
-  install(TARGETS ${TARGET_NAME}
+  install(TARGETS ${EXE_TARGET}
     BUNDLE DESTINATION .
     RUNTIME DESTINATION .
   )
   install(DIRECTORY "${PROJECT_SOURCE_DIR}/data"
-    DESTINATION "${TARGET_NAME}.app/Contents/Resources")
+    DESTINATION "${EXE_TARGET}.app/Contents/Resources")
   install(DIRECTORY "${PROJECT_BINARY_DIR}/shaders"
-    DESTINATION "${TARGET_NAME}.app/Contents/Resources")
+    DESTINATION "${EXE_TARGET}.app/Contents/Resources")
   install(FILES "${PROJECT_SOURCE_DIR}/osx/nova.icns"
-    DESTINATION "${TARGET_NAME}.app/Contents/Resources")
+    DESTINATION "${EXE_TARGET}.app/Contents/Resources")
   install(FILES "/usr/local/lib/libMoltenVK.dylib"
-    DESTINATION "${TARGET_NAME}.app/Contents/Frameworks")
+    DESTINATION "${EXE_TARGET}.app/Contents/Frameworks")
   install(FILES "${PROJECT_SOURCE_DIR}/osx/MoltenVK_icd.json"
-    DESTINATION "${TARGET_NAME}.app/Contents/Resources/vulkan/icd.d")
+    DESTINATION "${EXE_TARGET}.app/Contents/Resources/vulkan/icd.d")
 
   install(CODE "
     include(BundleUtilities)
-    fixup_bundle(\"${CMAKE_INSTALL_PREFIX}/${TARGET_NAME}.app\" \"${CMAKE_INSTALL_PREFIX}/${TARGET_NAME}.app/Contents/Frameworks/libMoltenVK.dylib\" \"\")
+    fixup_bundle(\"${CMAKE_INSTALL_PREFIX}/${EXE_TARGET}.app\" \"${CMAKE_INSTALL_PREFIX}/${EXE_TARGET}.app/Contents/Frameworks/libMoltenVK.dylib\" \"\")
     " COMPONENT Runtime)
 
-  install(CODE "execute_process(COMMAND codesign --deep --force --sign - ${CMAKE_INSTALL_PREFIX}/${TARGET_NAME}.app)")
+  install(CODE "execute_process(COMMAND codesign --deep --force --sign - ${CMAKE_INSTALL_PREFIX}/${EXE_TARGET}.app)")
 else()
-  install(TARGETS ${TARGET_NAME} DESTINATION ".")
+  install(TARGETS ${EXE_TARGET} DESTINATION ".")
   install(DIRECTORY "${PROJECT_SOURCE_DIR}/data" DESTINATION ".")
   install(DIRECTORY "${PROJECT_BINARY_DIR}/shaders" DESTINATION ".")
 endif()
@@ -155,3 +166,5 @@ endif()
 set(CPACK_PACKAGE_VENDOR "Rob Jinman")
 set(CPACK_PACKAGE_CONTACT "jinmanr@gmail.com")
 include(CPack)
+
+add_subdirectory("test")

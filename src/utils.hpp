@@ -13,3 +13,5 @@ bool inRange(T value, T min, T max)
 {
   return value >= min && value <= max;
 }
+
+std::string versionString();

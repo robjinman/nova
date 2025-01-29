@@ -27,7 +27,7 @@ ModelPtr loadModel(const std::string& objFilePath)
 
   auto model = std::make_unique<Model>();
 
-  Vec3f colour{ 1, 1, 1 };
+  Vec3f colour{1, 1, 1};
 
   while (!stream.eof()) {
     std::getline(stream, line);
@@ -39,7 +39,7 @@ ModelPtr loadModel(const std::string& objFilePath)
       float u = std::stof(match[1].str());
       float v = std::stof(match[2].str());
   
-      uvCoords.push_back({ u, v });
+      uvCoords.push_back({u, v});
     }
     else if (startsWith(line, "v")) {
       std::regex_search(line, match, vertexPattern);
@@ -49,7 +49,7 @@ ModelPtr loadModel(const std::string& objFilePath)
       float y = std::stof(match[2].str());
       float z = std::stof(match[3].str());
   
-      vertices.push_back({ x, y, z });
+      vertices.push_back({x, y, z});
     }
     else if (startsWith(line, "f")) {
       std::regex_search(line, match, facePattern);

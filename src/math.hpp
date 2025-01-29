@@ -479,7 +479,7 @@ template<typename T>
 Matrix<T, 4, 4> fromVerticalToVectorTransform(const Vector<T, 3>& vec)
 {
   Vector<T, 3> u = vec.normalise();
-  Vector<T, 3> w = Vector<T, 3>{ 0, 0, 1 };
+  Vector<T, 3> w = Vector<T, 3>{0, 0, 1};
   Vector<T, 3> v = w.cross(u).normalise();
   w = u.cross(v);
 
@@ -506,7 +506,7 @@ Matrix<T, 3, 3> getRotation3x3(const Matrix<T, 4, 4>& m)
 template<typename T>
 Vector<T, 3> getTranslation(const Matrix<T, 4, 4>& m)
 {
-  return Vector<T, 3>{ m.at(0, 3), m.at(1, 3), m.at(2, 3) };
+  return Vector<T, 3>{m.at(0, 3), m.at(1, 3), m.at(2, 3)};
 }
 
 template<typename T>
