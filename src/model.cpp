@@ -16,8 +16,8 @@ ModelPtr loadModel(const std::string& objFilePath)
   std::ifstream stream(objFilePath);
   std::string line;
 
-  std::vector<glm::vec3> vertices;
-  std::vector<glm::vec2> uvCoords;
+  std::vector<Vec3f> vertices;
+  std::vector<Vec2f> uvCoords;
 
   std::regex vertexPattern{"v\\s+(-?\\d+\\.?\\d+)\\s+(-?\\d+\\.?\\d+)\\s+(-?\\d+\\.?\\d+)"};
   std::regex uvCoordPattern{"vt\\s+(-?\\d+\\.?\\d+)\\s+(-?\\d+\\.?\\d+)"};
@@ -27,7 +27,7 @@ ModelPtr loadModel(const std::string& objFilePath)
 
   auto model = std::make_unique<Model>();
 
-  glm::vec3 colour{ 1, 1, 1 };
+  Vec3f colour{ 1, 1, 1 };
 
   while (!stream.eof()) {
     std::getline(stream, line);

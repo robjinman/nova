@@ -75,14 +75,9 @@ void GameImpl::onMouseMove(const Vec2f& delta)
 
 void GameImpl::updateModels()
 {
-  const Mat4x4f model1Translation = glm::translate(Mat4x4f(1), Vec3f{-1.5, 0, 0});
-  const Mat4x4f model2Translation = glm::translate(Mat4x4f(1), Vec3f{1.5, 0, 0});
-
-  m_renderer.setModelTransform(m_model1Id, model1Translation * glm::rotate(Mat4x4f(1),
-    glm::radians<float>((90.f * m_timer.elapsed())), Vec3f{0, 1, 0}));
-
-  m_renderer.setModelTransform(m_model2Id, model2Translation * glm::rotate(Mat4x4f(1),
-    glm::radians<float>((-90.f * m_timer.elapsed())), Vec3f{0, 1, 0}));
+  float_t angle = degreesToRadians<float_t>(90.f * m_timer.elapsed());
+  m_renderer.setModelTransform(m_model1Id, transform(Vec3f{-1.5, 0, 0}, Vec3f{0, -angle, 0}));
+  m_renderer.setModelTransform(m_model2Id, transform(Vec3f{1.5, 0, 0}, Vec3f{0, angle, 0}));
 }
 
 void GameImpl::handleKeyboardInput()
@@ -96,23 +91,23 @@ void GameImpl::handleKeyboardInput()
     dir = -m_camera.getDirection();
   }
   if (m_keysPressed.count(KeyboardKey::D)) {
-    dir = glm::cross(m_camera.getDirection(), Vec3f{0, 1, 0});
+    dir = m_camera.getDirection().cross(Vec3f{0, 1, 0});
   }
   if (m_keysPressed.count(KeyboardKey::A)) {
-    dir = -glm::cross(m_camera.getDirection(), Vec3f{0, 1, 0});
+    dir = -m_camera.getDirection().cross(Vec3f{0, 1, 0});
   }
 
-  dir.y = 0;
+  dir[1] = 0;
 
   if (dir != Vec3f{}) {
-    dir = glm::normalize(dir);
+    dir = dir.normalise();
     m_camera.translate(dir * PLAYER_SPEED);
   }
 }
 
 void GameImpl::handleMouseInput()
 {
-  m_camera.rotate(-MOUSE_LOOK_SPEED * m_mouseDelta.y, -MOUSE_LOOK_SPEED * m_mouseDelta.x);
+  m_camera.rotate(-MOUSE_LOOK_SPEED * m_mouseDelta[1], -MOUSE_LOOK_SPEED * m_mouseDelta[0]);
   m_mouseDelta = Vec2f{};
 }
 

@@ -30,7 +30,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Vulkan REQUIRED)
-find_package(glm REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(Stb REQUIRED)
 
@@ -74,7 +73,6 @@ target_include_directories(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
   Vulkan::Vulkan
-  glm::glm
   glfw
 )
 
