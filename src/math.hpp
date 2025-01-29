@@ -23,6 +23,18 @@ template<typename T> T clip(T value, T min, T max)
   return std::max(min, std::min(max, value));
 }
 
+template<typename T>
+T sine(T a)
+{
+  return static_cast<T>(sin(static_cast<T>(a)));
+}
+
+template<typename T>
+T cosine(T a)
+{
+  return static_cast<T>(cos(static_cast<T>(a)));
+}
+
 template<typename T, size_t N>
 class Vector
 {
@@ -408,17 +420,17 @@ Matrix<T, 3, 3> rotationMatrix3x3(const Vector<T, 3>& ori)
 {
   Matrix<T, 3, 3> X{
     1, 0, 0,
-    0, cos(ori[0]), -sin(ori[0]),
-    0, sin(ori[0]), cos(ori[0])
+    0, cosine(ori[0]), -sine(ori[0]),
+    0, sine(ori[0]), cosine(ori[0])
   };
   Matrix<T, 3, 3> Y{
-    cos(ori[1]), 0, sin(ori[1]),
+    cosine(ori[1]), 0, sine(ori[1]),
     0, 1, 0,
-    -sin(ori[1]), 0, cos(ori[1])
+    -sine(ori[1]), 0, cosine(ori[1])
   };
   Matrix<T, 3, 3> Z{
-    cos(ori[2]), -sin(ori[2]), 0,
-    sin(ori[2]), cos(ori[2]), 0,
+    cosine(ori[2]), -sine(ori[2]), 0,
+    sine(ori[2]), cosine(ori[2]), 0,
     0, 0, 1
   };
   return Z * (Y * X);
