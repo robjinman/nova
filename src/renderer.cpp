@@ -269,7 +269,7 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
 {
   initVulkan();
 
-  float aspectRatio = m_swapChainExtent.width / static_cast<float>(m_swapChainExtent.height);
+  float_t aspectRatio = m_swapChainExtent.width / static_cast<float_t>(m_swapChainExtent.height);
 
   m_projectionMatrix = perspective(degreesToRadians(45.f), aspectRatio, 0.1f, 1000.f);
   m_projectionMatrix.set(1, 1, m_projectionMatrix.at(1, 1) * -1);

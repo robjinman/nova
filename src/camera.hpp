@@ -8,7 +8,7 @@ class Camera
     Camera();
 
     void translate(const Vec3f& delta);
-    void rotate(float deltaPitch, float deltaYaw);
+    void rotate(float_t deltaPitch, float_t deltaYaw);
     const Vec3f& getDirection() const;
     const Vec3f& getPosition() const;
     Mat4x4f  getMatrix() const;
