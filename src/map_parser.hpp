@@ -19,7 +19,7 @@ struct ObjectData
   std::string name;
   Path path;
   KeyValueMap values;
-  Mat4x4f transform = identityMatrix<double, 4>();
+  Mat4x4f transform = identityMatrix<float_t, 4>();
   std::vector<ObjectData> children;
 };
 

@@ -36,8 +36,8 @@ ModelPtr loadModel(const std::string& objFilePath)
       std::regex_search(line, match, uvCoordPattern);
 
       ASSERT(match.size() == 3, STR("Error parsing uv coords: " << line));
-      float u = std::stof(match[1].str());
-      float v = std::stof(match[2].str());
+      float_t u = parseFloat<float_t>(match[1].str());
+      float_t v = parseFloat<float_t>(match[2].str());
   
       uvCoords.push_back({u, v});
     }
@@ -45,9 +45,9 @@ ModelPtr loadModel(const std::string& objFilePath)
       std::regex_search(line, match, vertexPattern);
 
       ASSERT(match.size() == 4, STR("Error parsing vertex: " << line));
-      float x = std::stof(match[1].str());
-      float y = std::stof(match[2].str());
-      float z = std::stof(match[3].str());
+      float_t x = parseFloat<float_t>(match[1].str());
+      float_t y = parseFloat<float_t>(match[2].str());
+      float_t z = parseFloat<float_t>(match[3].str());
   
       vertices.push_back({x, y, z});
     }

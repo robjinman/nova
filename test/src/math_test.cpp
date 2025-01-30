@@ -102,7 +102,7 @@ TEST_F(MathTest, lineSegmentCircleIntersect_true_for_point_at_end_point)
 TEST_F(MathTest, lineSegmentCircleIntersect_example_0)
 {
   LineSegment lseg{{20, 30}, {-10, 60}};
-  double radius = 6;
+  float_t radius = 6;
   Vec2f p{25, 28};
   ASSERT_TRUE(lineSegmentCircleIntersect(lseg, p, radius));
 }
@@ -110,7 +110,7 @@ TEST_F(MathTest, lineSegmentCircleIntersect_example_0)
 TEST_F(MathTest, lineSegmentCircleIntersect_example_1)
 {
   LineSegment lseg{{20, 30}, {-10, 60}};
-  double radius = 6;
+  float_t radius = 6;
   Vec2f p{25, 28};
   ASSERT_TRUE(lineSegmentCircleIntersect(lseg, p, radius));
 }
@@ -118,7 +118,7 @@ TEST_F(MathTest, lineSegmentCircleIntersect_example_1)
 TEST_F(MathTest, lineSegmentCircleIntersect_example_2)
 {
   LineSegment lseg{{20, 30}, {-10, 60}};
-  double radius = 5;
+  float_t radius = 5;
   Vec2f p{25, 28};
   ASSERT_FALSE(lineSegmentCircleIntersect(lseg, p, radius));
 }
