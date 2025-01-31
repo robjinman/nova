@@ -1,3 +1,4 @@
+#include "render_graph.hpp"
 #include "renderer.hpp"
 #include "exception.hpp"
 #include "version.hpp"
@@ -76,6 +77,8 @@ struct ModelData
   VkDeviceMemory vertexBufferMemory;
   VkBuffer indexBuffer;
   VkDeviceMemory indexBufferMemory;
+  VkBuffer instanceBuffer;
+  VkDeviceMemory instanceBufferMemory;
 };
 
 using ModelDataPtr = std::unique_ptr<ModelData>;
@@ -91,38 +94,10 @@ struct UniformBufferObject
   Mat4x4f viewProjectionMatrix;
 };
 
-VkVertexInputBindingDescription getBindingDescription()
+struct InstanceData
 {
-  VkVertexInputBindingDescription binding{};
-
-  binding.binding = 0;
-  binding.stride = sizeof(Vertex);
-  binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-  return binding;
-}
-
-std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions()
-{
-  std::array<VkVertexInputAttributeDescription, 3> attributes{};
-  
-  attributes[0].binding = 0;
-  attributes[0].location = 0;
-  attributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributes[0].offset = offsetof(Vertex, pos);
-
-  attributes[1].binding = 0;
-  attributes[1].location = 1;
-  attributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributes[1].offset = offsetof(Vertex, colour);
-
-  attributes[2].binding = 0;
-  attributes[2].location = 2;
-  attributes[2].format = VK_FORMAT_R32G32_SFLOAT;
-  attributes[2].offset = offsetof(Vertex, texCoord);
-
-  return attributes;
-}
+  Mat4x4f modelMatrix;
+};
 
 struct QueueFamilyIndices
 {
@@ -199,6 +174,7 @@ private:
   void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
     VkBuffer& buffer, VkDeviceMemory& bufferMemory);
   VkBuffer createVertexBuffer(const VertexList& vertices, VkDeviceMemory& vertexBufferMemory);
+  VkBuffer createInstanceBuffer(size_t maxInstances, VkDeviceMemory& instanceBufferMemory);
   void createTextureSampler();
   void createDepthResources();
   VkBuffer createIndexBuffer(const IndexList& indices, VkDeviceMemory& indexBufferMemory);
@@ -221,6 +197,9 @@ private:
   void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
     VkImageLayout newLayout);
   bool hasStencilComponent(VkFormat format) const;
+  VkVertexInputBindingDescription getVertexBindingDescription() const;
+  VkVertexInputBindingDescription getInstanceBindingDescription() const;
+  std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() const;
 
   GLFWwindow& m_window;
   Logger& m_logger;
@@ -282,7 +261,7 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
 
 void RendererImpl::stageInstance(ModelId model, const Mat4x4f& transform)
 {
-  m_instances.push_back({model, transform});
+  m_instances.push_back({ model, transform });
 }
 
 void RendererImpl::beginFrame(const Camera& camera)
@@ -373,6 +352,8 @@ ModelId RendererImpl::addModel(ModelPtr model)
   data->model = std::move(model);
   data->vertexBuffer = createVertexBuffer(data->model->vertices, data->vertexBufferMemory);
   data->indexBuffer = createIndexBuffer(data->model->indices, data->indexBufferMemory);
+  data->instanceBuffer = createInstanceBuffer(data->model->maxInstances,
+    data->instanceBufferMemory);
 
   ModelId id = nextModelId++;
   m_models[id] = std::move(data);
@@ -879,6 +860,67 @@ void RendererImpl::createDescriptorSetLayouts()
   createMaterialDescriptorSetLayout();
 }
 
+VkVertexInputBindingDescription RendererImpl::getVertexBindingDescription() const
+{
+  VkVertexInputBindingDescription binding{};
+
+  binding.binding = 0;
+  binding.stride = sizeof(Vertex);
+  binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+  return binding;
+}
+
+VkVertexInputBindingDescription RendererImpl::getInstanceBindingDescription() const
+{
+  VkVertexInputBindingDescription binding{};
+
+  binding.binding = 1;
+  binding.stride = sizeof(InstanceData);
+  binding.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+
+  return binding;
+}
+
+std::vector<VkVertexInputAttributeDescription> RendererImpl::getAttributeDescriptions() const
+{
+  std::vector<VkVertexInputAttributeDescription> attributes;
+
+  attributes.push_back({
+    .binding = 0,
+    .location = 0,
+    .format = VK_FORMAT_R32G32B32_SFLOAT,
+    .offset = offsetof(Vertex, pos)
+  });
+
+  attributes.push_back({
+    .binding = 0,
+    .location = 1,
+    .format = VK_FORMAT_R32G32B32_SFLOAT,
+    .offset = offsetof(Vertex, colour)
+  });
+
+  attributes.push_back({
+    .binding = 0,
+    .location = 2,
+    .format = VK_FORMAT_R32G32_SFLOAT,
+    .offset = offsetof(Vertex, texCoord)
+  });
+
+  for (unsigned int i = 0; i < 4; ++i) {
+    uint32_t offset = offsetof(InstanceData, modelMatrix) + 4 * sizeof(float_t) * i;
+
+    attributes.push_back({
+      .binding = 1,
+      .location = 3 + i,
+      .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+      .offset = offset
+    });
+  }
+
+  return attributes;
+}
+
 void RendererImpl::createGraphicsPipeline()
 {
   auto vertShaderCode = readFile("shaders/vertex/shader.spv");
@@ -899,13 +941,19 @@ void RendererImpl::createGraphicsPipeline()
   fragShaderStageInfo.module = fragShaderModule;
   fragShaderStageInfo.pName = "main";
 
-  auto bindingDescription = getBindingDescription();
+  auto vertexBindingDescription = getVertexBindingDescription();
+  auto instanceBindingDescription = getInstanceBindingDescription();
   auto attributeDescriptions = getAttributeDescriptions();
+
+  std::array<VkVertexInputBindingDescription, 2> bindingDescriptions{
+    vertexBindingDescription,
+    instanceBindingDescription
+  };
 
   VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
   vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-  vertexInputInfo.vertexBindingDescriptionCount = 1;
-  vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+  vertexInputInfo.vertexBindingDescriptionCount = bindingDescriptions.size();
+  vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
   vertexInputInfo.vertexAttributeDescriptionCount = attributeDescriptions.size();
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
@@ -1496,6 +1544,18 @@ VkBuffer RendererImpl::createIndexBuffer(const IndexList& indices,
   vkFreeMemory(m_device, stagingBufferMemory, nullptr);
 
   return indexBuffer;
+}
+
+VkBuffer RendererImpl::createInstanceBuffer(size_t maxInstances,
+  VkDeviceMemory& instanceBufferMemory)
+{
+  VkDeviceSize size = sizeof(InstanceData) * maxInstances;
+
+  VkBuffer buffer = VK_NULL_HANDLE;
+  createBuffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, instanceBufferMemory);
+
+  return buffer;
 }
 
 void RendererImpl::createUniformBuffers()
