@@ -80,6 +80,12 @@ struct ModelData
 
 using ModelDataPtr = std::unique_ptr<ModelData>;
 
+struct ModelInstance
+{
+  ModelId modelId;
+  Mat4x4f transform;
+};
+
 struct UniformBufferObject
 {
   Mat4x4f viewProjectionMatrix;
@@ -140,16 +146,15 @@ class RendererImpl : public Renderer
 public:
   RendererImpl(GLFWwindow& window, Logger& logger);
 
-  void update(const Camera& camera) override;
+  void beginFrame(const Camera& camera) override;
+  void stageInstance(ModelId model, const Mat4x4f& transform) override;
+  void endFrame() override;
 
   TextureId addTexture(TexturePtr texture) override;
-  void removeTexture(TextureId id) override;
-
   ModelId addModel(ModelPtr model) override;
-  void removeModel(ModelId id) override;
 
-  Mat4x4f getModelTransform(ModelId modelId) const override;
-  void setModelTransform(ModelId modelId, const Mat4x4f& transform) override;
+  void removeTexture(TextureId id) override;
+  void removeModel(ModelId id) override;
 
   ~RendererImpl() override;
 
@@ -216,8 +221,6 @@ private:
   void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
     VkImageLayout newLayout);
   bool hasStencilComponent(VkFormat format) const;
-  void beginFrame();
-  void endFrame();
 
   GLFWwindow& m_window;
   Logger& m_logger;
@@ -261,6 +264,7 @@ private:
 
   std::map<ModelId, ModelDataPtr> m_models;
   std::map<TextureId, TextureDataPtr> m_textures;
+  std::vector<ModelInstance> m_instances;
 };
 
 RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
@@ -275,15 +279,15 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
   m_projectionMatrix.set(1, 1, m_projectionMatrix.at(1, 1) * -1);
 }
 
-void RendererImpl::update(const Camera& camera)
+void RendererImpl::stageInstance(ModelId model, const Mat4x4f& transform)
 {
-  beginFrame();
-  updateUniformBuffer(camera);
-  endFrame();
+  m_instances.push_back({model, transform});
 }
 
-void RendererImpl::beginFrame()
+void RendererImpl::beginFrame(const Camera& camera)
 {
+  assert(m_instances.empty());
+
   VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
     "Error waiting for fence");
 
@@ -302,11 +306,13 @@ void RendererImpl::beginFrame()
 
   vkResetCommandBuffer(m_commandBuffers[m_imageIndex], 0);
 
-  recordCommandBuffer(m_commandBuffers[m_imageIndex], m_imageIndex);
+  updateUniformBuffer(camera);
 }
 
 void RendererImpl::endFrame()
 {
+  recordCommandBuffer(m_commandBuffers[m_imageIndex], m_imageIndex);
+
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -347,6 +353,7 @@ void RendererImpl::endFrame()
   }
 
   m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+  m_instances.clear();
 }
 
 void RendererImpl::updateUniformBuffer(const Camera& camera)
@@ -1146,11 +1153,11 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
   renderPassInfo.pClearValues = clearValues.data();
 
   vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-  for (auto& i : m_models) {  // TODO: Move some stuff outside of loop
-    auto& model = i.second;
+  vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+  for (auto& instance : m_instances) {  // TODO
+    auto& model = m_models.at(instance.modelId);
     auto& texture = *m_textures.at(model->model->texture);
 
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
     VkBuffer vertexBuffers[] = { model->vertexBuffer };
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
@@ -1160,7 +1167,7 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1,
       &texture.descriptorSet, 0, nullptr);
     vkCmdPushConstants(commandBuffer, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0,
-      sizeof(Mat4x4f), &model->model->transform);
+      sizeof(Mat4x4f), &instance.transform);
     vkCmdDrawIndexed(commandBuffer, model->model->indices.size(), 1, 0, 0, 0);
   }
   vkCmdEndRenderPass(commandBuffer);
@@ -1811,16 +1818,6 @@ void RendererImpl::setupDebugMessenger()
   }
   VK_CHECK(func(m_instance, &createInfo, nullptr, &m_debugMessenger),
     "Error setting up debug messenger");
-}
-
-Mat4x4f RendererImpl::getModelTransform(ModelId modelId) const
-{
-  return m_models.at(modelId)->model->transform;
-}
-
-void RendererImpl::setModelTransform(ModelId modelId, const Mat4x4f& transform)
-{
-  m_models.at(modelId)->model->transform = transform;
 }
 
 void RendererImpl::destroyDebugMessenger()

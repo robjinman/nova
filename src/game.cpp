@@ -31,6 +31,8 @@ class GameImpl : public Game
     Timer m_timer;
     ModelId m_model1Id;
     ModelId m_model2Id;
+    Mat4x4f m_model1Transform;
+    Mat4x4f m_model2Transform;
 
     void updateModels();
     void handleKeyboardInput();
@@ -76,8 +78,8 @@ void GameImpl::onMouseMove(const Vec2f& delta)
 void GameImpl::updateModels()
 {
   float_t angle = degreesToRadians<float_t>(90.f * m_timer.elapsed());
-  m_renderer.setModelTransform(m_model1Id, transform(Vec3f{-1.5, 0, 0}, Vec3f{0, -angle, 0}));
-  m_renderer.setModelTransform(m_model2Id, transform(Vec3f{1.5, 0, 0}, Vec3f{0, angle, 0}));
+  m_model1Transform = transform(Vec3f{-1.5, 0, 0}, Vec3f{0, -angle, 0});
+  m_model2Transform = transform(Vec3f{1.5, 0, 0}, Vec3f{0, angle, 0});
 }
 
 void GameImpl::handleKeyboardInput()
@@ -117,7 +119,10 @@ void GameImpl::update()
   handleMouseInput();
   updateModels();
 
-  m_renderer.update(m_camera);
+  m_renderer.beginFrame(m_camera);
+  m_renderer.stageInstance(m_model1Id, m_model1Transform);
+  m_renderer.stageInstance(m_model2Id, m_model2Transform);
+  m_renderer.endFrame();
 }
 
 } // namespace
