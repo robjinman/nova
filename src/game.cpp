@@ -12,6 +12,12 @@ namespace
 const float_t MOUSE_LOOK_SPEED = 2.5;
 const float_t PLAYER_SPEED = 0.5f;
 
+struct Instance
+{
+  ModelId model;
+  Mat4x4f transform;
+};
+
 class GameImpl : public Game
 {
   public:
@@ -31,8 +37,8 @@ class GameImpl : public Game
     Timer m_timer;
     ModelId m_model1Id;
     ModelId m_model2Id;
-    Mat4x4f m_model1Transform;
-    Mat4x4f m_model2Transform;
+    std::vector<Instance> m_model1Instances;
+    std::vector<Instance> m_model2Instances;
 
     void updateModels();
     void handleKeyboardInput();
@@ -57,6 +63,17 @@ GameImpl::GameImpl(Renderer& renderer, Logger& logger)
   m_model1Id = m_renderer.addModel(std::move(model1));
   m_model2Id = m_renderer.addModel(std::move(model2));
 
+  const size_t nModel1s = 10;
+  const size_t nModel2s = 10;
+
+  for (size_t i = 0; i < nModel1s; ++i) {
+    m_model1Instances.push_back({m_model1Id, identityMatrix<float_t, 4>()});
+  }
+
+  for (size_t i = 0; i < nModel2s; ++i) {
+    m_model2Instances.push_back({m_model2Id, identityMatrix<float_t, 4>()});
+  }
+
   m_camera.translate(Vec3f{0, 0, 8});
 }
 
@@ -78,8 +95,12 @@ void GameImpl::onMouseMove(const Vec2f& delta)
 void GameImpl::updateModels()
 {
   float_t angle = degreesToRadians<float_t>(90.f * m_timer.elapsed());
-  m_model1Transform = transform(Vec3f{-1.5, 0, 0}, Vec3f{0, -angle, 0});
-  m_model2Transform = transform(Vec3f{1.5, 0, 0}, Vec3f{0, angle, 0});
+  for (size_t i = 0; i < m_model1Instances.size(); ++i) {
+    m_model1Instances[i].transform = transform(Vec3f{-1.5, 0, -3.f * i}, Vec3f{0, -angle, 0});
+  }
+  for (size_t i = 0; i < m_model2Instances.size(); ++i) {
+    m_model2Instances[i].transform = transform(Vec3f{1.5, 0, -3.f * i}, Vec3f{0, angle, 0});
+  }
 }
 
 void GameImpl::handleKeyboardInput()
@@ -120,8 +141,12 @@ void GameImpl::update()
   updateModels();
 
   m_renderer.beginFrame(m_camera);
-  m_renderer.stageInstance(m_model1Id, m_model1Transform);
-  m_renderer.stageInstance(m_model2Id, m_model2Transform);
+  for (auto& instance : m_model1Instances) {
+    m_renderer.stageInstance(instance.model, instance.transform);
+  }
+  for (auto& instance : m_model2Instances) {
+    m_renderer.stageInstance(instance.model, instance.transform);
+  }
   m_renderer.endFrame();
 }
 
