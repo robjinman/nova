@@ -241,7 +241,8 @@ private:
   std::vector<VkCommandBuffer> m_commandBuffers;
   uint32_t m_imageIndex;
   VkRenderPass m_renderPass;
-  std::array<VkDescriptorSetLayout, 2> m_descriptorSetLayouts;
+  VkDescriptorSetLayout m_uboDescriptorSetLayout;
+  VkDescriptorSetLayout m_materialDescriptorSetLayout;
   VkPipelineLayout m_pipelineLayout;
   VkPipeline m_graphicsPipeline;
   VkSampler m_textureSampler;
@@ -845,7 +846,7 @@ void RendererImpl::createUboDescriptorSetLayout()
   layoutInfo.bindingCount = bindings.size();
   layoutInfo.pBindings = bindings.data();
   
-  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, &m_descriptorSetLayouts[0]),
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, &m_uboDescriptorSetLayout),
     "Failed to create descriptor set layout");
 }
 
@@ -868,8 +869,8 @@ void RendererImpl::createMaterialDescriptorSetLayout()
   layoutInfo.bindingCount = bindings.size();
   layoutInfo.pBindings = bindings.data();
 
-  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, &m_descriptorSetLayouts[1]),
-    "Failed to create descriptor set layout");
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
+    &m_materialDescriptorSetLayout), "Failed to create descriptor set layout");
 }
 
 void RendererImpl::createDescriptorSetLayouts()
@@ -983,10 +984,15 @@ void RendererImpl::createGraphicsPipeline()
   pushConstants.size = sizeof(Mat4x4f);
   pushConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
+  std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts{
+    m_uboDescriptorSetLayout,
+    m_materialDescriptorSetLayout
+  };
+
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = m_descriptorSetLayouts.size();
-  pipelineLayoutInfo.pSetLayouts = m_descriptorSetLayouts.data();
+  pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
   pipelineLayoutInfo.pushConstantRangeCount = 1;
   pipelineLayoutInfo.pPushConstantRanges = &pushConstants;
   VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout),
@@ -1345,7 +1351,7 @@ TextureId RendererImpl::addTexture(TexturePtr texture)
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = m_descriptorPool;
   allocInfo.descriptorSetCount = 1;
-  allocInfo.pSetLayouts = &m_descriptorSetLayouts[1]; // TODO: Replace hard-coded index
+  allocInfo.pSetLayouts = &m_materialDescriptorSetLayout;
 
   VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, &textureData->descriptorSet),
     "Failed to allocate descriptor sets");
@@ -1531,7 +1537,7 @@ void RendererImpl::createDescriptorPool()
 
 void RendererImpl::createDescriptorSets()
 {
-  std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_descriptorSetLayouts[0]);
+  std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_uboDescriptorSetLayout);
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = m_descriptorPool;
@@ -1846,9 +1852,8 @@ RendererImpl::~RendererImpl()
     vkFreeMemory(m_device, m_uniformBuffersMemory[i], nullptr);
   }
   vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
-  for (size_t i = 0; i < m_descriptorSetLayouts.size(); ++i) {
-    vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayouts[i], nullptr);
-  }
+  vkDestroyDescriptorSetLayout(m_device, m_uboDescriptorSetLayout, nullptr);
+  vkDestroyDescriptorSetLayout(m_device, m_materialDescriptorSetLayout, nullptr);
   while (!m_models.empty()) {
     removeModel(m_models.begin()->first);
   }
