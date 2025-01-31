@@ -34,6 +34,7 @@ struct Model
   VertexList vertices;
   IndexList indices;
   TextureId texture = 0;
+  size_t maxInstances = 1;
 };
 
 using ModelPtr = std::unique_ptr<Model>;
