@@ -1,5 +1,6 @@
 #pragma once
 
+#include "exception.hpp"
 #include <ostream>
 #include <map>
 #include <memory>
@@ -33,15 +34,15 @@ class Node
           return m_path == rhs.m_path;
         }
 
-        const Node<TKey, TData>& operator*() const
+        const TData& operator*() const
         {
           assert(!m_path.empty());
           assert(m_path.back().second->second->isLeaf());
 
-          return *m_path.back().second->second;
+          return m_path.back().second->second->data();
         }
 
-        const Node<TKey, TData>* operator->() const
+        const TData* operator->() const
         {
           return &(**this);
         }
@@ -130,6 +131,15 @@ class Node
       return Iterator({});
     }
 
+    Iterator find(const Key& k)
+    {
+      ASSERT(!k.empty(), "Key is empty");
+
+      Key key = k;
+      Path path{};
+      return find(path, key);
+    }
+
     void dbg_print(std::ostream& stream, size_t depth = 0) const
     {
       if (isLeaf()) {
@@ -146,6 +156,25 @@ class Node
   private:
     NodeMap m_children;
     TData m_data;
+
+    Iterator find(Path& path, Key& key)
+    {
+      if (key.empty()) {
+        return isLeaf() ? Iterator{path} : end();
+      }
+
+      auto first = key.front();
+      key.pop_front();
+
+      auto i = m_children.find(first);
+      if (i == m_children.end()) {
+        return end();
+      }
+
+      path.push_back(std::pair{&m_children, i});
+
+      return i->second->find(path, key);
+    }
 
     bool isLeaf() const
     {

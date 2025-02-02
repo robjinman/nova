@@ -317,7 +317,28 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
 
 void RendererImpl::stageInstance(ModelId modelId, const Mat4x4f& transform)
 {
-  // TODO
+  auto& model = m_models.at(modelId);
+  ASSERT(model->model->isInstanced, "Can't instance a non-instanced model");
+  ASSERT(model->numInstances < model->model->maxInstances, "Max instances reached for this model");
+
+  RenderGraph::Key key{
+    static_cast<long>(PipelineName::instancedModel),
+    static_cast<long>(modelId)
+  };
+  InstancedModelNode* node = nullptr;
+  auto i = m_renderGraph.find(key);
+  if (i != m_renderGraph.end()) {
+    node = dynamic_cast<InstancedModelNode*>(i->get());
+  }
+  else {
+    auto newNode = std::make_unique<InstancedModelNode>();
+    newNode->model = modelId;
+    node = newNode.get();
+    m_renderGraph.add(key, std::move(newNode));
+  }
+  node->instances.push_back(InstanceData{transform});
+
+  model->numInstances++;
 }
 
 void RendererImpl::stageModel(ModelId modelId, const Mat4x4f& transform)
@@ -331,7 +352,7 @@ void RendererImpl::stageModel(ModelId modelId, const Mat4x4f& transform)
   RenderGraph::Key key{
     static_cast<long>(PipelineName::defaultModel),
     static_cast<long>(modelId),
-    ++nextId
+    nextId++
   };
   m_renderGraph.add(key, std::move(node));
 }
@@ -339,6 +360,9 @@ void RendererImpl::stageModel(ModelId modelId, const Mat4x4f& transform)
 void RendererImpl::beginFrame(const Camera& camera)
 {
   m_renderGraph.clear();
+  for (auto& m : m_models) { // TODO: Do this somewhere else
+    m.second->numInstances = 0;
+  }
 
   VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
     "Error waiting for fence");
@@ -363,7 +387,18 @@ void RendererImpl::beginFrame(const Camera& camera)
 
 void RendererImpl::updateResources()
 {
-  // TODO: Iterate over render graph and update instances buffer
+  for (auto& node : m_renderGraph) {
+    switch (node->type) {
+      case RenderNodeType::instancedModel: {
+        auto& nodeData = dynamic_cast<const InstancedModelNode&>(*node);
+        auto& model = m_models.at(nodeData.model);
+        updateInstanceBuffer(nodeData.instances, model->instanceBuffer);
+
+        break;
+      }
+      default: break;
+    }
+  }
 }
 
 void RendererImpl::endFrame()
@@ -1473,10 +1508,9 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
   vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
   for (auto& node : m_renderGraph) {
-    auto& dataPtr = node.data();
-    switch (dataPtr->type) {
+    switch (node->type) {
       case RenderNodeType::defaultModel: {
-        auto& nodeData = dynamic_cast<const DefaultModelNode&>(*dataPtr);
+        auto& nodeData = dynamic_cast<const DefaultModelNode&>(*node);
         auto& model = m_models.at(nodeData.model);
         auto& texture = *m_textures.at(model->model->texture);
 
@@ -1498,18 +1532,24 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
         break;
       }
       case RenderNodeType::instancedModel: {
-        // TODO
-        /*
-        VkBuffer vertexBuffers[] = { model->vertexBuffer, model->instanceBuffer };
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+        auto& nodeData = dynamic_cast<const InstancedModelNode&>(*node);
+        auto& model = m_models.at(nodeData.model);
+        auto& texture = *m_textures.at(model->model->texture);
+
+        // TODO: Only bind things that have changed since last iteration
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+          m_instancedPipeline.pipeline);
+        std::vector<VkBuffer> vertexBuffers{ model->vertexBuffer, model->instanceBuffer };
+        VkDeviceSize offsets[] = { 0, 0 };
+        vkCmdBindVertexBuffers(commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(),
+          offsets);
         vkCmdBindIndexBuffer(commandBuffer, model->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout, 0,
-          1, &m_uboDescriptorSets[m_currentFrame], 0, nullptr);
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout, 1,
-          1, &texture.descriptorSet, 0, nullptr);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+          m_instancedPipeline.layout, 0, 1, &m_uboDescriptorSets[m_currentFrame], 0, nullptr);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+          m_instancedPipeline.layout, 1, 1, &texture.descriptorSet, 0, nullptr);
         vkCmdDrawIndexed(commandBuffer, model->model->indices.size(), model->numInstances, 0, 0, 0);
-*/
+
         break;
       }
     }
