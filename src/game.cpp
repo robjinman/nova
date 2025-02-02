@@ -59,6 +59,8 @@ GameImpl::GameImpl(Renderer& renderer, Logger& logger)
   model1->texture = texture1Id;
   auto model2 = loadModel("data/models/monkey.obj");
   model2->texture = texture2Id;
+  model2->isInstanced = true;
+  model2->maxInstances = 10;
 
   m_model1Id = m_renderer.addModel(std::move(model1));
   m_model2Id = m_renderer.addModel(std::move(model2));
@@ -140,13 +142,12 @@ void GameImpl::update()
   handleMouseInput();
   updateModels();
 
-  // TODO: Instanced rendering
   m_renderer.beginFrame(m_camera);
   for (auto& instance : m_model1Instances) {
     m_renderer.stageModel(instance.model, instance.transform);
   }
   for (auto& instance : m_model2Instances) {
-    m_renderer.stageModel(instance.model, instance.transform);
+    m_renderer.stageInstance(instance.model, instance.transform);
   }
   m_renderer.endFrame();
 }
