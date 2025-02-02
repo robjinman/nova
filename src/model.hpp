@@ -34,6 +34,7 @@ struct Model
   VertexList vertices;
   IndexList indices;
   TextureId texture = 0;
+  bool isInstanced = false;
   size_t maxInstances = 1;
 };
 

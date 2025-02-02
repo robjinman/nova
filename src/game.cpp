@@ -140,12 +140,13 @@ void GameImpl::update()
   handleMouseInput();
   updateModels();
 
+  // TODO: Instanced rendering
   m_renderer.beginFrame(m_camera);
   for (auto& instance : m_model1Instances) {
-    m_renderer.stageInstance(instance.model, instance.transform);
+    m_renderer.stageModel(instance.model, instance.transform);
   }
   for (auto& instance : m_model2Instances) {
-    m_renderer.stageInstance(instance.model, instance.transform);
+    m_renderer.stageModel(instance.model, instance.transform);
   }
   m_renderer.endFrame();
 }

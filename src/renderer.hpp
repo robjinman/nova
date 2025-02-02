@@ -13,6 +13,8 @@ class Renderer
     virtual void removeModel(ModelId id) = 0;
 
     virtual void beginFrame(const Camera& camera) = 0;
+    // TODO: Support same mesh with different textures
+    virtual void stageModel(ModelId model, const Mat4x4f& transform) = 0;
     virtual void stageInstance(ModelId model, const Mat4x4f& transform) = 0;
     virtual void endFrame() = 0;
 
