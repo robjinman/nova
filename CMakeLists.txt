@@ -41,7 +41,11 @@ configure_file(
   "${PROJECT_BINARY_DIR}/include/version.hpp"
 )
 
-file(GLOB CPP_SOURCES "${PROJECT_SOURCE_DIR}/src/*.cpp")
+file(GLOB
+  CPP_SOURCES
+  "${PROJECT_SOURCE_DIR}/src/*.cpp"
+  "${PROJECT_SOURCE_DIR}/src/vulkan/*.cpp"
+)
 
 if(PLATFORM_LINUX)
   set(COMPILE_FLAGS -Wextra -Wall)
@@ -121,8 +125,8 @@ function(compile_shaders targetName shaderSources shaderStage shaderBinaryDir)
   add_custom_target(${targetName} DEPENDS ${shaderBinaries})
 endfunction()
 
-compile_shaders(frag_shaders ${FRAG_SHADER_SOURCES} fragment "${PROJECT_BINARY_DIR}/shaders")
-compile_shaders(vert_shaders ${VERT_SHADER_SOURCES} vertex "${PROJECT_BINARY_DIR}/shaders")
+compile_shaders(frag_shaders "${FRAG_SHADER_SOURCES}" fragment "${PROJECT_BINARY_DIR}/shaders")
+compile_shaders(vert_shaders "${VERT_SHADER_SOURCES}" vertex "${PROJECT_BINARY_DIR}/shaders")
 
 add_dependencies(${LIB_TARGET} frag_shaders)
 add_dependencies(${LIB_TARGET} vert_shaders)
