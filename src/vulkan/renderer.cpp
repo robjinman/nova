@@ -1,4 +1,4 @@
-#include "sorted_set.hpp"
+#include "tree_set.hpp"
 #include "renderer.hpp"
 #include "exception.hpp"
 #include "version.hpp"
@@ -76,7 +76,7 @@ struct RenderNode
 };
 
 using RenderNodePtr = std::unique_ptr<RenderNode>;
-using RenderGraph = SortedSet<long, RenderNodePtr>;
+using RenderGraph = TreeSet<long, RenderNodePtr>;
 
 struct InstanceData
 {
