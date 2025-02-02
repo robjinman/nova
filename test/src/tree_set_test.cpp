@@ -1,8 +1,8 @@
-#include <sorted_set.hpp>
+#include <tree_set.hpp>
 #include <gtest/gtest.h>
 #include <vector>
 
-class SortedSetTest : public testing::Test
+class TreeSetTest : public testing::Test
 {
   public:
     virtual void SetUp() override {}
@@ -10,9 +10,9 @@ class SortedSetTest : public testing::Test
     virtual void TearDown() override {}
 };
 
-TEST_F(SortedSetTest, iterates_in_correct_order)
+TEST_F(TreeSetTest, iterates_in_correct_order)
 {
-  SortedSet<int, char> set;
+  TreeSet<int, char> set;
 
   set.add({ 3, 5, 2 }, 'A');
   set.add({ 2, 1, 4 }, 'B');
@@ -30,9 +30,9 @@ TEST_F(SortedSetTest, iterates_in_correct_order)
   ASSERT_EQ(expected, v);
 }
 
-TEST_F(SortedSetTest, find_element)
+TEST_F(TreeSetTest, find_element)
 {
-  SortedSet<int, char> set;
+  TreeSet<int, char> set;
 
   set.add({ 3, 5, 2 }, 'A');
   set.add({ 2, 1, 4 }, 'B');
@@ -47,9 +47,9 @@ TEST_F(SortedSetTest, find_element)
   ASSERT_EQ('D', *(++i));
 }
 
-TEST_F(SortedSetTest, find_nonexistent_element_returns_end_iterator)
+TEST_F(TreeSetTest, find_nonexistent_element_returns_end_iterator)
 {
-  SortedSet<int, char> set;
+  TreeSet<int, char> set;
 
   set.add({ 3, 5, 2 }, 'A');
   set.add({ 2, 1, 4 }, 'B');
@@ -62,9 +62,9 @@ TEST_F(SortedSetTest, find_nonexistent_element_returns_end_iterator)
   ASSERT_EQ(i, set.end());
 }
 
-TEST_F(SortedSetTest, find_non_leaf_element_returns_end_iterator)
+TEST_F(TreeSetTest, find_non_leaf_element_returns_end_iterator)
 {
-  SortedSet<int, char> set;
+  TreeSet<int, char> set;
 
   set.add({ 3, 5, 2 }, 'A');
   set.add({ 2, 1, 4 }, 'B');

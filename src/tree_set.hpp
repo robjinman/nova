@@ -183,4 +183,4 @@ class Node
 };
 
 template<typename TKey, typename TData>
-using SortedSet = Node<TKey, TData>;
+using TreeSet = Node<TKey, TData>;
