@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sstream>
+#include <vector>
 #include <concepts>
 
 #define STR(x) [&]() {\
@@ -20,5 +21,7 @@ T parseFloat(const std::string& s)
 {
   return static_cast<T>(std::stod(s));
 }
+
+std::vector<char> readBinaryFile(const std::string& filename);
 
 std::string versionString();
