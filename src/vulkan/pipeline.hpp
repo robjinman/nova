@@ -25,10 +25,9 @@ struct RenderNode
 using RenderNodePtr = std::unique_ptr<RenderNode>;
 using RenderGraph = TreeSet<long, RenderNodePtr>;
 
-// TODO: Support different types of models
-struct ModelData
+struct MeshData
 {
-  ModelPtr model;
+  MeshPtr mesh;
   VkBuffer vertexBuffer;
   VkDeviceMemory vertexBufferMemory;
   VkBuffer indexBuffer;
@@ -38,6 +37,6 @@ struct ModelData
   size_t numInstances;
 };
 
-using ModelDataPtr = std::unique_ptr<ModelData>;
+using MeshDataPtr = std::unique_ptr<MeshData>;
 
 VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code);

@@ -42,10 +42,17 @@ struct TextureData
   VkImage image;
   VkDeviceMemory imageMemory;
   VkImageView imageView;
-  VkDescriptorSet descriptorSet;
 };
 
 using TextureDataPtr = std::unique_ptr<TextureData>;
+
+struct MaterialData
+{
+  MaterialPtr material;
+  VkDescriptorSet descriptorSet;
+};
+
+using MaterialDataPtr = std::unique_ptr<MaterialData>;
 
 enum class PipelineName : long
 {
@@ -81,15 +88,17 @@ class RendererImpl : public Renderer
     RendererImpl(GLFWwindow& window, Logger& logger);
 
     void beginFrame(const Camera& camera) override;
-    void stageInstance(ModelId model, const Mat4x4f& transform) override;
-    void stageModel(ModelId model, const Mat4x4f& transform) override;
+    void stageInstance(MeshId mesh, MaterialId material, const Mat4x4f& transform) override;
+    void stageModel(MeshId mesh, MaterialId material, const Mat4x4f& transform) override;
     void endFrame() override;
 
     TextureId addTexture(TexturePtr texture) override;
-    ModelId addModel(ModelPtr model) override;
+    MeshId addMesh(MeshPtr model) override;
+    MaterialId addMaterial(MaterialPtr material) override;
 
     void removeTexture(TextureId id) override;
-    void removeModel(ModelId id) override;
+    void removeMesh(MeshId id) override;
+    void removeMaterial(MaterialId id) override;
 
     ~RendererImpl() override;
 
@@ -206,8 +215,9 @@ class RendererImpl : public Renderer
     std::vector<VkFence> m_inFlightFences;
 
     RenderGraph m_renderGraph;
-    std::map<ModelId, ModelDataPtr> m_models;
+    std::map<MeshId, MeshDataPtr> m_meshes;
     std::map<TextureId, TextureDataPtr> m_textures;
+    std::map<MaterialId, MaterialDataPtr> m_materials;
 };
 
 RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
@@ -222,15 +232,16 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
   m_projectionMatrix.set(1, 1, m_projectionMatrix.at(1, 1) * -1);
 }
 
-void RendererImpl::stageInstance(ModelId modelId, const Mat4x4f& transform)
+void RendererImpl::stageInstance(MeshId meshId, MaterialId materialId, const Mat4x4f& transform)
 {
-  auto& model = m_models.at(modelId);
-  ASSERT(model->model->isInstanced, "Can't instance a non-instanced model");
-  ASSERT(model->numInstances < model->model->maxInstances, "Max instances reached for this model");
+  auto& mesh = m_meshes.at(meshId);
+  ASSERT(mesh->mesh->isInstanced, "Can't instance a non-instanced mesh");
+  ASSERT(mesh->numInstances < mesh->mesh->maxInstances, "Max instances reached for this mesh");
 
   RenderGraph::Key key{
     static_cast<long>(PipelineName::instancedModel),
-    static_cast<long>(modelId)
+    static_cast<long>(meshId),
+    static_cast<long>(materialId)
   };
   InstancedModelNode* node = nullptr;
   auto i = m_renderGraph.find(key);
@@ -239,35 +250,38 @@ void RendererImpl::stageInstance(ModelId modelId, const Mat4x4f& transform)
   }
   else {
     auto newNode = std::make_unique<InstancedModelNode>();
-    newNode->model = modelId;
+    newNode->mesh = meshId;
+    newNode->material = materialId;
     node = newNode.get();
-    m_renderGraph.add(key, std::move(newNode));
+    m_renderGraph.insert(key, std::move(newNode));
   }
   node->instances.push_back(InstanceData{transform});
 
-  model->numInstances++;
+  mesh->numInstances++;
 }
 
-void RendererImpl::stageModel(ModelId modelId, const Mat4x4f& transform)
+void RendererImpl::stageModel(MeshId mesh, MaterialId material, const Mat4x4f& transform)
 {
   static long nextId = 0; // TODO
 
   auto node = std::make_unique<DefaultModelNode>();
-  node->model = modelId;
+  node->mesh = mesh;
+  node->material = material;
   node->modelMatrix = transform;
 
   RenderGraph::Key key{
     static_cast<long>(PipelineName::defaultModel),
-    static_cast<long>(modelId),
+    static_cast<long>(mesh),
+    static_cast<long>(material),
     nextId++
   };
-  m_renderGraph.add(key, std::move(node));
+  m_renderGraph.insert(key, std::move(node));
 }
 
 void RendererImpl::beginFrame(const Camera& camera)
 {
   m_renderGraph.clear();
-  for (auto& m : m_models) { // TODO: Do this somewhere else
+  for (auto& m : m_meshes) { // TODO: Do this somewhere else
     m.second->numInstances = 0;
   }
 
@@ -298,8 +312,8 @@ void RendererImpl::updateResources()
     switch (node->type) {
       case RenderNodeType::instancedModel: {
         auto& nodeData = dynamic_cast<const InstancedModelNode&>(*node);
-        auto& model = m_models.at(nodeData.model);
-        updateInstanceBuffer(nodeData.instances, model->instanceBuffer);
+        auto& mesh = m_meshes.at(nodeData.mesh);
+        updateInstanceBuffer(nodeData.instances, mesh->instanceBuffer);
 
         break;
       }
@@ -367,28 +381,28 @@ void RendererImpl::updateUniformBuffer(const Camera& camera)
   memcpy(m_uniformBuffersMapped[m_currentFrame], &ubo, sizeof(ubo));
 }
 
-ModelId RendererImpl::addModel(ModelPtr model)
+MeshId RendererImpl::addMesh(MeshPtr mesh)
 {
-  static ModelId nextModelId = 0;
+  static MeshId nextMeshId = 0;
 
-  auto data = std::make_unique<ModelData>();
-  data->model = std::move(model);
-  data->vertexBuffer = createVertexBuffer(data->model->vertices, data->vertexBufferMemory);
-  data->indexBuffer = createIndexBuffer(data->model->indices, data->indexBufferMemory);
-  data->instanceBuffer = createInstanceBuffer(data->model->maxInstances,
+  auto data = std::make_unique<MeshData>();
+  data->mesh = std::move(mesh);
+  data->vertexBuffer = createVertexBuffer(data->mesh->vertices, data->vertexBufferMemory);
+  data->indexBuffer = createIndexBuffer(data->mesh->indices, data->indexBufferMemory);
+  data->instanceBuffer = createInstanceBuffer(data->mesh->maxInstances,
     data->instanceBufferMemory);
   data->numInstances = 0;
 
-  ModelId id = nextModelId++;
-  m_models[id] = std::move(data);
+  MeshId id = nextMeshId++;
+  m_meshes[id] = std::move(data);
 
   return id;
 }
 
-void RendererImpl::removeModel(ModelId id)
+void RendererImpl::removeMesh(MeshId id)
 {
-  auto i = m_models.find(id);
-  if (i == m_models.end()) {
+  auto i = m_meshes.find(id);
+  if (i == m_meshes.end()) {
     return;
   }
 
@@ -399,7 +413,7 @@ void RendererImpl::removeModel(ModelId id)
   vkDestroyBuffer(m_device, i->second->instanceBuffer, nullptr);
   vkFreeMemory(m_device, i->second->instanceBufferMemory, nullptr);
 
-  m_models.erase(i);
+  m_meshes.erase(i);
 }
 
 void RendererImpl::removeTexture(TextureId id)
@@ -436,6 +450,12 @@ uint32_t RendererImpl::findMemoryType(uint32_t typeFilter,
   }
 
   EXCEPTION("Failed to find suitable memory type");
+}
+
+void RendererImpl::removeMaterial(MaterialId id)
+{
+  m_materials.erase(id);
+  // TODO
 }
 
 VkExtent2D RendererImpl::chooseSwapChainExtent(
@@ -947,21 +967,21 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
     switch (node->type) {
       case RenderNodeType::defaultModel: {
         auto& nodeData = dynamic_cast<const DefaultModelNode&>(*node);
-        auto& model = m_models.at(nodeData.model);
-        auto& texture = *m_textures.at(model->model->texture);
+        auto& mesh = *m_meshes.at(nodeData.mesh);
+        auto& material = *m_materials.at(nodeData.material);
 
-        m_defaultPipeline->recordCommandBuffer(commandBuffer, *model, nodeData,
-          m_uboDescriptorSets[m_currentFrame], texture.descriptorSet);
+        m_defaultPipeline->recordCommandBuffer(commandBuffer, mesh, nodeData,
+          m_uboDescriptorSets[m_currentFrame], material.descriptorSet);
 
         break;
       }
       case RenderNodeType::instancedModel: {
         auto& nodeData = dynamic_cast<const InstancedModelNode&>(*node);
-        auto& model = m_models.at(nodeData.model);
-        auto& texture = *m_textures.at(model->model->texture);
+        auto& mesh = *m_meshes.at(nodeData.mesh);
+        auto& material = *m_materials.at(nodeData.material);
 
-        m_instancedPipeline->recordCommandBuffer(commandBuffer, *model, nodeData,
-          m_uboDescriptorSets[m_currentFrame], texture.descriptorSet);
+        m_instancedPipeline->recordCommandBuffer(commandBuffer, mesh,
+          m_uboDescriptorSets[m_currentFrame], material.descriptorSet);
 
         break;
       }
@@ -1158,6 +1178,7 @@ void RendererImpl::createDescriptorSetLayouts()
 TextureId RendererImpl::addTexture(TexturePtr texture)
 {
   static TextureId nextTextureId = 1;
+
   auto textureData = std::make_unique<TextureData>();
 
   VkDeviceSize imageSize = texture->width * texture->height * texture->channels;
@@ -1191,13 +1212,27 @@ TextureId RendererImpl::addTexture(TexturePtr texture)
   textureData->imageView = createImageView(textureData->image, VK_FORMAT_R8G8B8A8_SRGB,
     VK_IMAGE_ASPECT_COLOR_BIT);
 
+  auto textureId = nextTextureId++;
+  textureData->texture = std::move(texture);
+  m_textures[textureId] = std::move(textureData);
+
+  return textureId;
+}
+
+MaterialId RendererImpl::addMaterial(MaterialPtr material)
+{
+  static MaterialId nextMaterialId = 1;
+
+  auto materialData = std::make_unique<MaterialData>();
+  auto& textureData = m_textures.at(material->texture);
+
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = m_descriptorPool;
   allocInfo.descriptorSetCount = 1;
   allocInfo.pSetLayouts = &m_materialDescriptorSetLayout;
 
-  VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, &textureData->descriptorSet),
+  VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, &materialData->descriptorSet),
     "Failed to allocate descriptor sets");
 
   VkDescriptorImageInfo imageInfo{};
@@ -1207,7 +1242,7 @@ TextureId RendererImpl::addTexture(TexturePtr texture)
 
   VkWriteDescriptorSet descriptorWrite{};
   descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  descriptorWrite.dstSet = textureData->descriptorSet;
+  descriptorWrite.dstSet = materialData->descriptorSet;
   descriptorWrite.dstBinding = 0;
   descriptorWrite.dstArrayElement = 0;
   descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1216,11 +1251,11 @@ TextureId RendererImpl::addTexture(TexturePtr texture)
 
   vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
 
-  auto textureId = nextTextureId++;
-  textureData->texture = std::move(texture);
-  m_textures[textureId] = std::move(textureData);
+  auto materialId = nextMaterialId++;
+  materialData->material = std::move(material);
+  m_materials[materialId] = std::move(materialData);
 
-  return textureId;
+  return materialId;
 }
 
 void RendererImpl::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
@@ -1737,8 +1772,8 @@ RendererImpl::~RendererImpl()
   vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_uboDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_materialDescriptorSetLayout, nullptr);
-  while (!m_models.empty()) {
-    removeModel(m_models.begin()->first);
+  while (!m_meshes.empty()) {
+    removeMesh(m_meshes.begin()->first);
   }
   vkDestroySampler(m_device, m_textureSampler, nullptr);
   while (!m_textures.empty()) {

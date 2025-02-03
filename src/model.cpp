@@ -11,7 +11,7 @@ bool startsWith(const std::string& str, const std::string& prefix)
   return str.size() >= prefix.size() && strncmp(str.c_str(), prefix.c_str(), prefix.size()) == 0;
 }
 
-ModelPtr loadModel(const std::string& objFilePath)
+MeshPtr loadMesh(const std::string& objFilePath)
 {
   std::ifstream stream(objFilePath);
   std::string line;
@@ -25,7 +25,7 @@ ModelPtr loadModel(const std::string& objFilePath)
 
   std::smatch match;
 
-  auto model = std::make_unique<Model>();
+  auto mesh = std::make_unique<Mesh>();
 
   Vec3f colour{1, 1, 1};
 
@@ -63,8 +63,8 @@ ModelPtr loadModel(const std::string& objFilePath)
         ASSERT(inRange(vertexIdx, 0, static_cast<int>(vertices.size()) - 1), "Index out of range");
         ASSERT(inRange(uvCoordIdx, 0, static_cast<int>(uvCoords.size()) - 1), "Index out of range");
 
-        model->vertices.push_back(Vertex{ vertices[vertexIdx], colour, uvCoords[uvCoordIdx] });
-        model->indices.push_back(model->vertices.size() - 1);
+        mesh->vertices.push_back(Vertex{ vertices[vertexIdx], colour, uvCoords[uvCoordIdx] });
+        mesh->indices.push_back(mesh->vertices.size() - 1);
       };
 
       makeVertex(1, 2);
@@ -75,7 +75,7 @@ ModelPtr loadModel(const std::string& objFilePath)
 
   // TODO: Re-index model
 
-  return model;
+  return mesh;
 }
 
 TexturePtr loadTexture(const std::string& filePath)

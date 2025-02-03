@@ -5,14 +5,15 @@
 #include <vector>
 #include <string>
 
+using RenderItemId = long;
+const RenderItemId NULL_ID = -1;
+
 struct Vertex
 {
   Vec3f pos;
   Vec3f colour;
   Vec2f texCoord;
 };
-
-using TextureId = size_t;
 
 struct Texture
 {
@@ -22,23 +23,31 @@ struct Texture
   std::vector<uint8_t> data;
 };
 
+using TextureId = RenderItemId;
 using TexturePtr = std::unique_ptr<Texture>;
-
-using ModelId = size_t;
 
 using VertexList = std::vector<Vertex>;
 using IndexList = std::vector<uint16_t>;
 
-struct Model
+struct Material
+{
+  TextureId texture = NULL_ID;
+  TextureId normalMap = NULL_ID;
+};
+
+using MaterialId = RenderItemId;
+using MaterialPtr = std::unique_ptr<Material>;
+
+struct Mesh
 {
   VertexList vertices;
   IndexList indices;
-  TextureId texture = 0;
   bool isInstanced = false;
   size_t maxInstances = 1;
 };
 
-using ModelPtr = std::unique_ptr<Model>;
+using MeshId = RenderItemId;
+using MeshPtr = std::unique_ptr<Mesh>;
 
-ModelPtr loadModel(const std::string& objFilePath);
+MeshPtr loadMesh(const std::string& objFilePath);
 TexturePtr loadTexture(const std::string& filePath);

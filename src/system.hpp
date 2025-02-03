@@ -27,6 +27,7 @@ class System
     virtual bool hasComponent(EntityId entityId) const = 0;
     virtual Component& getComponent(EntityId entityId) = 0;
     virtual const Component& getComponent(EntityId entityId) const = 0;
+    virtual void update() = 0;
 
     virtual ~System() {}
 

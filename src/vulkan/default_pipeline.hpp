@@ -7,7 +7,8 @@ struct DefaultModelNode : public RenderNode
   DefaultModelNode()
     : RenderNode(RenderNodeType::defaultModel) {}
 
-  ModelId model;
+  MeshId mesh;
+  MaterialId material;
   Mat4x4f modelMatrix;
 };
 
@@ -18,7 +19,7 @@ class DefaultPipeline
       VkDescriptorSetLayout uboDescriptorSetLayout,
       VkDescriptorSetLayout materialDescriptorSetLayout);
 
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, const ModelData& model,
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
       const DefaultModelNode& node, VkDescriptorSet uboDescriptorSet,
       VkDescriptorSet textureDescriptorSet);
 
