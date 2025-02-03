@@ -12,7 +12,8 @@ struct InstancedModelNode : public RenderNode
   InstancedModelNode()
     : RenderNode(RenderNodeType::instancedModel) {}
 
-  ModelId model;
+  MeshId mesh;
+  MaterialId material;
   std::vector<InstanceData> instances;
 };
 
@@ -23,9 +24,8 @@ class InstancedPipeline
       VkDescriptorSetLayout uboDescriptorSetLayout,
       VkDescriptorSetLayout materialDescriptorSetLayout);
 
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, const ModelData& model,
-      const InstancedModelNode& node, VkDescriptorSet uboDescriptorSet,
-      VkDescriptorSet textureDescriptorSet);
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
+      VkDescriptorSet uboDescriptorSet, VkDescriptorSet textureDescriptorSet);
 
     ~InstancedPipeline();
 

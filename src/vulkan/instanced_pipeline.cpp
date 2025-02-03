@@ -228,22 +228,21 @@ InstancedPipeline::InstancedPipeline(VkDevice device, VkExtent2D swapchainExtent
   vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
 }
 
-void InstancedPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const ModelData& model,
-  const InstancedModelNode& node, VkDescriptorSet uboDescriptorSet,
-  VkDescriptorSet textureDescriptorSet)
+void InstancedPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
+  VkDescriptorSet uboDescriptorSet, VkDescriptorSet textureDescriptorSet)
 {
   // TODO: Only bind things that have changed since last iteration
   vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
-  std::vector<VkBuffer> vertexBuffers{ model.vertexBuffer, model.instanceBuffer };
+  std::vector<VkBuffer> vertexBuffers{ mesh.vertexBuffer, mesh.instanceBuffer };
   std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
   vkCmdBindVertexBuffers(commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(),
     offsets.data());
-  vkCmdBindIndexBuffer(commandBuffer, model.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+  vkCmdBindIndexBuffer(commandBuffer, mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0, 1,
     &uboDescriptorSet, 0, nullptr);
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
     m_layout, 1, 1, &textureDescriptorSet, 0, nullptr);
-  vkCmdDrawIndexed(commandBuffer, model.model->indices.size(), model.numInstances, 0, 0, 0);
+  vkCmdDrawIndexed(commandBuffer, mesh.mesh->indices.size(), mesh.numInstances, 0, 0, 0);
 }
 
 InstancedPipeline::~InstancedPipeline()

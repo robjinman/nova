@@ -1,6 +1,8 @@
 #include "logger.hpp"
 #include "game.hpp"
 #include "renderer.hpp"
+#include "render_system.hpp"
+#include "spatial_system.hpp"
 #include "time.hpp"
 #include "utils.hpp"
 #define GLFW_INCLUDE_VULKAN
@@ -32,6 +34,8 @@ class Application
     GLFWwindow* m_window;
     LoggerPtr m_logger;
     RendererPtr m_renderer;
+    SpatialSystemPtr m_spatialSystem;
+    RenderSystemPtr m_renderSystem;
     GamePtr m_game;
 
     Vec2f m_lastMousePos;
@@ -70,7 +74,9 @@ Application::Application(GLFWwindow* window)
 
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   m_renderer = createRenderer(*m_window, *m_logger);
-  m_game = createGame(*m_renderer, *m_logger);
+  m_spatialSystem = createSpatialSystem(*m_logger);
+  m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_logger);
+  m_game = createGame(*m_spatialSystem, *m_renderSystem, *m_logger);
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);
 }

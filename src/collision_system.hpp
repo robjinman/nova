@@ -12,7 +12,7 @@ struct CCollision : public Component
 
   std::vector<Vec2f> perimeter;
   float_t height;
-  Mat4x4f transform = identityMatrix<float_t, 4>();
+  Mat4x4f transform = identityMatrix<float_t, 4>(); // TODO: Remove - use spatial system
 };
 
 using CCollisionPtr = std::unique_ptr<CCollision>;

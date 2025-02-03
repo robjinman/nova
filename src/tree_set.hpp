@@ -86,7 +86,7 @@ class Node
         }
     };
 
-    void add(Key key, TData data)
+    void insert(Key key, TData data)
     {
       if (key.empty()) {
         m_data = std::move(data);
@@ -98,11 +98,11 @@ class Node
 
       auto i = m_children.find(first);
       if (i != m_children.end()) {
-        i->second->add(key, std::move(data));
+        i->second->insert(key, std::move(data));
       }
       else {
         auto child = std::make_unique<Node<TKey, TData>>();
-        child->add(key, std::move(data));
+        child->insert(key, std::move(data));
         m_children.insert(std::pair{first, std::move(child)}); 
       }
     }

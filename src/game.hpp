@@ -24,7 +24,8 @@ class Game
 
 using GamePtr = std::unique_ptr<Game>;
 
-class Renderer;
+class SpatialSystem;
+class RenderSystem;
 class Logger;
 
-GamePtr createGame(Renderer& renderer, Logger& logger);
+GamePtr createGame(SpatialSystem& spatialSystem, RenderSystem& renderSystem, Logger& logger);

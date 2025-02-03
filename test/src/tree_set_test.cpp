@@ -14,11 +14,11 @@ TEST_F(TreeSetTest, iterates_in_correct_order)
 {
   TreeSet<int, char> set;
 
-  set.add({ 3, 5, 2 }, 'A');
-  set.add({ 2, 1, 4 }, 'B');
-  set.add({ 3, 5, 6 }, 'C');
-  set.add({ 3, 7 }, 'D');
-  set.add({ 3, 5, 3, 1 }, 'E');
+  set.insert({ 3, 5, 2 }, 'A');
+  set.insert({ 2, 1, 4 }, 'B');
+  set.insert({ 3, 5, 6 }, 'C');
+  set.insert({ 3, 7 }, 'D');
+  set.insert({ 3, 5, 3, 1 }, 'E');
 
   std::vector<char> expected{ 'B', 'A', 'E', 'C', 'D' };
   std::vector<char> v;
@@ -34,11 +34,11 @@ TEST_F(TreeSetTest, find_element)
 {
   TreeSet<int, char> set;
 
-  set.add({ 3, 5, 2 }, 'A');
-  set.add({ 2, 1, 4 }, 'B');
-  set.add({ 3, 5, 6 }, 'C');
-  set.add({ 3, 7 }, 'D');
-  set.add({ 3, 5, 3, 1 }, 'E');
+  set.insert({ 3, 5, 2 }, 'A');
+  set.insert({ 2, 1, 4 }, 'B');
+  set.insert({ 3, 5, 6 }, 'C');
+  set.insert({ 3, 7 }, 'D');
+  set.insert({ 3, 5, 3, 1 }, 'E');
 
   auto i = set.find({ 3, 5, 3, 1 });
 
@@ -51,11 +51,11 @@ TEST_F(TreeSetTest, find_nonexistent_element_returns_end_iterator)
 {
   TreeSet<int, char> set;
 
-  set.add({ 3, 5, 2 }, 'A');
-  set.add({ 2, 1, 4 }, 'B');
-  set.add({ 3, 5, 6 }, 'C');
-  set.add({ 3, 7 }, 'D');
-  set.add({ 3, 5, 3, 1 }, 'E');
+  set.insert({ 3, 5, 2 }, 'A');
+  set.insert({ 2, 1, 4 }, 'B');
+  set.insert({ 3, 5, 6 }, 'C');
+  set.insert({ 3, 7 }, 'D');
+  set.insert({ 3, 5, 3, 1 }, 'E');
 
   auto i = set.find({ 3, 2, 3, 1 });
 
@@ -66,11 +66,11 @@ TEST_F(TreeSetTest, find_non_leaf_element_returns_end_iterator)
 {
   TreeSet<int, char> set;
 
-  set.add({ 3, 5, 2 }, 'A');
-  set.add({ 2, 1, 4 }, 'B');
-  set.add({ 3, 5, 6 }, 'C');
-  set.add({ 3, 7 }, 'D');
-  set.add({ 3, 5, 3, 1 }, 'E');
+  set.insert({ 3, 5, 2 }, 'A');
+  set.insert({ 2, 1, 4 }, 'B');
+  set.insert({ 3, 5, 6 }, 'C');
+  set.insert({ 3, 7 }, 'D');
+  set.insert({ 3, 5, 3, 1 }, 'E');
 
   auto i = set.find({ 3, 5 });
 

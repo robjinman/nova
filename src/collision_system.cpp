@@ -198,6 +198,7 @@ class CollisionSystemImpl : public CollisionSystem
       float_t stepHeight) const override;
     float_t altitude(const Vec3f& pos) const override;
 
+    void update() override;
     void addComponent(ComponentPtr component) override;
     void removeComponent(EntityId entityId) override;
     bool hasComponent(EntityId entityId) const override;
@@ -225,6 +226,10 @@ void CollisionSystemImpl::initialise(const Vec2f& worldMin, const Vec2f& worldMa
 {
   m_edgeGrid = std::make_unique<Grid>(worldMin, worldMax, m_logger);
   m_areaGrid = std::make_unique<Grid>(worldMin, worldMax, m_logger);
+}
+
+void CollisionSystemImpl::update()
+{
 }
 
 void CollisionSystemImpl::removeComponent(EntityId entityId)
