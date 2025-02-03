@@ -40,15 +40,4 @@ struct ModelData
 
 using ModelDataPtr = std::unique_ptr<ModelData>;
 
-class Pipeline
-{
-  public:
-    virtual ~Pipeline() {}
-};
-
-using PipelinePtr = std::unique_ptr<Pipeline>;
-
 VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code);
-
-PipelinePtr createInstancedPipeline(VkDevice device, VkExtent2D swapchainExtent,
-  VkRenderPass renderPass);

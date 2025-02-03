@@ -11,7 +11,7 @@ struct DefaultModelNode : public RenderNode
   Mat4x4f modelMatrix;
 };
 
-class DefaultPipeline : public Pipeline
+class DefaultPipeline
 {
   public:
     DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent, VkRenderPass renderPass,
