@@ -1,11 +1,13 @@
 #pragma once
 
 #include "exception.hpp"
-#include <ostream>
 #include <map>
 #include <memory>
 #include <list>
 #include <cassert>
+
+namespace tree_set
+{
 
 template<typename TKey, typename TData>
 class Node
@@ -26,7 +28,7 @@ class Node
         Iterator(Path path)
           : m_path(path)
         {
-          first(m_path);
+          firstChild(m_path);
         }
 
         bool operator==(const Iterator& rhs) const
@@ -60,7 +62,7 @@ class Node
             m_path.back().second++;
           }
 
-          first(m_path);
+          firstChild(m_path);
         }
 
         Iterator& operator++()
@@ -72,13 +74,13 @@ class Node
       private:
         Path m_path;
 
-        static void first(Path& path)
+        static void firstChild(Path& path)
         {
           if (!path.empty()) {
             auto& node = *path.back().second->second;
             if (!node.m_children.empty()) {
               path.push_back(std::pair{&node.m_children, node.m_children.cbegin()});
-              first(path);
+              firstChild(path);
             }
           }
         }
@@ -116,11 +118,6 @@ class Node
       return m_data;
     }
 
-    TData& data()
-    {
-      return m_data;
-    }
-
     Iterator begin() const
     {
       return Iterator(Path{std::pair{&m_children, m_children.cbegin()}});
@@ -131,7 +128,7 @@ class Node
       return Iterator({});
     }
 
-    Iterator find(const Key& k)
+    Iterator find(const Key& k) const
     {
       ASSERT(!k.empty(), "Key is empty");
 
@@ -140,24 +137,11 @@ class Node
       return find(path, key);
     }
 
-    void dbg_print(std::ostream& stream, size_t depth = 0) const
-    {
-      if (isLeaf()) {
-        stream << std::string(depth, '\t') << m_data << "\n";
-      }
-      else {
-        for (auto& i : m_children) {
-          stream << std::string(depth, '\t') << i.first << ":\n";
-          i.second->dbg_print(stream, depth + 1);
-        }
-      }
-    }
-
   private:
     NodeMap m_children;
     TData m_data;
 
-    Iterator find(Path& path, Key& key)
+    Iterator find(Path& path, Key& key) const
     {
       if (key.empty()) {
         return isLeaf() ? Iterator{path} : end();
@@ -182,5 +166,7 @@ class Node
     }
 };
 
+} // namespace tree_set
+
 template<typename TKey, typename TData>
-using TreeSet = Node<TKey, TData>;
+using TreeSet = tree_set::Node<TKey, TData>;
