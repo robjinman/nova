@@ -124,7 +124,6 @@ class RendererImpl : public Renderer
     VkImageView createImageView(VkImage image, VkFormat imageFormat,
       VkImageAspectFlags aspectFlags);
     void createImageViews();
-    VkShaderModule createShaderModule(const std::vector<char>& code);
     void createRenderPass();
     void createFramebuffers();
     void createCommandPool();
@@ -177,26 +176,27 @@ class RendererImpl : public Renderer
     std::vector<VkImageView> m_swapchainImageViews;
     std::vector<VkImage> m_swapchainImages;
     std::vector<VkFramebuffer> m_swapchainFramebuffers;
+    VkImage m_depthImage;
+    VkDeviceMemory m_depthImageMemory;
+    VkImageView m_depthImageView;
     std::vector<VkCommandBuffer> m_commandBuffers;
     uint32_t m_imageIndex;
     VkRenderPass m_renderPass;
+    VkDescriptorPool m_descriptorPool;
+    VkCommandPool m_commandPool;
 
     VkDescriptorSetLayout m_uboDescriptorSetLayout;
+    std::vector<VkDescriptorSet> m_uboDescriptorSets;
+    std::vector<VkBuffer> m_uniformBuffers;
+    std::vector<VkDeviceMemory> m_uniformBuffersMemory;
+    std::vector<void*> m_uniformBuffersMapped;
+  
     VkDescriptorSetLayout m_materialDescriptorSetLayout;
+    VkSampler m_textureSampler;
 
     DefaultPipelinePtr m_defaultPipeline;
     InstancedPipelinePtr m_instancedPipeline;
 
-    VkSampler m_textureSampler;
-    VkImage m_depthImage;
-    VkDeviceMemory m_depthImageMemory;
-    VkImageView m_depthImageView;
-    std::vector<VkBuffer> m_uniformBuffers;
-    std::vector<VkDeviceMemory> m_uniformBuffersMemory;
-    std::vector<void*> m_uniformBuffersMapped;
-    VkDescriptorPool m_descriptorPool;
-    std::vector<VkDescriptorSet> m_uboDescriptorSets;
-    VkCommandPool m_commandPool;
     size_t m_currentFrame = 0;
     bool m_framebufferResized = false;
     Mat4x4f m_projectionMatrix;
@@ -1553,7 +1553,7 @@ void RendererImpl::initVulkan()
   m_defaultPipeline = std::make_unique<DefaultPipeline>(m_device, m_swapchainExtent, m_renderPass,
     m_uboDescriptorSetLayout, m_materialDescriptorSetLayout);
   m_instancedPipeline = std::make_unique<InstancedPipeline>(m_device, m_swapchainExtent,
-    m_renderPass, m_uboDescriptorSetLayout, m_materialDescriptorSetLayout); // TODO: Move
+    m_renderPass, m_uboDescriptorSetLayout, m_materialDescriptorSetLayout);
   createCommandPool();
   createDepthResources();
   createFramebuffers();

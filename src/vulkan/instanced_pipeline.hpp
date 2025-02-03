@@ -16,7 +16,7 @@ struct InstancedModelNode : public RenderNode
   std::vector<InstanceData> instances;
 };
 
-class InstancedPipeline : public Pipeline
+class InstancedPipeline
 {
   public:
     InstancedPipeline(VkDevice device, VkExtent2D swapchainExtent, VkRenderPass renderPass,
