@@ -63,7 +63,7 @@ void RenderSystemImpl::removeComponent(EntityId entityId)
 
 bool RenderSystemImpl::hasComponent(EntityId entityId) const
 {
-  m_components.count(entityId) > 0;
+  return m_components.count(entityId) > 0;
 }
 
 CRender& RenderSystemImpl::getComponent(EntityId entityId)
