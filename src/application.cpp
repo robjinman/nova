@@ -1,8 +1,11 @@
+#include "scene.hpp"
 #include "logger.hpp"
 #include "game.hpp"
 #include "renderer.hpp"
 #include "render_system.hpp"
 #include "spatial_system.hpp"
+#include "collision_system.hpp"
+#include "map_parser.hpp"
 #include "time.hpp"
 #include "utils.hpp"
 #define GLFW_INCLUDE_VULKAN
@@ -36,6 +39,8 @@ class Application
     RendererPtr m_renderer;
     SpatialSystemPtr m_spatialSystem;
     RenderSystemPtr m_renderSystem;
+    CollisionSystemPtr m_collisionSystem;
+    MapParserPtr m_mapParser;
     GamePtr m_game;
 
     Vec2f m_lastMousePos;
@@ -76,7 +81,11 @@ Application::Application(GLFWwindow* window)
   m_renderer = createRenderer(*m_window, *m_logger);
   m_spatialSystem = createSpatialSystem(*m_logger);
   m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_logger);
+  m_collisionSystem = createCollisionSystem(*m_logger);
+  m_mapParser = createMapParser(*m_logger);
   m_game = createGame(*m_spatialSystem, *m_renderSystem, *m_logger);
+
+  createScene(*m_spatialSystem, *m_renderSystem, *m_collisionSystem, *m_mapParser, *m_logger);
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);
 }
