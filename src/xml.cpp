@@ -70,7 +70,10 @@ class XmlNodeImpl : public XmlNode
 XmlNodeImpl::XmlNodeImpl(const XMLElement& node)
 {
   m_name = node.Name();
-  m_contents = node.GetText();
+  auto contents = node.GetText();
+  if (contents != nullptr) {
+    m_contents = contents;
+  }
 
   for (auto attr = node.FirstAttribute(); attr != nullptr; attr = attr->Next()) {
     std::string attrName = attr->Name();

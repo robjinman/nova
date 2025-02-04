@@ -104,6 +104,8 @@ ObjectData MapParserImpl::constructObjectData(const XmlNode& node, float_t scale
   ASSERT(obj.values.count("type") != 0, "Object is missing 'type' value");
   obj.name = obj.values.at("type");
 
+  DBG_LOG(m_logger, STR("Parsing object of type: " << obj.name));
+
   Mat3x3f groupTransform;
   Mat3x3f pathTransform;
 
