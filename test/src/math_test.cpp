@@ -1,4 +1,5 @@
 #include <math.hpp>
+#include <utils.hpp>
 #include <gtest/gtest.h>
 #include <vector>
 
@@ -136,4 +137,51 @@ TEST_F(MathTest, clip_int_clips_to_max)
 TEST_F(MathTest, clip_int_value_in_range_is_unchanged)
 {
   ASSERT_EQ(5, clip(5, -10, 10));
+}
+
+TEST_F(MathTest, triangulate_square)
+{
+  std::vector<Vec3f> vertices{
+    { 0, 0, 0 },
+    { 1, 0, 0 },
+    { 1, 1, 0 },
+    { 0, 1, 0 }
+  };
+
+  auto indices = triangulatePoly(vertices);
+  std::vector<uint16_t> expected{ 0, 1, 2, 0, 2, 3 };
+
+  ASSERT_EQ(expected, indices);
+}
+
+TEST_F(MathTest, triangulate_simple_convex_poly)
+{
+  std::vector<Vec3f> vertices{
+    { 0, 0, 0 },
+    { 1, 0, 0 },
+    { 1, 1, 0 },
+    { 0.8, 1.2, 0 },
+    { 0, 1, 0 }
+  };
+
+  auto indices = triangulatePoly(vertices);
+  std::vector<uint16_t> expected{ 0, 1, 2, 0, 2, 3, 0, 3, 4 };
+
+  ASSERT_EQ(expected, indices);
+}
+
+TEST_F(MathTest, triangulate_nonconvex_poly)
+{
+  std::vector<Vec3f> vertices{
+    { 0, 0, 0 },
+    { 1, 0, 0 },
+    { 1, 1, 0 },
+    { 0.8, 0.5, 0 },
+    { 0, 1, 0 }
+  };
+
+  auto indices = triangulatePoly(vertices);
+  std::vector<uint16_t> expected{ 1, 2, 3, 0, 1, 3, 0, 3, 4 };
+
+  ASSERT_EQ(expected, indices);
 }

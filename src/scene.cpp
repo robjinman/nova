@@ -8,6 +8,7 @@
 #include "utils.hpp"
 #include "units.hpp"
 #include "player.hpp"
+#include <numeric>
 
 namespace
 {
@@ -163,7 +164,7 @@ void SceneBuilder::constructInstances(const ObjectData& objectData)
 
 void SceneBuilder::constructObject(const ObjectData& obj, const Mat4x4f& parentTransform)
 {
-  m_logger.info(STR("Constructing " << obj.name << " object"));
+  m_logger.debug(STR("Constructing " << obj.name << " object"));
 
   auto objTransform = obj.transform;
 
@@ -225,9 +226,27 @@ void SceneBuilder::constructPlayer(const ObjectData& obj, const Mat4x4f& parentT
 
 Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parentTransform)
 {
+  EntityId id = System::nextId();
   auto floorHeight = metresToWorldUnits(getDoubleValue(obj.values, "floor"));
 
-  // TODO
+  CSpatialPtr spatial = std::make_unique<CSpatial>(id);
+  spatial->setTransform( m_mapToWorldTransform * parentTransform * obj.transform);
+  m_spatialSystem.addComponent(std::move(spatial));
+
+  Vec3f colour{ 1, 0, 0 };
+  CRenderPtr render = std::make_unique<CRender>(id);
+  MeshPtr mesh = std::make_unique<Mesh>();
+  std::vector<Vec3f> vertices;
+  for (auto i = obj.path.points.rbegin(); i != obj.path.points.rend(); ++i) {
+    auto p = *i;
+    Vec3f vertex{ p[0], p[1], 0 };
+    vertices.push_back(vertex);
+    mesh->vertices.push_back(Vertex{vertex, colour, Vec2f{ 0, 0 }});
+  }
+  mesh->indices = triangulatePoly(vertices);
+  std::reverse(mesh->indices.begin(), mesh->indices.end());
+  render->mesh = m_renderSystem.addMesh(std::move(mesh));
+  m_renderSystem.addComponent(std::move(render));
 
   return translationMatrix4x4(Vec3f{ 0, 0, -floorHeight }) * obj.transform;
 }

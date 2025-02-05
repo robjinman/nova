@@ -22,6 +22,15 @@ T parseFloat(const std::string& s)
   return static_cast<T>(std::stod(s));
 }
 
+template<typename T>
+std::ostream& operator<<(std::ostream& stream, const std::vector<T>& v)
+{
+  for (size_t i = 0; i < v.size(); ++i) {
+    stream << v[i] << (i + 1 < v.size() ? ", " : "");
+  }
+  return stream;
+}
+
 std::vector<char> readBinaryFile(const std::string& filename);
 
 std::string versionString();
