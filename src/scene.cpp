@@ -92,6 +92,7 @@ class SceneBuilder
     MapParser& m_mapParser;
     Logger& m_logger;
     PlayerPtr m_player = nullptr;
+    Mat4x4f m_mapToWorldTransform;
 
     void constructOriginMarkers();
     void constructInstances(const ObjectData& objectData);
@@ -112,6 +113,7 @@ SceneBuilder::SceneBuilder(EntityFactory& entityFactory, SpatialSystem& spatialS
   , m_mapParser(mapParser)
   , m_logger(logger)
 {
+  m_mapToWorldTransform = transform(Vec3f{}, Vec3f{ PI / 2, 0, 0 });
 }
 
 PlayerPtr SceneBuilder::createScene()
@@ -156,8 +158,7 @@ void SceneBuilder::constructOriginMarkers()
 
 void SceneBuilder::constructInstances(const ObjectData& objectData)
 {
-  auto mapToWorldTransform = transform(Vec3f{}, Vec3f{ PI / 2, 0, 0 });
-  constructObject(objectData, mapToWorldTransform);
+  constructObject(objectData, identityMatrix<float_t, 4>());
 }
 
 void SceneBuilder::constructObject(const ObjectData& obj, const Mat4x4f& parentTransform)
@@ -192,20 +193,14 @@ void SceneBuilder::constructObject(const ObjectData& obj, const Mat4x4f& parentT
 
 void SceneBuilder::constructInstance(const ObjectData& obj, const Mat4x4f& parentTransform)
 {
-  Mat4x4f transform = parentTransform * obj.transform * transformFromTriangle(obj.path);
-  m_entityFactory.constructEntity(obj.name, transform);
+  Mat4x4f m = m_mapToWorldTransform * parentTransform * obj.transform *
+    transformFromTriangle(obj.path);
+  m_entityFactory.constructEntity(obj.name, m);
 }
 
 void SceneBuilder::constructPlayer(const ObjectData& obj, const Mat4x4f& parentTransform)
 {
   auto m = parentTransform * obj.transform * transformFromTriangle(obj.path);
-
-  m_logger.info("parentTransform:");
-  m_logger.info(STR(parentTransform));
-  m_logger.info("obj.transform");
-  m_logger.info(STR(obj.transform));
-  m_logger.info("transformFromTriangle(obj.path)");
-  m_logger.info(STR(transformFromTriangle(obj.path)));
 
   // Expecting a matrix of the form
   //    cos(a),   -sin(a),  0,  tx,
@@ -213,19 +208,19 @@ void SceneBuilder::constructPlayer(const ObjectData& obj, const Mat4x4f& parentT
   //    0,        0,        1,  0
   //    0,        0,        0,  1
 
-  //ASSERT(fabs(m.at(0, 0) - m.at(1, 1)) < 0.001, "Error interpretting camera matrix");
-  //ASSERT(fabs(-m.at(0, 1) - m.at(1, 0)) < 0.001, "Error interpretting camera matrix");
+  ASSERT(fabs(m.at(0, 0) - m.at(1, 1)) < 0.001, "Error interpretting camera matrix");
+  ASSERT(fabs(-m.at(0, 1) - m.at(1, 0)) < 0.001, "Error interpretting camera matrix");
 
-  // Unlike other objects, the player's neutral position is along the X axis rather than along the
-  // Y axis, so we add PI / 2.
-  float_t yaw = acos(m.at(0, 0)) + PI / 2;
+  float_t yaw = acos(m.at(0, 0));
   float_t x = m.at(0, 3);
   float_t y = m.at(1, 3);
   float_t z = m.at(2, 3);
 
+  Vec4f pos = m_mapToWorldTransform * Vec4f{x, y, z, 1};
+
   m_player = createPlayer(m_renderSystem.camera());
-  //m_player->setPosition(Vec3f{ x, y, z });
-  //m_player->rotate(yaw, 0);
+  m_player->setPosition({ pos[0], pos[1], pos[2] });
+  m_player->rotate(0, yaw);
 }
 
 Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parentTransform)

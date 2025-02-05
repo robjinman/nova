@@ -37,7 +37,6 @@ class GameImpl : public Game
     std::vector<EntityId> m_model1Entities;
     std::vector<EntityId> m_model2Entities;
 
-    void updateModels();
     void handleKeyboardInput();
     void handleMouseInput();
 };
@@ -50,56 +49,6 @@ GameImpl::GameImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
   , m_collisionSystem(collisionSystem)
   , m_camera(m_renderSystem.camera())
 {
-/*
-  const size_t nModel1s = 10;
-  const size_t nModel2s = 10;
-
-  auto texture1 = loadTexture("data/textures/texture1.png");
-  auto texture2 = loadTexture("data/textures/texture2.png");
-  auto texture1Id = m_renderSystem.addTexture(std::move(texture1));
-  auto texture2Id = m_renderSystem.addTexture(std::move(texture2));
-  auto mesh1 = loadMesh("data/models/monkey.obj");
-  auto mesh2 = loadMesh("data/models/monkey.obj");
-  mesh2->isInstanced = true;
-  mesh2->maxInstances = nModel2s;
-  auto mesh1Id = m_renderSystem.addMesh(std::move(mesh1));
-  auto mesh2Id = m_renderSystem.addMesh(std::move(mesh2));
-  auto material1 = std::make_unique<Material>();
-  material1->texture = texture1Id;
-  auto material2 = std::make_unique<Material>();
-  material2->texture = texture2Id;
-  auto material1Id = m_renderSystem.addMaterial(std::move(material1));
-  auto material2Id = m_renderSystem.addMaterial(std::move(material2));
-
-  for (size_t i = 0; i < nModel1s; ++i) {
-    auto entityId = System::nextId();
-
-    auto spatialComp = std::make_unique<CSpatial>(entityId);
-    m_spatialSystem.addComponent(std::move(spatialComp));
-
-    auto renderComp = std::make_unique<CRender>(entityId);
-    renderComp->material = material1Id;
-    renderComp->mesh = mesh1Id;
-    m_renderSystem.addComponent(std::move(renderComp));
-
-    m_model1Entities.push_back(entityId);
-  }
-
-  for (size_t i = 0; i < nModel2s; ++i) {
-    auto entityId = System::nextId();
-
-    auto spatialComp = std::make_unique<CSpatial>(entityId);
-    m_spatialSystem.addComponent(std::move(spatialComp));
-
-    auto renderComp = std::make_unique<CRender>(entityId);
-    renderComp->material = material2Id;
-    renderComp->mesh = mesh2Id;
-    m_renderSystem.addComponent(std::move(renderComp));
-
-    m_model2Entities.push_back(entityId);
-  }
-
-  m_camera.translate(Vec3f{0, 0, 8});*/
 }
 
 void GameImpl::onKeyDown(KeyboardKey key)
@@ -115,19 +64,6 @@ void GameImpl::onKeyUp(KeyboardKey key)
 void GameImpl::onMouseMove(const Vec2f& delta)
 {
   m_mouseDelta = delta;
-}
-
-void GameImpl::updateModels()
-{
-  float_t angle = degreesToRadians<float_t>(90.f * m_timer.elapsed());
-  for (size_t i = 0; i < m_model1Entities.size(); ++i) {
-    auto& spatial = m_spatialSystem.getComponent(m_model1Entities[i]);
-    spatial.setTransform(transform(Vec3f{-1.5, 0, -3.f * i}, Vec3f{0, -angle, 0}));
-  }
-  for (size_t i = 0; i < m_model2Entities.size(); ++i) {
-    auto& spatial = m_spatialSystem.getComponent(m_model2Entities[i]);
-    spatial.setTransform(transform(Vec3f{1.5, 0, -3.f * i}, Vec3f{0, angle, 0}));
-  }
 }
 
 void GameImpl::handleKeyboardInput()
@@ -165,7 +101,6 @@ void GameImpl::update()
 {
   handleKeyboardInput();
   handleMouseInput();
-  updateModels();
 }
 
 } // namespace

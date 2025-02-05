@@ -25,7 +25,7 @@ class InstancedPipeline
       VkDescriptorSetLayout materialDescriptorSetLayout);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
-      VkDescriptorSet uboDescriptorSet, VkDescriptorSet textureDescriptorSet);
+      VkDescriptorSet uboDescriptorSet, VkDescriptorSet materialDescriptorSet, bool useMaterial);
 
     ~InstancedPipeline();
 
