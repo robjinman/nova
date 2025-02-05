@@ -160,13 +160,11 @@ void EntityFactoryImpl::constructSpatialComponent(EntityId entityId, const Mat4x
 {
   auto spatial = std::make_unique<CSpatial>(entityId);
   spatial->setTransform(transform);
-  m_logger.info(STR("Adding spatial component with transform:\n" << transform));
   m_spatialSystem.addComponent(std::move(spatial));
 }
 
 void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNode& node) const
 {
-  m_logger.info("Adding render component");
   auto render = std::make_unique<CRender>(entityId);
   render->mesh = m_meshes.at(node.attribute("mesh"));
   render->material = m_materials.at(node.attribute("material"));
