@@ -64,9 +64,9 @@ void PlayerImpl::translate(const Vec3f& delta)
   m_camera.setPosition(m_position + Vec3f{ 0, 0, m_tallness });
 }
 
-void PlayerImpl::rotate(float_t deltaYaw, float_t deltaPitch)
+void PlayerImpl::rotate(float_t deltaPitch, float_t deltaYaw)
 {
-  m_camera.rotate(deltaYaw, deltaPitch);
+  m_camera.rotate(deltaPitch, deltaYaw);
 }
 
 void PlayerImpl::setPosition(const Vec3f& position)

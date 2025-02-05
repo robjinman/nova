@@ -164,8 +164,8 @@ std::set<const CollisionItem*> Grid::getItems(const Vec2f& pos, float_t radius) 
 
   std::set<const CollisionItem*> items;
 
-  Vec2i p0 = worldToGridCoords(Vec2f{pos[0] - radius, pos[1] - radius});
-  Vec2i p1 = worldToGridCoords(Vec2f{pos[0] + radius, pos[1] + radius});
+  Vec2i p0 = worldToGridCoords(Vec2f{ pos[0] - radius, pos[1] - radius });
+  Vec2i p1 = worldToGridCoords(Vec2f{ pos[0] + radius, pos[1] + radius });
 
   for (size_t i = std::max(0, p0[0]); i <= std::min(p1[0], GRID_W - 1); ++i) {
     for (size_t j = std::max(0, p0[1]); j <= std::min(p1[1], GRID_H - 1); ++j) {

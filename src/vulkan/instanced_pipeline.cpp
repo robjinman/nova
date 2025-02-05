@@ -170,10 +170,14 @@ InstancedPipeline::InstancedPipeline(VkDevice device, VkExtent2D swapchainExtent
   colourBlending.blendConstants[2] = 0.0f;
   colourBlending.blendConstants[3] = 0.0f;
 
-  VkPushConstantRange pushConstants;
-  pushConstants.offset = 0;
-  pushConstants.size = sizeof(Mat4x4f);
-  pushConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  VkPushConstantRange fragmentPushConstants;
+  fragmentPushConstants.offset = 64;
+  fragmentPushConstants.size = sizeof(VkBool32);
+  fragmentPushConstants.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  std::array<VkPushConstantRange, 1> pushConstantRanges{
+    fragmentPushConstants
+  };
 
   std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts{
     uboDescriptorSetLayout,
@@ -184,8 +188,8 @@ InstancedPipeline::InstancedPipeline(VkDevice device, VkExtent2D swapchainExtent
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();
   pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
-  pipelineLayoutInfo.pushConstantRangeCount = 1;
-  pipelineLayoutInfo.pPushConstantRanges = &pushConstants;
+  pipelineLayoutInfo.pushConstantRangeCount = pushConstantRanges.size();
+  pipelineLayoutInfo.pPushConstantRanges = pushConstantRanges.data();
   VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_layout),
     "Failed to create instanced pipeline layout");
 
@@ -229,8 +233,10 @@ InstancedPipeline::InstancedPipeline(VkDevice device, VkExtent2D swapchainExtent
 }
 
 void InstancedPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
-  VkDescriptorSet uboDescriptorSet, VkDescriptorSet textureDescriptorSet)
+  VkDescriptorSet uboDescriptorSet, VkDescriptorSet materialDescriptorSet, bool useMaterial)
 {
+  VkBool32 bUseMaterial = useMaterial;
+
   // TODO: Only bind things that have changed since last iteration
   vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
   std::vector<VkBuffer> vertexBuffers{ mesh.vertexBuffer, mesh.instanceBuffer };
@@ -241,7 +247,9 @@ void InstancedPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0, 1,
     &uboDescriptorSet, 0, nullptr);
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-    m_layout, 1, 1, &textureDescriptorSet, 0, nullptr);
+    m_layout, 1, 1, &materialDescriptorSet, 0, nullptr);
+  vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 64, sizeof(VkBool32),
+    &bUseMaterial);
   vkCmdDrawIndexed(commandBuffer, mesh.mesh->indices.size(), mesh.numInstances, 0, 0, 0);
 }
 

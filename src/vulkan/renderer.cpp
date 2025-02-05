@@ -980,10 +980,12 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
       case RenderNodeType::instancedModel: {
         auto& nodeData = dynamic_cast<const InstancedModelNode&>(*node);
         auto& mesh = *m_meshes.at(nodeData.mesh);
-        auto& material = *m_materials.at(nodeData.material);
+        bool hasMaterial = nodeData.material != NULL_ID;
+        auto materialId = hasMaterial ? nodeData.material : m_nullMaterialId;
+        auto& material = *m_materials.at(materialId);
 
         m_instancedPipeline->recordCommandBuffer(commandBuffer, mesh,
-          m_uboDescriptorSets[m_currentFrame], material.descriptorSet);
+          m_uboDescriptorSets[m_currentFrame], material.descriptorSet, hasMaterial);
 
         break;
       }
@@ -1183,7 +1185,9 @@ TextureId RendererImpl::addTexture(TexturePtr texture)
 
   auto textureData = std::make_unique<TextureData>();
 
-  VkDeviceSize imageSize = texture->width * texture->height * texture->channels;
+  ASSERT(texture->data.size() % 4 == 0, "Texture data size should be multiple of 4");
+
+  VkDeviceSize imageSize = texture->data.size();
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
 
@@ -1580,7 +1584,7 @@ void RendererImpl::createNullMaterial()
   texture->channels = 3;
   texture->width = 1;
   texture->height = 1;
-  texture->data = { 0, 0, 0 };
+  texture->data = { 0, 0, 0, 0 };
   auto textureId = addTexture(std::move(texture));
 
   MaterialPtr material = std::make_unique<Material>();
