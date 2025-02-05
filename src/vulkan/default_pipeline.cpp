@@ -148,10 +148,20 @@ DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
   colourBlending.blendConstants[2] = 0.0f;
   colourBlending.blendConstants[3] = 0.0f;
 
-  VkPushConstantRange pushConstants;
-  pushConstants.offset = 0;
-  pushConstants.size = sizeof(Mat4x4f);
-  pushConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  VkPushConstantRange vertexPushConstants;
+  vertexPushConstants.offset = 0;
+  vertexPushConstants.size = sizeof(Mat4x4f);
+  vertexPushConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+  VkPushConstantRange fragmentPushConstants;
+  fragmentPushConstants.offset = sizeof(Mat4x4f);
+  fragmentPushConstants.size = sizeof(VkBool32);
+  fragmentPushConstants.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  std::array<VkPushConstantRange, 2> pushConstantRanges{
+    vertexPushConstants,
+    fragmentPushConstants
+  };
 
   std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts{
     uboDescriptorSetLayout,
@@ -162,8 +172,8 @@ DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();
   pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
-  pipelineLayoutInfo.pushConstantRangeCount = 1;
-  pipelineLayoutInfo.pPushConstantRanges = &pushConstants;
+  pipelineLayoutInfo.pushConstantRangeCount = pushConstantRanges.size();
+  pipelineLayoutInfo.pPushConstantRanges = pushConstantRanges.data();
   VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_layout),
     "Failed to create default pipeline layout");
 
@@ -208,8 +218,10 @@ DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
 
 void DefaultPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
   const DefaultModelNode& node, VkDescriptorSet uboDescriptorSet,
-  VkDescriptorSet textureDescriptorSet)
+  VkDescriptorSet materialDescriptorSet, bool useMaterial)
 {
+  VkBool32 bUseMaterial = useMaterial;
+
   // TODO: Only bind things that have changed since last iteration
   vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
   std::vector<VkBuffer> vertexBuffers{ mesh.vertexBuffer };
@@ -220,9 +232,11 @@ void DefaultPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const M
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0, 1,
     &uboDescriptorSet, 0, nullptr);
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 1, 1,
-    &textureDescriptorSet, 0, nullptr);
+    &materialDescriptorSet, 0, nullptr);
   vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4x4f),
     &node.modelMatrix);
+  vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(Mat4x4f),
+    sizeof(VkBool32), &bUseMaterial);
   vkCmdDrawIndexed(commandBuffer, mesh.mesh->indices.size(), 1, 0, 0, 0);
 }
 

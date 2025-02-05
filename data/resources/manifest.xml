@@ -1,0 +1,14 @@
+<resources>
+  <textures>
+    <texture name="texture1" file="./data/resources/textures/texture1.png"/>
+    <texture name="texture2" file="./data/resources/textures/texture2.png"/>
+  </textures>
+  <meshes>
+    <mesh name="monkey1" file="./data/resources/meshes/monkey.obj" instanced="false"/>
+    <mesh name="monkey2" file="./data/resources/meshes/monkey.obj" instanced="true" max-instances="10"/>
+  </meshes>
+  <materials>
+    <material name="material1" texture="texture1"/>
+    <material name="material2" texture="texture2"/>
+  </materials>
+</resources>

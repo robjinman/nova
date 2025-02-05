@@ -21,7 +21,7 @@ class DefaultPipeline
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
       const DefaultModelNode& node, VkDescriptorSet uboDescriptorSet,
-      VkDescriptorSet textureDescriptorSet);
+      VkDescriptorSet materialDescriptorSet, bool useMaterial);
 
     ~DefaultPipeline();
 

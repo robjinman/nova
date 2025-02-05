@@ -91,3 +91,45 @@ bool pointIsInsidePoly(const Vec2f& p, const std::vector<Vec2f>& poly)
 
   return inside;
 }
+
+Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre)
+{
+  Mat4x4f m = identityMatrix<float_t, 4>();
+  Vec3f f((centre - eye).normalise());
+  Vec3f s(f.cross({ 0, 1, 0 }).normalise());
+  Vec3f u(s.cross(f));
+  m.set(0, 0, s[0]);
+  m.set(0, 1, s[1]);
+  m.set(0, 2, s[2]);
+  m.set(1, 0, u[0]);
+  m.set(1, 1, u[1]);
+  m.set(1, 2, u[2]);
+  m.set(2, 0, -f[0]);
+  m.set(2, 1, -f[1]);
+  m.set(2, 2, -f[2]);
+  m.set(0, 3, -s.dot(eye));
+  m.set(1, 3, -u.dot(eye));
+  m.set(2, 3, f.dot(eye));
+  return m;
+}
+
+Mat4x4f perspective(float_t fovY, float_t aspect, float_t near, float_t far)
+{
+  Mat4x4f m;
+  const float_t fovX = aspect * fovY;
+  const float_t t = -near * tan(fovY * 0.5);
+  const float_t b = -t;
+  const float_t r = near * tan(fovX * 0.5);
+  const float_t l = -r;
+
+  m.set(0, 0, 2.0 * near / (r - l));
+  m.set(0, 2, (r + l) / (r - l));
+  m.set(1, 1, -2.0 * near / (b - t));
+  m.set(1, 2, (b + t) / (b - t));
+  m.set(2, 2, -far / (far - near));
+  m.set(2, 3, -far * near / (far - near));
+  m.set(3, 2, -1.0);
+  m.set(3, 3, 0.0);
+
+  return m;
+}

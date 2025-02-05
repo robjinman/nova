@@ -7,6 +7,7 @@ class Camera
   public:
     Camera();
 
+    void setPosition(const Vec3f& position);
     void translate(const Vec3f& delta);
     void rotate(float_t deltaPitch, float_t deltaYaw);
     const Vec3f& getDirection() const;

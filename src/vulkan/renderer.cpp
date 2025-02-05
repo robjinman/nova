@@ -168,6 +168,7 @@ class RendererImpl : public Renderer
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
       VkImageLayout newLayout);
     bool hasStencilComponent(VkFormat format) const;
+    void createNullMaterial();
 
     GLFWwindow& m_window;
     Logger& m_logger;
@@ -218,6 +219,7 @@ class RendererImpl : public Renderer
     std::map<MeshId, MeshDataPtr> m_meshes;
     std::map<TextureId, TextureDataPtr> m_textures;
     std::map<MaterialId, MaterialDataPtr> m_materials;
+    MaterialId m_nullMaterialId;
 };
 
 RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
@@ -227,9 +229,7 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
   initVulkan();
 
   float_t aspectRatio = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
-
   m_projectionMatrix = perspective(degreesToRadians(45.f), aspectRatio, 0.1f, 1000.f);
-  m_projectionMatrix.set(1, 1, m_projectionMatrix.at(1, 1) * -1);
 }
 
 void RendererImpl::stageInstance(MeshId meshId, MaterialId materialId, const Mat4x4f& transform)
@@ -968,10 +968,12 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
       case RenderNodeType::defaultModel: {
         auto& nodeData = dynamic_cast<const DefaultModelNode&>(*node);
         auto& mesh = *m_meshes.at(nodeData.mesh);
-        auto& material = *m_materials.at(nodeData.material);
+        bool hasMaterial = nodeData.material != NULL_ID;
+        auto materialId = hasMaterial ? nodeData.material : m_nullMaterialId;
+        auto& material = *m_materials.at(materialId);
 
         m_defaultPipeline->recordCommandBuffer(commandBuffer, mesh, nodeData,
-          m_uboDescriptorSets[m_currentFrame], material.descriptorSet);
+          m_uboDescriptorSets[m_currentFrame], material.descriptorSet, hasMaterial);
 
         break;
       }
@@ -1572,6 +1574,22 @@ void RendererImpl::createTextureSampler()
     "Failed to create texture sampler");
 }
 
+void RendererImpl::createNullMaterial()
+{
+  TexturePtr texture = std::make_unique<Texture>();
+  texture->channels = 3;
+  texture->width = 1;
+  texture->height = 1;
+  texture->data = { 0, 0, 0 };
+  auto textureId = addTexture(std::move(texture));
+
+  MaterialPtr material = std::make_unique<Material>();
+  material->texture = textureId;
+  material->normalMap = NULL_ID;
+
+  m_nullMaterialId = addMaterial(std::move(material));
+}
+
 void RendererImpl::initVulkan()
 {
   createInstance();
@@ -1598,6 +1616,7 @@ void RendererImpl::initVulkan()
   createDescriptorSets();
   createCommandBuffers();
   createSyncObjects();
+  createNullMaterial();
 }
 
 void RendererImpl::createSurface()

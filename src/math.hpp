@@ -533,41 +533,8 @@ struct Line
   float_t c;
 };
 
-template<typename T>
-Matrix<T, 4, 4> lookAt(const Vector<T, 3>& eye, const Vector<T, 3>& centre)
-{
-  Matrix<T, 4, 4> m = identityMatrix<T, 4>();
-  Vec3f f((centre - eye).normalise());
-  Vec3f s(f.cross({0, 1, 0}).normalise());
-  Vec3f u(s.cross(f));
-  m.set(0, 0, s[0]);
-  m.set(0, 1, s[1]);
-  m.set(0, 2, s[2]);
-  m.set(1, 0, u[0]);
-  m.set(1, 1, u[1]);
-  m.set(1, 2, u[2]);
-  m.set(2, 0, -f[0]);
-  m.set(2, 1, -f[1]);
-  m.set(2, 2, -f[2]);
-  m.set(0, 3, -s.dot(eye));
-  m.set(1, 3, -u.dot(eye));
-  m.set(2, 3, f.dot(eye));
-  return m;
-}
-
-template<typename T>
-Matrix<T, 4, 4> perspective(T fovY, T aspect, T zNear, T zFar)
-{
-  Matrix<T, 4, 4> m;
-	T tanHalfFovY = tan(fovY / 2);
-  m.set(0, 0, 1 / (aspect * tanHalfFovY));
-  m.set(1, 1, 1 / tanHalfFovY);
-  m.set(2, 2, zFar / (zNear - zFar));
-  m.set(3, 2, -1);
-  m.set(2, 3, -(zFar * zNear) / (zFar - zNear));
-  return m;
-}
-
+Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre);
+Mat4x4f perspective(float_t fovY, float_t aspect, float_t near, float_t far);
 bool lineIntersect(const Line& l1, const Line& l2, Vec2f& p);
 Vec2f projectionOntoLine(const Line& line, const Vec2f& p);
 bool lineSegmentCircleIntersect(const LineSegment& lseg, const Vec2f& centre, float_t radius);
