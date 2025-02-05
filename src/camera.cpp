@@ -6,6 +6,11 @@ Camera::Camera()
 {
 }
 
+void Camera::setPosition(const Vec3f& position)
+{
+  m_position = position;
+}
+
 void Camera::translate(const Vec3f& delta)
 {
   m_position += delta;

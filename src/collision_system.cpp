@@ -111,7 +111,7 @@ std::set<std::pair<int, int>> Grid::gridCellsBetweenPoints(const Vec2f& A, const
       static_cast<int>((P[0] - m_worldMin[0]) / m_cellW),
       static_cast<int>((P[1] - m_worldMin[1]) / m_cellH)
     };
-    cells.insert({clip(gridP[0], 0, GRID_W - 1), clip(gridP[1], 0, GRID_H - 1)});
+    cells.insert({ clip(gridP[0], 0, GRID_W - 1), clip(gridP[1], 0, GRID_H - 1) });
     P += dir * stepSize;
   }
 
@@ -264,7 +264,7 @@ void CollisionSystemImpl::addComponent(ComponentPtr component)
   auto item = std::make_unique<CollisionItem>(std::move(collisionComp));
 
   for (auto& p : item->volume->perimeter) {
-    Vec4f transformedP = item->volume->transform * Vec4f{p[0], p[1], item->volume->height, 1};
+    Vec4f transformedP = item->volume->transform * Vec4f{ p[0], p[1], item->volume->height, 1 };
     item->absPerimeter.push_back({transformedP[0], transformedP[1]});
     item->absHeight = transformedP[2];
   }
@@ -344,10 +344,10 @@ Vec3f CollisionSystemImpl::tryMove(const Vec3f& pos3, const Vec3f& delta, float_
     return Vec3f{};
   }
 
-  Vec2f pos{pos3[0], pos3[1]};
+  Vec2f pos{ pos3[0], pos3[1] };
 
   Vec3f nextPos3 = pos3 + delta;
-  Vec2f nextPos{nextPos3[0], nextPos3[1]};
+  Vec2f nextPos{ nextPos3[0], nextPos3[1] };
 
   auto items = m_edgeGrid->getItems(nextPos, radius);
   auto lineSegments = intersectingLineSegments(items, nextPos3, radius, stepHeight);
@@ -361,7 +361,7 @@ Vec3f CollisionSystemImpl::tryMove(const Vec3f& pos3, const Vec3f& delta, float_
     Vec2f toLine = nextPos - X;
 
     Vec2f adjustment = toLine.normalise() * (radius - toLine.magnitude()) * 1.00001;
-    Vec3f adjustment3{adjustment[0], adjustment[1], 0};
+    Vec3f adjustment3{ adjustment[0], adjustment[1], 0 };
 
     auto newDelta = tryMove(pos3, delta + adjustment3, radius, stepHeight, depth + 1);
 

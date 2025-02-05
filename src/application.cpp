@@ -6,8 +6,10 @@
 #include "spatial_system.hpp"
 #include "collision_system.hpp"
 #include "map_parser.hpp"
+#include "entity_factory.hpp"
 #include "time.hpp"
 #include "utils.hpp"
+#include "units.hpp"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -42,6 +44,7 @@ class Application
     CollisionSystemPtr m_collisionSystem;
     MapParserPtr m_mapParser;
     GamePtr m_game;
+    EntityFactoryPtr m_entityFactory;
 
     Vec2f m_lastMousePos;
 
@@ -83,21 +86,27 @@ Application::Application(GLFWwindow* window)
   m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_logger);
   m_collisionSystem = createCollisionSystem(*m_logger);
   m_mapParser = createMapParser(*m_logger);
-  m_game = createGame(*m_spatialSystem, *m_renderSystem, *m_logger);
+  m_game = createGame(*m_spatialSystem, *m_renderSystem, *m_collisionSystem, *m_logger);
+  m_entityFactory = createEntityFactory(*m_spatialSystem, *m_renderSystem, *m_collisionSystem,
+    *m_logger);
 
-  createScene(*m_spatialSystem, *m_renderSystem, *m_collisionSystem, *m_mapParser, *m_logger);
+  createScene(*m_entityFactory, *m_spatialSystem, *m_renderSystem, *m_collisionSystem, *m_mapParser,
+    *m_logger);
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);
 }
 
 void Application::run()
 {
-  FrameRateLimiter frameRateLimiter(60);
+  FrameRateLimiter frameRateLimiter(FRAME_RATE);
 
   while(!glfwWindowShouldClose(m_window)) {
     glfwPollEvents();
 
     m_game->update();
+    m_spatialSystem->update();
+    m_renderSystem->update();
+    m_collisionSystem->update();
 
     frameRateLimiter.wait();
   }

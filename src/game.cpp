@@ -1,6 +1,7 @@
 #include "game.hpp"
 #include "render_system.hpp"
 #include "spatial_system.hpp"
+#include "collision_system.hpp"
 #include "time.hpp"
 #include "camera.hpp"
 #include "logger.hpp"
@@ -16,7 +17,8 @@ const float_t PLAYER_SPEED = 0.5f;
 class GameImpl : public Game
 {
   public:
-    GameImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem, Logger& logger);
+    GameImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
+      CollisionSystem& collisionSystem, Logger& logger);
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
@@ -27,6 +29,7 @@ class GameImpl : public Game
     Logger& m_logger;
     SpatialSystem& m_spatialSystem;
     RenderSystem& m_renderSystem;
+    CollisionSystem& m_collisionSystem;
     Camera& m_camera;
     std::set<KeyboardKey> m_keysPressed;
     Vec2f m_mouseDelta;
@@ -39,12 +42,15 @@ class GameImpl : public Game
     void handleMouseInput();
 };
 
-GameImpl::GameImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem, Logger& logger)
+GameImpl::GameImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
+  CollisionSystem& collisionSystem, Logger& logger)
   : m_logger(logger)
   , m_spatialSystem(spatialSystem)
   , m_renderSystem(renderSystem)
+  , m_collisionSystem(collisionSystem)
   , m_camera(m_renderSystem.camera())
 {
+/*
   const size_t nModel1s = 10;
   const size_t nModel2s = 10;
 
@@ -93,7 +99,7 @@ GameImpl::GameImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem, Log
     m_model2Entities.push_back(entityId);
   }
 
-  m_camera.translate(Vec3f{0, 0, 8});
+  m_camera.translate(Vec3f{0, 0, 8});*/
 }
 
 void GameImpl::onKeyDown(KeyboardKey key)
@@ -141,7 +147,7 @@ void GameImpl::handleKeyboardInput()
     dir = -m_camera.getDirection().cross(Vec3f{0, 1, 0});
   }
 
-  dir[1] = 0;
+  //dir[1] = 0;
 
   if (dir != Vec3f{}) {
     dir = dir.normalise();
@@ -160,13 +166,12 @@ void GameImpl::update()
   handleKeyboardInput();
   handleMouseInput();
   updateModels();
-  m_spatialSystem.update();
-  m_renderSystem.update();
 }
 
 } // namespace
 
-GamePtr createGame(SpatialSystem& spatialSystem, RenderSystem& renderSystem, Logger& logger)
+GamePtr createGame(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
+  CollisionSystem& collisionSystem, Logger& logger)
 {
-  return std::make_unique<GameImpl>(spatialSystem, renderSystem, logger);
+  return std::make_unique<GameImpl>(spatialSystem, renderSystem, collisionSystem, logger);
 }

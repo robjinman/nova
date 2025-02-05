@@ -26,8 +26,8 @@ using CSpatialPtr = std::unique_ptr<CSpatial>;
 class SpatialSystem : public System
 {
   public:
-    virtual CSpatial& getComponent(EntityId id) override = 0;
-    virtual const CSpatial& getComponent(EntityId id) const override = 0;
+    CSpatial& getComponent(EntityId id) override = 0;
+    const CSpatial& getComponent(EntityId id) const override = 0;
 
     virtual ~SpatialSystem() {}
 };
