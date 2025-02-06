@@ -23,15 +23,15 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="7.3875001"
-     inkscape:cx="178.00338"
-     inkscape:cy="184.16243"
+     inkscape:zoom="3.6937501"
+     inkscape:cx="183.28257"
+     inkscape:cy="141.18443"
      inkscape:window-width="1200"
      inkscape:window-height="950"
      inkscape:window-x="723"
      inkscape:window-y="33"
      inkscape:window-maximized="0"
-     inkscape:current-layer="layer1" />
+     inkscape:current-layer="g5" />
   <defs
      id="defs1">
     <rect
@@ -52,7 +52,7 @@
        style="text-align:start;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect1);display:inline;fill:#000000"><tspan
          x="357.96094"
          y="880.56125"
-         id="tspan3">5</tspan></text>
+         id="tspan3">4</tspan></text>
     <g
        id="g5">
       <text
@@ -181,7 +181,7 @@
       </g>
       <g
          id="g6"
-         transform="translate(-3.9126536,24.051312)">
+         transform="translate(12.132467,8.722491)">
         <text
            xml:space="preserve"
            style="font-size:0.909496px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0757912;stroke-opacity:1"
@@ -203,14 +203,35 @@
              id="tspan2-2-4"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0757912"
              x="31.594952"
-             y="11.983668">floor=5</tspan></text>
+             y="11.983668">floor=1</tspan></text>
         <path
            style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
            d="m 29.904729,12.309071 -0.39452,7.811526 8.442759,1.420277 1.578086,-8.99509 z"
            id="path5" />
+        <g
+           id="g4-5-8-6-2-9"
+           transform="translate(7.7347602,-8.0316068)">
+          <path
+             style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
+             d="m 27.438406,23.481319 -1.207834,-0.176678 0.359337,1.801272 z"
+             id="path2-1-7-7-0-9"
+             sodipodi:nodetypes="cccc" />
+          <text
+             xml:space="preserve"
+             style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
+             x="23.180428"
+             y="26.306543"
+             id="text3-3-1-9-4-9"><tspan
+               sodipodi:role="line"
+               id="tspan3-9-5-4-4-3"
+               style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
+               x="23.180428"
+               y="26.306543">type=desk</tspan></text>
+        </g>
       </g>
       <g
-         id="g7">
+         id="g7"
+         transform="translate(3.1517202,-30.084602)">
         <text
            xml:space="preserve"
            style="font-size:0.909496px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0757912;stroke-opacity:1"
