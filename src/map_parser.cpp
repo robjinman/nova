@@ -6,16 +6,6 @@
 
 namespace {
 
-Mat4x4f transform4x4(const Mat3x3f& A)
-{
-  return Mat4x4f{
-    A.at(0, 0), A.at(0, 1), 0, A.at(0, 2),
-    A.at(1, 0), A.at(1, 1), 0, A.at(1, 2),
-    0, 0, 1, 0,
-    0, 0, 0, 1
-  };
-};
-
 bool isTriangle(const Path& path)
 {
   return path.points.size() == 3 && path.closed;
@@ -33,11 +23,11 @@ class MapParserImpl : public MapParser
 
     ObjectData constructObjectData(const XmlNode& node, float_t scale) const;
     Path constructPath(const XmlNode& node, float_t scale) const;
-    Mat3x3f parseMatrixTransform(const std::string& s, float_t scale) const;
-    Mat3x3f parseTranslateTransform(const std::string& s, float_t scale) const;
-    Mat3x3f parseTransform(const std::string& s, float_t scale) const;
-    void extractGeometry(const XmlNode& node, Path& path, Mat3x3f& groupTransform,
-      Mat3x3f& pathTransform, float_t scale) const;
+    Mat4x4f parseMatrixTransform(const std::string& s, float_t scale) const;
+    Mat4x4f parseTranslateTransform(const std::string& s, float_t scale) const;
+    Mat4x4f parseTransform(const std::string& s, float_t scale) const;
+    void extractGeometry(const XmlNode& node, Path& path, Mat4x4f& groupTransform,
+      Mat4x4f& pathTransform, float_t scale) const;
     KeyValueMap parseKeyValuePairs(const XmlNode& node) const;
 };
 
@@ -106,16 +96,14 @@ ObjectData MapParserImpl::constructObjectData(const XmlNode& node, float_t scale
 
   DBG_LOG(m_logger, STR("Parsing object of type: " << obj.name));
 
-  Mat3x3f groupTransform;
-  Mat3x3f pathTransform;
+  Mat4x4f groupTransform;
+  Mat4x4f pathTransform;
 
   extractGeometry(node, obj.path, groupTransform, pathTransform, scale);
-  obj.transform = transform4x4(groupTransform);
+  obj.transform = groupTransform;
 
   for (auto& p : obj.path.points) {
-    auto q = pathTransform * Vec3f{ p[0], p[1], 1 };
-    p[0] = q[0];
-    p[1] = q[1];
+    p = pathTransform * p;
   }
 
   for (auto& child : node) {
@@ -130,7 +118,7 @@ ObjectData MapParserImpl::constructObjectData(const XmlNode& node, float_t scale
 Path parseSvgPathString(const std::string& svgPath)
 {
   Path path;
-  Vec2f pathEnd{};
+  Vec4f pathEnd{};
   std::stringstream stream(svgPath);
   bool relative = false;
   int component = -1; // 0 = x only, 1 = y only, -1 = both
@@ -174,19 +162,19 @@ Path parseSvgPathString(const std::string& svgPath)
       }
     }
     else {
-      Vec2f p{};
+      Vec4f p{ 0, 0, 0, 1 };
 
       if (component == -1) {
         char comma = '_';
-        std::stringstream ss(token);
-        ss >> p[0];
-        ss >> comma;
+        std::stringstream stream(token);
+        stream >> p[0];
+        stream >> comma;
         ASSERT(comma == ',', "Expected a comma");
-        ss >> p[1];
+        stream >> p[2];
       }
       else {
-        std::stringstream ss(token);
-        ss >> p[component];
+        std::stringstream stream(token);
+        stream >> p[component];
       }
 
       path.points.push_back(relative ? (p + pathEnd) : p);
@@ -202,75 +190,70 @@ Path MapParserImpl::constructPath(const XmlNode& node, float_t scale) const
   std::string svgPathString = node.attribute("d");
   Path path = parseSvgPathString(svgPathString);
 
-  Mat2x2f scaleTransform{
-    scale, 0,
-    0, scale
-  };
+  auto m = scaleMatrix<float_t, 4>(scale);
 
   for (auto& p : path.points) {
-    p = scaleTransform * p;
+    p = m * p;
   }
 
   return path;
 }
 
-Mat3x3f MapParserImpl::parseTranslateTransform(const std::string& s, float_t scale) const
+Mat4x4f MapParserImpl::parseTranslateTransform(const std::string& s, float_t scale) const
 {
-  std::stringstream ss(s);
+  std::stringstream stream(s);
 
   std::string buf(10, '\0');
-  ss.read(&buf[0], 10);
+  stream.read(&buf[0], 10);
   ASSERT(buf == "translate(", "Syntax error");
 
-  Mat3x3f m = identityMatrix<float_t, 3>();
+  Mat4x4f m = identityMatrix<float_t, 4>();
   char comma;
   float_t value;
-  ss >> value >> comma;
-  m.set(0, 2, value * scale);
+  stream >> value >> comma;
+  m.set(0, 3, value * scale);
   ASSERT(comma == ',', "Syntax error");
-  ss >> value >> buf;
-  m.set(1, 2, value * scale);
+  stream >> value >> buf;
+  m.set(2, 3, value * scale);
   ASSERT(buf == ")", "Syntax error");
 
   return m;
 }
 
-Mat3x3f MapParserImpl::parseMatrixTransform(const std::string& s, float_t scale) const
+Mat4x4f MapParserImpl::parseMatrixTransform(const std::string& s, float_t scale) const
 {
   DBG_LOG(m_logger, STR("Parsing SVG matrix transform: " << s));
 
-  std::stringstream ss(s);
+  std::stringstream stream(s);
 
   std::string buf(7, '\0');
-  ss.read(&buf[0], 7);
+  stream.read(&buf[0], 7);
   ASSERT(buf == "matrix(", "Syntax error");
 
-  Mat3x3f m = identityMatrix<float_t, 3>();
+  float_t a = 0.f;
+  Vec3f translation{};
+
   char comma;
   float_t value;
-  ss >> value >> comma;
-  m.set(0, 0, value);                       // cos(a)
+  stream >> value >> comma;                     // cos(a)
+  a = acos(value);
   ASSERT(comma == ',', "Syntax error");
-  ss >> value >> comma;
-  m.set(1, 0, value);                       // sin(a)
+  stream >> value >> comma;                     // sin(a)
+  ASSERT(fabs(value - a) <= 0.001, "Inconsistent rotation matrix");
   ASSERT(comma == ',', "Syntax error");
-  ss >> value >> comma;
-  m.set(0, 1, value);                       // -sin(a)
+  stream >> value >> comma;                     // -sin(a)
   ASSERT(comma == ',', "Syntax error");
-  ss >> value >> comma;
-  m.set(1, 1, value);                       // cos(a)
+  stream >> value >> comma;                     // cos(a)
   ASSERT(comma == ',', "Syntax error");
-  ss >> value >> comma;
-  m.set(0, 2, value * scale);               // tx
+  stream >> translation[0] >> comma;            // tx
   ASSERT(comma == ',', "Syntax error");
-  ss >> value >> buf;
-  m.set(1, 2, value * scale);               // ty
+  stream >> translation[2] >> buf;              // tz
   ASSERT(buf == ")", "Syntax error");
 
-  return m;
+  return transform(translation, Vec3f{ 0, a, 0 });
 }
 
-Mat3x3f MapParserImpl::parseTransform(const std::string& s, float_t scale) const
+Mat4x4f MapParserImpl::parseTransform(const std::string& s, float_t scale) const
 {
   ASSERT(s.length() > 0, "Expected non-empty string");
 
@@ -284,11 +267,11 @@ Mat3x3f MapParserImpl::parseTransform(const std::string& s, float_t scale) const
   EXCEPTION("Error parsing unknown transform '" << s << "'");
 }
 
-void MapParserImpl::extractGeometry(const XmlNode& node, Path& path, Mat3x3f& groupTransform,
-  Mat3x3f& pathTransform, float_t scale) const
+void MapParserImpl::extractGeometry(const XmlNode& node, Path& path, Mat4x4f& groupTransform,
+  Mat4x4f& pathTransform, float_t scale) const
 {
-  groupTransform = identityMatrix<float_t, 3>();
-  pathTransform = identityMatrix<float_t, 3>();
+  groupTransform = identityMatrix<float_t, 4>();
+  pathTransform = identityMatrix<float_t, 4>();
 
   std::string trans = node.attribute("transform");
   if (!trans.empty()) {
@@ -315,8 +298,8 @@ Mat4x4f transformFromTriangle(const Path& path)
 {
   ASSERT(isTriangle(path), "Path is not a triangle");
 
-  Vec2f centre = (path.points[0] + path.points[1] + path.points[2]) / 3.0;
-  Vec2f mostDistantPoint = centre;
+  Vec4f centre = (path.points[0] + path.points[1] + path.points[2]) / 3.0;
+  Vec4f mostDistantPoint = centre;
 
   for (int i = 0; i < 3; ++i) {
     if ((path.points[i] - centre).magnitude() > (mostDistantPoint - centre).magnitude()) {
@@ -324,10 +307,10 @@ Mat4x4f transformFromTriangle(const Path& path)
     }
   }
 
-  Vec2f v = mostDistantPoint - centre;
-  float_t a = atan2(v[1], v[0]) - PI / 2;  // Angle from vertical
+  Vec4f v = mostDistantPoint - centre;
+  float_t a = (3.f * PI / 2.f) - atan2(v[2], v[0]);  // Angle from vertical (negative z)
 
-  return transform(Vec3f{centre[0], centre[1], 0}, Vec3f{0, 0, a});
+  return transform(Vec3f{centre[0], 0, centre[2]}, Vec3f{0, a, 0});
 }
 
 MapParserPtr createMapParser(Logger& logger)

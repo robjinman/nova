@@ -25,7 +25,7 @@ class PlayerImpl : public Player
     Vec3f m_position;
     float_t m_speed = metresToWorldUnits(9.0);
     float_t m_radius = metresToWorldUnits(0.2);
-    float_t m_tallness = metresToWorldUnits(1.0);
+    float_t m_tallness = metresToWorldUnits(1.7);
     float_t m_stepHeight = metresToWorldUnits(0.3);
     float_t m_bounceHeight = metresToWorldUnits(0.035);
     float_t m_bounceRate = 4.5;
@@ -55,13 +55,13 @@ void PlayerImpl::translate(const Vec3f& delta)
 {
   const float_t dx = m_bounceRate * 2 * PI / FRAME_RATE;
 
-  if (delta[0] != 0 || delta[1] != 0) {
+  if (delta[0] != 0 || delta[2] != 0) {
     m_tallness = m_originalTallness + m_bounceHeight * sin(m_distance);
     m_distance += dx;
   }
 
   m_position += delta;
-  m_camera.setPosition(m_position + Vec3f{ 0, 0, m_tallness });
+  m_camera.setPosition(m_position + Vec3f{ 0, m_tallness, 0 });
 }
 
 void PlayerImpl::rotate(float_t deltaPitch, float_t deltaYaw)
@@ -72,7 +72,7 @@ void PlayerImpl::rotate(float_t deltaPitch, float_t deltaYaw)
 void PlayerImpl::setPosition(const Vec3f& position)
 {
   m_position = position;
-  m_camera.setPosition(m_position + Vec3f{ 0, 0, m_tallness });
+  m_camera.setPosition(m_position + Vec3f{ 0, m_tallness, 0 });
 }
 
 float_t PlayerImpl::getStepHeight() const

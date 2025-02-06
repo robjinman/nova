@@ -35,8 +35,8 @@ std::pair<Vec2f, Vec2f> computeMapBounds(const ObjectData& root)
   Vec2f pathMax{ std::numeric_limits<float_t>::lowest(), std::numeric_limits<float_t>::lowest() };
 
   for (auto& p : root.path.points) {
-    pathMin = { std::min(pathMin[0], p[0]), std::min(pathMin[1], p[1]) };
-    pathMax = { std::max(pathMax[0], p[0]), std::max(pathMax[1], p[1]) };
+    pathMin = { std::min(pathMin[0], p[0]), std::min(pathMin[1], p[2]) };
+    pathMax = { std::max(pathMax[0], p[0]), std::max(pathMax[1], p[2]) };
   }
 
   return { pathMin, pathMax };
@@ -93,7 +93,6 @@ class SceneBuilder
     MapParser& m_mapParser;
     Logger& m_logger;
     PlayerPtr m_player = nullptr;
-    Mat4x4f m_mapToWorldTransform;
 
     void constructOriginMarkers();
     void constructInstances(const ObjectData& objectData);
@@ -114,7 +113,6 @@ SceneBuilder::SceneBuilder(EntityFactory& entityFactory, SpatialSystem& spatialS
   , m_mapParser(mapParser)
   , m_logger(logger)
 {
-  m_mapToWorldTransform = transform(Vec3f{}, Vec3f{ PI / 2, 0, 0 });
 }
 
 PlayerPtr SceneBuilder::createScene()
@@ -194,8 +192,7 @@ void SceneBuilder::constructObject(const ObjectData& obj, const Mat4x4f& parentT
 
 void SceneBuilder::constructInstance(const ObjectData& obj, const Mat4x4f& parentTransform)
 {
-  Mat4x4f m = m_mapToWorldTransform * parentTransform * obj.transform *
-    transformFromTriangle(obj.path);
+  Mat4x4f m = parentTransform * obj.transform * transformFromTriangle(obj.path);
   m_entityFactory.constructEntity(obj.name, m);
 }
 
@@ -204,51 +201,65 @@ void SceneBuilder::constructPlayer(const ObjectData& obj, const Mat4x4f& parentT
   auto m = parentTransform * obj.transform * transformFromTriangle(obj.path);
 
   // Expecting a matrix of the form
-  //    cos(a),   -sin(a),  0,  tx,
-  //    sin(a),   cos(a),   0,  ty,
-  //    0,        0,        1,  0
-  //    0,        0,        0,  1
+  //    cos(a),   0,        sin(a),   tx,
+  //    0,        1,        0,        0,
+  //    -sin(a),  0,        cos(a),   tz
+  //    0,        0,        0,        1
+  float_t yaw = 2.f * PI - atan2(m.at(2, 0), m.at(0, 0));
 
-  ASSERT(fabs(m.at(0, 0) - m.at(1, 1)) < 0.001, "Error interpretting camera matrix");
-  ASSERT(fabs(-m.at(0, 1) - m.at(1, 0)) < 0.001, "Error interpretting camera matrix");
-
-  float_t yaw = acos(m.at(0, 0));
   float_t x = m.at(0, 3);
   float_t y = m.at(1, 3);
   float_t z = m.at(2, 3);
 
-  Vec4f pos = m_mapToWorldTransform * Vec4f{x, y, z, 1};
-
   m_player = createPlayer(m_renderSystem.camera());
-  m_player->setPosition({ pos[0], pos[1], pos[2] });
   m_player->rotate(0, yaw);
+  m_player->setPosition({ x, y, z });
 }
 
 Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parentTransform)
 {
   EntityId id = System::nextId();
   auto floorHeight = metresToWorldUnits(getDoubleValue(obj.values, "floor"));
+  float_t height = floorHeight;
+  auto offset = identityMatrix<float_t, 4>();
+  if (floorHeight == 0) {
+    height = 1.f;
+    offset = translationMatrix4x4(Vec3f{ 0, -height, 0 });
+  }
 
   CSpatialPtr spatial = std::make_unique<CSpatial>(id);
-  spatial->setTransform( m_mapToWorldTransform * parentTransform * obj.transform);
+  spatial->setTransform( parentTransform * offset * obj.transform);
   m_spatialSystem.addComponent(std::move(spatial));
 
-  Vec3f colour{ 1, 0, 0 };
+  Vec3f colour{ 0.15, 0.1, 0.08 };
   CRenderPtr render = std::make_unique<CRender>(id);
   MeshPtr mesh = std::make_unique<Mesh>();
-  std::vector<Vec3f> vertices;
+  std::vector<Vec4f> vertices;
   for (auto i = obj.path.points.rbegin(); i != obj.path.points.rend(); ++i) {
-    auto p = *i;
-    Vec3f vertex{ p[0], p[1], 0 };
-    vertices.push_back(vertex);
-    mesh->vertices.push_back(Vertex{vertex, colour, Vec2f{ 0, 0 }});
+    auto& p = *i;
+    vertices.push_back(p);
+    mesh->vertices.push_back(Vertex{Vec3f{ p[0], p[1], p[2] }, colour, Vec2f{ 0, 0 }});
   }
+
   mesh->indices = triangulatePoly(vertices);
-  std::reverse(mesh->indices.begin(), mesh->indices.end());
+
+  size_t n = mesh->vertices.size();
+  for (size_t i = 0; i < n; ++i) {
+    const Vertex& bottomVertex = mesh->vertices[i];
+    Vertex topVertex = bottomVertex;
+    topVertex.pos[1] += height;
+    mesh->vertices.push_back(topVertex);
+  }
+  IndexList topFaceIndices;
+  std::transform(mesh->indices.begin(), mesh->indices.end(), std::back_inserter(topFaceIndices),
+    [&](uint16_t i) { return i + n; });
+  std::reverse(topFaceIndices.begin(), topFaceIndices.end());
+  mesh->indices.insert(mesh->indices.end(), topFaceIndices.begin(), topFaceIndices.end());
+
   render->mesh = m_renderSystem.addMesh(std::move(mesh));
   m_renderSystem.addComponent(std::move(render));
 
-  return translationMatrix4x4(Vec3f{ 0, 0, -floorHeight }) * obj.transform;
+  return translationMatrix4x4(Vec3f{ 0, floorHeight, 0 }) * obj.transform;
 }
 
 void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTransform,

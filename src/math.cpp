@@ -93,18 +93,18 @@ bool pointIsInsidePoly(const Vec2f& p, const std::vector<Vec2f>& poly)
   return inside;
 }
 
-std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices)
+std::vector<uint16_t> triangulatePoly(const std::vector<Vec4f>& vertices)
 {
   ASSERT(vertices.size() >= 3, "Cannot triangulate polygon with < 3 vertices");
   std::vector<uint16_t> indices;
 
-  size_t h = 1; // Vertical component
+  size_t h = 2; // Index of z component
 
-  auto anticlockwise = [h](const Vec3f& A, const Vec3f& B, const Vec3f& C) {
+  auto anticlockwise = [h](const Vec4f& A, const Vec4f& B, const Vec4f& C) {
     return A[0] * B[h] - A[h] * B[0] + A[h] * C[0] - A[0] * C[h] + B[0] * C[h] - C[0] * B[h] > 0.f;
   };
 
-  auto pointInTriangle = [h](const Vec3f& P, const Vec3f& A, const Vec3f& B, const Vec3f& C) {
+  auto pointInTriangle = [h](const Vec4f& P, const Vec4f& A, const Vec4f& B, const Vec4f& C) {
     float_t Q = 0.5f * (-B[h] * C[0] + A[h] * (-B[0] + C[0]) + A[0] * (B[h] - C[h]) + B[0] * C[h]);
     float_t sign = Q < 0.f ? -1.f : 1.f;
     float_t s = (A[h] * C[0] - A[0] * C[h] + (C[h] - A[h]) * P[0] + (A[0] - C[0]) * P[h]) * sign;
@@ -115,12 +115,12 @@ std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices)
   std::vector<uint16_t> poly(vertices.size());
   std::iota(poly.begin(), poly.end(), 0);
 
-  auto isEar = [&](const Vec3f& A, const Vec3f& B, const Vec3f& C) {
+  auto isEar = [&](const Vec4f& A, const Vec4f& B, const Vec4f& C) {
     if (!anticlockwise(A, B, C)) {
       return false;
     }
     for (auto& i : poly) {
-      const Vec3f& v = vertices[i];
+      const Vec4f& v = vertices[i];
       if (v == A || v == B || v == C) {
         continue;
       }
@@ -136,9 +136,9 @@ std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices)
       size_t idxA = poly[i - 1];
       size_t idxB = poly[i];
       size_t idxC = poly[(i + 1) % poly.size()];
-      const Vec3f& A = vertices[idxA];
-      const Vec3f& B = vertices[idxB];
-      const Vec3f& C = vertices[idxC];
+      const Vec4f& A = vertices[idxA];
+      const Vec4f& B = vertices[idxB];
+      const Vec4f& C = vertices[idxC];
 
       if (isEar(A, B, C)) {
         indices.push_back(idxA);
