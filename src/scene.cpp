@@ -9,6 +9,7 @@
 #include "units.hpp"
 #include "player.hpp"
 #include <numeric>
+#include <cassert>
 
 namespace
 {
@@ -216,6 +217,63 @@ void SceneBuilder::constructPlayer(const ObjectData& obj, const Mat4x4f& parentT
   m_player->setPosition({ x, y, z });
 }
 
+MeshPtr mergeMeshes(const Mesh& A, const Mesh& B)
+{
+  MeshPtr mesh = std::make_unique<Mesh>();
+
+  mesh->vertices.insert(mesh->vertices.end(), A.vertices.begin(), A.vertices.end());
+  mesh->vertices.insert(mesh->vertices.end(), B.vertices.begin(), B.vertices.end());
+  mesh->indices.insert(mesh->indices.end(), A.indices.begin(), A.indices.end());
+  size_t n = A.vertices.size();
+  std::transform(B.indices.begin(), B.indices.end(), std::back_inserter(mesh->indices),
+    [n](uint16_t i) { return i + n; });
+
+  return mesh;
+}
+
+MeshPtr createBottomFace(const std::vector<Vec4f>& points, const Vec3f& colour)
+{
+  MeshPtr mesh = std::make_unique<Mesh>();
+
+  std::vector<Vec4f> vertices;
+  for (auto i = points.rbegin(); i != points.rend(); ++i) {
+    auto& p = *i;
+    vertices.push_back(p);
+    mesh->vertices.push_back(Vertex{Vec3f{ p[0], p[1], p[2] }, colour, Vec2f{ 0, 0 }}); // TODO: UVs
+  }
+
+  mesh->indices = triangulatePoly(vertices);
+
+  return mesh;
+}
+
+MeshPtr createTopFace(const std::vector<Vec4f>& points, const Vec3f& colour, float_t height)
+{
+  auto mesh = createBottomFace(points, colour);
+
+  for (auto& p : mesh->vertices) {
+    p.pos[1] += height;
+  }
+
+  std::reverse(mesh->indices.begin(), mesh->indices.end());
+
+  return mesh;
+}
+
+void createSideFaces(Mesh& mesh)
+{
+  assert(mesh.vertices.size() % 2 == 0);
+
+  uint16_t n = static_cast<uint16_t>(mesh.vertices.size() / 2);
+  for (uint16_t i = 0; i < n; ++i) {
+    uint16_t j = n + i;
+    uint16_t nextI = (i + 1) % n;
+    uint16_t nextJ = n + nextI;
+
+    mesh.indices.insert(mesh.indices.end(), { i, j, nextJ, i, nextJ, nextI });
+  }
+}
+
 Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parentTransform)
 {
   EntityId id = System::nextId();
@@ -232,30 +290,14 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
   m_spatialSystem.addComponent(std::move(spatial));
 
   Vec3f colour{ 0.15, 0.1, 0.08 };
+
+  auto bottomFace = createBottomFace(obj.path.points, colour);
+  auto topFace = createTopFace(obj.path.points, colour, height);
+
+  auto mesh = mergeMeshes(*bottomFace, *topFace);
+  createSideFaces(*mesh);
+
   CRenderPtr render = std::make_unique<CRender>(id);
-  MeshPtr mesh = std::make_unique<Mesh>();
-  std::vector<Vec4f> vertices;
-  for (auto i = obj.path.points.rbegin(); i != obj.path.points.rend(); ++i) {
-    auto& p = *i;
-    vertices.push_back(p);
-    mesh->vertices.push_back(Vertex{Vec3f{ p[0], p[1], p[2] }, colour, Vec2f{ 0, 0 }});
-  }
-
-  mesh->indices = triangulatePoly(vertices);
-
-  size_t n = mesh->vertices.size();
-  for (size_t i = 0; i < n; ++i) {
-    const Vertex& bottomVertex = mesh->vertices[i];
-    Vertex topVertex = bottomVertex;
-    topVertex.pos[1] += height;
-    mesh->vertices.push_back(topVertex);
-  }
-  IndexList topFaceIndices;
-  std::transform(mesh->indices.begin(), mesh->indices.end(), std::back_inserter(topFaceIndices),
-    [&](uint16_t i) { return i + n; });
-  std::reverse(topFaceIndices.begin(), topFaceIndices.end());
-  mesh->indices.insert(mesh->indices.end(), topFaceIndices.begin(), topFaceIndices.end());
-
   render->mesh = m_renderSystem.addMesh(std::move(mesh));
   m_renderSystem.addComponent(std::move(render));
 
