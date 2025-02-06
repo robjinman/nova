@@ -14,8 +14,15 @@ constexpr double PI = 3.14159265359;
 template<typename T>
 inline T degreesToRadians(T degrees)
 {
-  constexpr T sf = static_cast<T>(PI / 180.0);
-  return degrees * sf;
+  constexpr T x = static_cast<T>(PI / 180.0);
+  return degrees * x;
+}
+
+template<typename T>
+inline T radiansToDegrees(T radians)
+{
+  constexpr T x = static_cast<T>(360.0 / (2.0 * PI));
+  return radians * x;
 }
 
 template<typename T> T clip(T value, T min, T max)
@@ -387,13 +394,19 @@ using Mat3x3f = Matrix<float_t, 3, 3>;
 using Mat4x4f = Matrix<float_t, 4, 4>;
 
 template<typename T, size_t M>
-Matrix<T, M, M> identityMatrix()
+Matrix<T, M, M> scaleMatrix(T scale)
 {
   Matrix<T, M, M> m;
   for (size_t i = 0; i < M; ++i) {
-    m.set(i, i, 1);
+    m.set(i, i, scale);
   }
   return m;
+};
+
+template<typename T, size_t M>
+Matrix<T, M, M> identityMatrix()
+{
+  return scaleMatrix<T, M>(1);
 }
 
 template<typename T>
@@ -539,4 +552,4 @@ bool lineIntersect(const Line& l1, const Line& l2, Vec2f& p);
 Vec2f projectionOntoLine(const Line& line, const Vec2f& p);
 bool lineSegmentCircleIntersect(const LineSegment& lseg, const Vec2f& centre, float_t radius);
 bool pointIsInsidePoly(const Vec2f& p, const std::vector<Vec2f>& poly);
-std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices);
+std::vector<uint16_t> triangulatePoly(const std::vector<Vec4f>& vertices);

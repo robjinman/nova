@@ -8,7 +8,7 @@
 
 struct Path
 {
-  std::vector<Vec2f> points;
+  std::vector<Vec4f> points;
   bool closed = false;
 };
 

@@ -23,15 +23,15 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="3.3532181"
-     inkscape:cx="69.932821"
-     inkscape:cy="113.92042"
+     inkscape:zoom="7.3875001"
+     inkscape:cx="178.00338"
+     inkscape:cy="184.16243"
      inkscape:window-width="1200"
-     inkscape:window-height="965"
-     inkscape:window-x="0"
-     inkscape:window-y="25"
+     inkscape:window-height="950"
+     inkscape:window-x="723"
+     inkscape:window-y="33"
      inkscape:window-maximized="0"
-     inkscape:current-layer="g5" />
+     inkscape:current-layer="layer1" />
   <defs
      id="defs1">
     <rect
@@ -52,14 +52,9 @@
        style="text-align:start;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect1);display:inline;fill:#000000"><tspan
          x="357.96094"
          y="880.56125"
-         id="tspan4">1</tspan></text>
+         id="tspan3">5</tspan></text>
     <g
        id="g5">
-      <path
-         style="fill:none;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
-         d="M 0.18962135,0.28443203 0.28443203,29.865362 12.70463,45.414313 25.008777,34.509927 33.367709,33.31077 45.509124,45.983178 59.25667,30.908281 59.635913,11.851334 50.53409,0.56886405 Z"
-         id="path1"
-         sodipodi:nodetypes="cccccccccc" />
       <text
          xml:space="preserve"
          style="font-size:0.909496px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0757912;stroke-opacity:1"
@@ -83,71 +78,93 @@
            x="13.728453"
            y="3.3297205">floor=0</tspan></text>
       <g
-         id="g4"
-         transform="translate(-4.9070076,-22.015223)">
+         id="g4-5"
+         transform="translate(-4.2019297,-13.708856)">
         <path
            style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
-           d="m 26.38107,24.656701 1.220688,-3e-6 -0.616269,-1.730294 z"
-           id="path2"
+           d="m 25.84781,23.903284 0.840829,0.884922 0.829863,-1.638606 z"
+           id="path2-1"
            sodipodi:nodetypes="cccc" />
         <text
            xml:space="preserve"
            style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
            x="23.180428"
            y="26.306543"
-           id="text3"><tspan
+           id="text3-3"><tspan
              sodipodi:role="line"
-             id="tspan3"
+             id="tspan3-9"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
              y="26.306543">type=desk</tspan></text>
       </g>
       <g
-         id="g3"
-         transform="translate(-27.187474,-9.0182842)">
+         id="g4-5-8"
+         transform="translate(0.48888023,-13.529875)">
         <path
            style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
-           d="m 28.026047,37.31757 1.220688,-3e-6 -0.616269,-1.730294 z"
-           id="path2-5"
-           sodipodi:nodetypes="cccc" />
-        <text
-           xml:space="preserve"
-           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
-           x="24.825405"
-           y="38.967411"
-           id="text3-9"><tspan
-             sodipodi:role="line"
-             id="tspan3-5"
-             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
-             x="24.825405"
-             y="38.967411">type=desk</tspan></text>
-      </g>
-      <g
-         id="g4-7"
-         transform="translate(-5.2143794,2.889775)">
-        <path
-           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
-           d="m 26.38107,24.656701 1.220688,-3e-6 -0.616269,-1.730294 z"
-           id="path2-55"
+           d="m 25.920451,23.595155 0.467548,1.127599 1.362302,-1.232005 z"
+           id="path2-1-7"
            sodipodi:nodetypes="cccc" />
         <text
            xml:space="preserve"
            style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
            x="23.180428"
            y="26.306543"
-           id="text3-4"><tspan
+           id="text3-3-1"><tspan
              sodipodi:role="line"
-             id="tspan3-1"
+             id="tspan3-9-5"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
+             x="23.180428"
+             y="26.306543">type=desk</tspan></text>
+      </g>
+      <g
+         id="g4-5-8-6"
+         transform="translate(5.4618061,-13.544772)">
+        <path
+           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
+           d="m 26.189492,23.25407 -0.137432,1.212927 1.788676,-0.417538 z"
+           id="path2-1-7-7"
+           sodipodi:nodetypes="cccc" />
+        <text
+           xml:space="preserve"
+           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
+           x="23.180428"
+           y="26.306543"
+           id="text3-3-1-9"><tspan
+             sodipodi:role="line"
+             id="tspan3-9-5-4"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
+             x="23.180428"
+             y="26.306543">type=desk</tspan></text>
+      </g>
+      <g
+         id="g4-5-8-6-2"
+         transform="translate(10.766741,-13.628182)">
+        <path
+           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
+           d="m 26.812458,23.082601 -0.937413,0.781879 1.581547,0.93403 z"
+           id="path2-1-7-7-0"
+           sodipodi:nodetypes="cccc" />
+        <text
+           xml:space="preserve"
+           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
+           x="23.180428"
+           y="26.306543"
+           id="text3-3-1-9-4"><tspan
+             sodipodi:role="line"
+             id="tspan3-9-5-4-4"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
              y="26.306543">type=desk</tspan></text>
       </g>
       <g
          id="g4-7-6"
-         transform="translate(-24.981616,-12.266806)">
+         transform="translate(-26.584687,-12.807172)"
+         inkscape:transform-center-x="0.44292273"
+         inkscape:transform-center-y="0.15714354">
         <path
            style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
-           d="m 27.592705,22.654796 -1.220624,0.01252 0.633972,1.723886 z"
+           d="m 25.652586,24.009723 0.748627,0.964175 0.988735,-1.547936 z"
            id="path2-55-7"
            sodipodi:nodetypes="cccc" />
         <text
@@ -163,7 +180,8 @@
              y="26.306543">type=player</tspan></text>
       </g>
       <g
-         id="g6">
+         id="g6"
+         transform="translate(-3.9126536,24.051312)">
         <text
            xml:space="preserve"
            style="font-size:0.909496px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0757912;stroke-opacity:1"
@@ -186,31 +204,44 @@
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0757912"
              x="31.594952"
              y="11.983668">floor=5</tspan></text>
-        <g
-           id="g4-7-3"
-           transform="translate(7.1454864,-7.716754)">
-          <path
-             style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
-             d="m 26.38107,24.656701 1.220688,-3e-6 -0.616269,-1.730294 z"
-             id="path2-55-0"
-             sodipodi:nodetypes="cccc" />
-          <text
-             xml:space="preserve"
-             style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
-             x="23.180428"
-             y="26.306543"
-             id="text3-4-6"><tspan
-               sodipodi:role="line"
-               id="tspan3-1-2"
-               style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
-               x="23.180428"
-               y="26.306543">type=desk</tspan></text>
-        </g>
         <path
            style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
            d="m 29.904729,12.309071 -0.39452,7.811526 8.442759,1.420277 1.578086,-8.99509 z"
            id="path5" />
       </g>
+      <g
+         id="g7">
+        <text
+           xml:space="preserve"
+           style="font-size:0.909496px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0757912;stroke-opacity:1"
+           x="7.0704732"
+           y="56.936832"
+           id="text2-3"><tspan
+             sodipodi:role="line"
+             id="tspan2-9"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0757912"
+             x="7.0704732"
+             y="56.936832">type=zone</tspan></text>
+        <text
+           xml:space="preserve"
+           style="font-size:0.909496px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0757912;stroke-opacity:1"
+           x="7.5071931"
+           y="58.386623"
+           id="text2-3-3"><tspan
+             sodipodi:role="line"
+             id="tspan2-9-6"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0757912"
+             x="7.5071931"
+             y="58.386623">floor=2</tspan></text>
+        <path
+           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
+           d="m 6.9622216,60.58859 7.8253074,-0.575389 -1.956327,-9.091165 -8.2856191,1.72617 z"
+           id="path6" />
+      </g>
+      <path
+         style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
+         d="M 0.46031218,29.920292 13.003819,45.570907 25.087014,34.408334 33.257556,33.142478 45.340751,45.685985 59.150114,30.610759 59.610428,11.737961 52.130353,7.364995 50.404183,0.46031218 0.11507805,0.23015609 Z"
+         id="path8" />
     </g>
   </g>
 </svg>

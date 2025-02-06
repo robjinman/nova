@@ -141,11 +141,11 @@ TEST_F(MathTest, clip_int_value_in_range_is_unchanged)
 
 TEST_F(MathTest, triangulate_square)
 {
-  std::vector<Vec3f> vertices{
-    { 0, 0, 0 },
-    { 1, 0, 0 },
-    { 1, 1, 0 },
-    { 0, 1, 0 }
+  std::vector<Vec4f> vertices{
+    { 0, 0, 0, 1 },
+    { 1, 0, 0, 1 },
+    { 1, 0, 1, 1 },
+    { 0, 0, 1, 1 }
   };
 
   auto indices = triangulatePoly(vertices);
@@ -156,12 +156,12 @@ TEST_F(MathTest, triangulate_square)
 
 TEST_F(MathTest, triangulate_simple_convex_poly)
 {
-  std::vector<Vec3f> vertices{
-    { 0, 0, 0 },
-    { 1, 0, 0 },
-    { 1, 1, 0 },
-    { 0.8, 1.2, 0 },
-    { 0, 1, 0 }
+  std::vector<Vec4f> vertices{
+    { 0, 0, 0, 1 },
+    { 1, 0, 0, 1 },
+    { 1, 0, 1, 1 },
+    { 0.8, 0, 1.2, 1 },
+    { 0, 0, 1, 1 }
   };
 
   auto indices = triangulatePoly(vertices);
@@ -172,12 +172,12 @@ TEST_F(MathTest, triangulate_simple_convex_poly)
 
 TEST_F(MathTest, triangulate_nonconvex_poly)
 {
-  std::vector<Vec3f> vertices{
-    { 0, 0, 0 },
-    { 1, 0, 0 },
-    { 1, 1, 0 },
-    { 0.8, 0.5, 0 },
-    { 0, 1, 0 }
+  std::vector<Vec4f> vertices{
+    { 0, 0, 0, 1 },
+    { 1, 0, 0, 1 },
+    { 1, 0, 1, 1 },
+    { 0.8, 0, 0.5, 1 },
+    { 0, 0, 1, 1 }
   };
 
   auto indices = triangulatePoly(vertices);

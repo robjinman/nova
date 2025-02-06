@@ -1,6 +1,11 @@
 nova
 ====
 
+Model space
+-----------
+
+By default, Blender uses Z as the vertical axis and Y as the "forward" axis (into the screen). When modelling in Blender, orient the model facing the default camera (down the negative Y axis). On export, select Z as the forward axis and Y as the vertical axis. 
+
 Building from source
 --------------------
 
