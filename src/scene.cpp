@@ -45,6 +45,8 @@ std::pair<Vec2f, Vec2f> computeMapBounds(const ObjectData& root)
 
 MeshPtr cuboid(float_t w, float_t h, float_t d, const Vec3f& colour)
 {
+  // TODO: Normals
+
   MeshPtr mesh = std::make_unique<Mesh>();
   // Viewed from above
   //
@@ -54,16 +56,16 @@ MeshPtr cuboid(float_t w, float_t h, float_t d, const Vec3f& colour)
   //
   mesh->vertices = {
     // Bottom face
-    {{ 0, 0, 0 }, colour, { 0, 0 }}, // A  0
-    {{ w, 0, 0 }, colour, { 1, 0 }}, // B  1
-    {{ w, 0, d }, colour, { 1, 1 }}, // C  2
-    {{ 0, 0, d }, colour, { 0, 1 }}, // D  3
+    {{ 0, 0, 0 }, { 0, 0, 1 }, colour, { 0, 0 }}, // A  0
+    {{ w, 0, 0 }, { 0, 0, 1 }, colour, { 1, 0 }}, // B  1
+    {{ w, 0, d }, { 0, 0, 1 }, colour, { 1, 1 }}, // C  2
+    {{ 0, 0, d }, { 0, 0, 1 }, colour, { 0, 1 }}, // D  3
 
     // Top face
-    {{ 0, h, 0 }, colour, { 0, 0 }}, // A  4
-    {{ w, h, 0 }, colour, { 1, 0 }}, // B  5
-    {{ w, h, d }, colour, { 1, 1 }}, // C  6
-    {{ 0, h, d }, colour, { 0, 1 }}, // D  7
+    {{ 0, h, 0 }, { 0, 0, 1 }, colour, { 0, 0 }}, // A  4
+    {{ w, h, 0 }, { 0, 0, 1 }, colour, { 1, 0 }}, // B  5
+    {{ w, h, d }, { 0, 0, 1 }, colour, { 1, 1 }}, // C  6
+    {{ 0, h, d }, { 0, 0, 1 }, colour, { 0, 1 }}, // D  7
   };
   mesh->indices = {
     0, 1, 2, 0, 2, 3, // Bottom face
@@ -239,7 +241,9 @@ MeshPtr createBottomFace(const std::vector<Vec4f>& points, const Vec3f& colour)
   for (auto i = points.rbegin(); i != points.rend(); ++i) {
     auto& p = *i;
     vertices.push_back(p);
-    mesh->vertices.push_back(Vertex{Vec3f{ p[0], p[1], p[2] }, colour, Vec2f{ 0, 0 }}); // TODO: UVs
+    // TODO: Normals and UVs
+    Vertex vertex{Vec3f{ p[0], p[1], p[2] }, Vec3f{ 0, 0, 0 }, colour, Vec2f{ 0, 0 }};
+    mesh->vertices.push_back(vertex);
   }
 
   mesh->indices = triangulatePoly(vertices);

@@ -11,6 +11,7 @@ const RenderItemId NULL_ID = -1;
 struct Vertex
 {
   Vec3f pos;
+  Vec3f normal;
   Vec3f colour;
   Vec2f texCoord;
 };
