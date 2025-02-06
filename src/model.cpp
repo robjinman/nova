@@ -17,11 +17,15 @@ MeshPtr loadMesh(const std::string& objFilePath)
   std::string line;
 
   std::vector<Vec3f> vertices;
+  std::vector<Vec3f> normals;
   std::vector<Vec2f> uvCoords;
 
   std::regex vertexPattern{"v\\s+(-?\\d+\\.?\\d+)\\s+(-?\\d+\\.?\\d+)\\s+(-?\\d+\\.?\\d+)"};
+  std::regex normalPattern{"vn\\s+(-?\\d+\\.?\\d+)\\s+(-?\\d+\\.?\\d+)\\s+(-?\\d+\\.?\\d+)"};
   std::regex uvCoordPattern{"vt\\s+(-?\\d+\\.?\\d+)\\s+(-?\\d+\\.?\\d+)"};
-  std::regex facePattern{"f\\s+(\\d+)/(\\d+)\\s+(\\d+)/(\\d+)\\s+(\\d+)/(\\d+)"};
+  std::regex facePattern{
+    "f\\s+(\\d+)/(\\d+)/(\\d+)\\s+(\\d+)/(\\d+)/(\\d+)\\s+(\\d+)/(\\d+)/(\\d+)"
+  };
 
   std::smatch match;
 
@@ -41,6 +45,16 @@ MeshPtr loadMesh(const std::string& objFilePath)
   
       uvCoords.push_back({u, v});
     }
+    else if (startsWith(line, "vn")) {
+      std::regex_search(line, match, normalPattern);
+
+      ASSERT(match.size() == 4, STR("Error parsing normal: " << line));
+      float_t x = parseFloat<float_t>(match[1].str());
+      float_t y = parseFloat<float_t>(match[2].str());
+      float_t z = parseFloat<float_t>(match[3].str());
+  
+      normals.push_back({x, y, z});
+    }
     else if (startsWith(line, "v")) {
       std::regex_search(line, match, vertexPattern);
 
@@ -54,22 +68,30 @@ MeshPtr loadMesh(const std::string& objFilePath)
     else if (startsWith(line, "f")) {
       std::regex_search(line, match, facePattern);
 
-      ASSERT(match.size() == 7, STR("Error parsing face: " << line));
+      ASSERT(match.size() == 10, STR("Error parsing face: " << line));
 
-      auto makeVertex = [&](unsigned i, unsigned j) {
+      auto makeVertex = [&](unsigned i, unsigned j, unsigned k) {
         int vertexIdx = std::stoi(match[i].str()) - 1;
         int uvCoordIdx = std::stoi(match[j].str()) - 1;
+        int normalIdx = std::stoi(match[k].str()) - 1;
 
         ASSERT(inRange(vertexIdx, 0, static_cast<int>(vertices.size()) - 1), "Index out of range");
         ASSERT(inRange(uvCoordIdx, 0, static_cast<int>(uvCoords.size()) - 1), "Index out of range");
+        ASSERT(inRange(normalIdx, 0, static_cast<int>(normals.size()) - 1), "Index out of range");
 
-        mesh->vertices.push_back(Vertex{ vertices[vertexIdx], colour, uvCoords[uvCoordIdx] });
+        Vertex vertex{};
+        vertex.pos = vertices[vertexIdx];
+        vertex.normal = normals[normalIdx];
+        vertex.colour = colour;
+        vertex.texCoord = uvCoords[uvCoordIdx];
+
+        mesh->vertices.push_back(vertex);
         mesh->indices.push_back(mesh->vertices.size() - 1);
       };
 
-      makeVertex(1, 2);
-      makeVertex(3, 4);
-      makeVertex(5, 6);
+      makeVertex(1, 2, 3);
+      makeVertex(4, 5, 6);
+      makeVertex(7, 8, 9);
     }
   }
 

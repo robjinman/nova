@@ -6,17 +6,6 @@
 namespace
 {
 
-VkVertexInputBindingDescription getVertexBindingDescription()
-{
-  VkVertexInputBindingDescription binding{};
-
-  binding.binding = 0;
-  binding.stride = sizeof(Vertex);
-  binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-  return binding;
-}
-
 VkVertexInputBindingDescription getInstanceBindingDescription()
 {
   VkVertexInputBindingDescription binding{};
@@ -30,30 +19,19 @@ VkVertexInputBindingDescription getInstanceBindingDescription()
 
 std::vector<VkVertexInputAttributeDescription> getInstancedAttributeDescriptions()
 {
-  std::vector<VkVertexInputAttributeDescription> attributes(7);
-
-  attributes[0].binding = 0;
-  attributes[0].location = 0;
-  attributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributes[0].offset = offsetof(Vertex, pos);
-
-  attributes[1].binding = 0;
-  attributes[1].location = 1;
-  attributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributes[1].offset = offsetof(Vertex, colour);
-
-  attributes[2].binding = 0;
-  attributes[2].location = 2;
-  attributes[2].format = VK_FORMAT_R32G32_SFLOAT;
-  attributes[2].offset = offsetof(Vertex, texCoord);
+  auto attributes = getDefaultAttributeDescriptions();
+  size_t n = attributes.size();
 
   for (unsigned int i = 0; i < 4; ++i) {
     uint32_t offset = offsetof(InstanceData, modelMatrix) + 4 * sizeof(float_t) * i;
 
-    attributes[3 + i].location = 3 + i;
-    attributes[3 + i].binding = 1;
-    attributes[3 + i].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-    attributes[3 + i].offset = offset;
+    VkVertexInputAttributeDescription attr;
+    attr.location = n + i;
+    attr.binding = 1;
+    attr.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    attr.offset = offset;
+
+    attributes.push_back(attr);
   }
 
   return attributes;
@@ -84,7 +62,7 @@ InstancedPipeline::InstancedPipeline(VkDevice device, VkExtent2D swapchainExtent
   fragShaderStageInfo.module = fragShaderModule;
   fragShaderStageInfo.pName = "main";
 
-  auto vertexBindingDescription = getVertexBindingDescription();
+  auto vertexBindingDescription = getDefaultVertexBindingDescription();
   auto instanceBindingDescription = getInstanceBindingDescription();
   auto attributeDescriptions = getInstancedAttributeDescriptions();
 

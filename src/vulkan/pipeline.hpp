@@ -40,3 +40,5 @@ struct MeshData
 using MeshDataPtr = std::unique_ptr<MeshData>;
 
 VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code);
+VkVertexInputBindingDescription getDefaultVertexBindingDescription();
+std::vector<VkVertexInputAttributeDescription> getDefaultAttributeDescriptions();

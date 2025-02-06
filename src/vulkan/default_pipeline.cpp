@@ -3,44 +3,6 @@
 #include "utils.hpp"
 #include "model.hpp"
 
-namespace
-{
-
-VkVertexInputBindingDescription getVertexBindingDescription()
-{
-  VkVertexInputBindingDescription binding{};
-
-  binding.binding = 0;
-  binding.stride = sizeof(Vertex);
-  binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-  return binding;
-}
-
-std::vector<VkVertexInputAttributeDescription> getDefaultAttributeDescriptions()
-{
-  std::vector<VkVertexInputAttributeDescription> attributes(3);
-
-  attributes[0].binding = 0;
-  attributes[0].location = 0;
-  attributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributes[0].offset = offsetof(Vertex, pos);
-
-  attributes[1].binding = 0;
-  attributes[1].location = 1;
-  attributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributes[1].offset = offsetof(Vertex, colour);
-
-  attributes[2].binding = 0;
-  attributes[2].location = 2;
-  attributes[2].format = VK_FORMAT_R32G32_SFLOAT;
-  attributes[2].offset = offsetof(Vertex, texCoord);
-
-  return attributes;
-}
-
-} // namespace
-
 DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
   VkRenderPass renderPass, VkDescriptorSetLayout uboDescriptorSetLayout,
   VkDescriptorSetLayout materialDescriptorSetLayout)
@@ -64,7 +26,7 @@ DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
   fragShaderStageInfo.module = fragShaderModule;
   fragShaderStageInfo.pName = "main";
 
-  auto vertexBindingDescription = getVertexBindingDescription();
+  auto vertexBindingDescription = getDefaultVertexBindingDescription();
   auto attributeDescriptions = getDefaultAttributeDescriptions();
 
   std::vector<VkVertexInputBindingDescription> bindingDescriptions{
