@@ -10,7 +10,6 @@ FrameRateLimiter::FrameRateLimiter(unsigned frameRate)
 
 void FrameRateLimiter::wait()
 {
-  auto entryTime = std::chrono::high_resolution_clock::now();
   auto getElapsed = [this]() {
     auto time = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(time - m_lastFrameTime);
@@ -18,7 +17,7 @@ void FrameRateLimiter::wait()
 
   auto elapsed = getElapsed();
   while (elapsed < m_frameDuration) {
-    std::this_thread::sleep_for(m_frameDuration - elapsed);
+    std::this_thread::sleep_for(1us);
     elapsed = getElapsed();
   }
 
