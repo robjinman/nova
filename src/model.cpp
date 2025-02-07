@@ -31,7 +31,7 @@ MeshPtr loadMesh(const std::string& objFilePath)
 
   auto mesh = std::make_unique<Mesh>();
 
-  Vec3f colour{1, 1, 1};
+  Vec3f colour{ 1, 1, 1 };
 
   while (!stream.eof()) {
     std::getline(stream, line);
@@ -43,7 +43,7 @@ MeshPtr loadMesh(const std::string& objFilePath)
       float_t u = parseFloat<float_t>(match[1].str());
       float_t v = parseFloat<float_t>(match[2].str());
   
-      uvCoords.push_back({u, v});
+      uvCoords.push_back({ u, v });
     }
     else if (startsWith(line, "vn")) {
       std::regex_search(line, match, normalPattern);
@@ -53,7 +53,7 @@ MeshPtr loadMesh(const std::string& objFilePath)
       float_t y = parseFloat<float_t>(match[2].str());
       float_t z = parseFloat<float_t>(match[3].str());
   
-      normals.push_back({x, y, z});
+      normals.push_back({ x, y, z });
     }
     else if (startsWith(line, "v")) {
       std::regex_search(line, match, vertexPattern);
@@ -63,7 +63,7 @@ MeshPtr loadMesh(const std::string& objFilePath)
       float_t y = parseFloat<float_t>(match[2].str());
       float_t z = parseFloat<float_t>(match[3].str());
   
-      vertices.push_back({x, y, z});
+      vertices.push_back({ x, y, z });
     }
     else if (startsWith(line, "f")) {
       std::regex_search(line, match, facePattern);
