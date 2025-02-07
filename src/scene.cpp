@@ -142,7 +142,11 @@ void SceneBuilder::constructOriginMarkers()
   auto construct = [this](float_t x, float_t z, const Vec3f& colour) {
     EntityId id = System::nextId();
 
-    MeshPtr mesh = cuboid(0.5f, 5.f, 0.5f, colour);
+    float_t w = metresToWorldUnits(1);
+    float_t d = metresToWorldUnits(1);
+    float_t h = metresToWorldUnits(20);
+
+    MeshPtr mesh = cuboid(w, h, d, colour);
     MeshId meshId = m_renderSystem.addMesh(std::move(mesh));
     CRenderPtr render = std::make_unique<CRender>(id);
     render->mesh = meshId;
@@ -153,9 +157,10 @@ void SceneBuilder::constructOriginMarkers()
     m_spatialSystem.addComponent(std::move(spatial));
   };
 
+  float_t distanceFromOrigin = metresToWorldUnits(5);
   construct(0, 0, { 1, 0, 0 });
-  construct(10, 0, { 0, 1, 0 });
-  construct(0, 10, { 0, 0, 1 });
+  construct(distanceFromOrigin, 0, { 0, 1, 0 });
+  construct(0, distanceFromOrigin, { 0, 0, 1 });
 }
 
 void SceneBuilder::constructInstances(const ObjectData& objectData)
