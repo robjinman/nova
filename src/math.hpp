@@ -79,11 +79,13 @@ class Vector
 
     const T& operator[](size_t i) const
     {
+      DBG_ASSERT(i < N, "Index out of range");
       return m_data[i];
     }
 
     T& operator[](size_t i)
     {
+      DBG_ASSERT(i < N, "Index out of range");
       return m_data[i];
     }
 
@@ -304,11 +306,15 @@ class Matrix
 
     const T& at(size_t row, size_t col) const
     {
+      DBG_ASSERT(row < ROWS, "Index out of range");
+      DBG_ASSERT(col < COLS, "Index out of range");
       return m_data[col * ROWS + row];
     }
 
     void set(size_t row, size_t col, T value)
     {
+      DBG_ASSERT(row < ROWS, "Index out of range");
+      DBG_ASSERT(col < COLS, "Index out of range");
       m_data[col * ROWS + row] = value;
     }
 

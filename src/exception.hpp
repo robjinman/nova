@@ -22,3 +22,9 @@ public:
   if (!(MAC_cond)) { \
     EXCEPTION(MAC_msg); \
   }
+
+#ifndef NDEBUG
+#define DBG_ASSERT(MAC_cond, MAC_msg) ASSERT(MAC_cond, MAC_msg)
+#else
+#define DBG_ASSERT(MAC_cond, MAC_msg)
+#endif
