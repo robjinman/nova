@@ -12,20 +12,21 @@ using float_t = float;
 constexpr double PI = 3.14159265359;
 
 template<typename T>
-inline T degreesToRadians(T degrees)
+T degreesToRadians(T degrees)
 {
   constexpr T x = static_cast<T>(PI / 180.0);
   return degrees * x;
 }
 
 template<typename T>
-inline T radiansToDegrees(T radians)
+T radiansToDegrees(T radians)
 {
   constexpr T x = static_cast<T>(360.0 / (2.0 * PI));
   return radians * x;
 }
 
-template<typename T> T clip(T value, T min, T max)
+template<typename T>
+T clip(T value, T min, T max)
 {
   return std::max(min, std::min(max, value));
 }

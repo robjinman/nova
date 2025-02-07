@@ -29,7 +29,7 @@ class PlayerImpl : public Player
     float_t m_stepHeight = metresToWorldUnits(0.3);
     float_t m_bounceHeight = metresToWorldUnits(0.035);
     float_t m_bounceRate = 3.5;
-    float_t m_jumpHeight = metresToWorldUnits(0.6);
+    float_t m_jumpHeight = metresToWorldUnits(0.8);
 
     float_t m_originalTallness;
     float_t m_distance = 0;
