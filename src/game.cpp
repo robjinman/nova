@@ -12,7 +12,7 @@ namespace
 {
 
 const float_t MOUSE_LOOK_SPEED = 2.5;
-const float_t PLAYER_SPEED = 0.5f;
+const float_t PLAYER_SPEED = 1.f;
 
 class GameImpl : public Game
 {
