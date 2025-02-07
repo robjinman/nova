@@ -10,7 +10,7 @@ class FrameRateLimiter
     void wait();
 
   private:
-    std::chrono::time_point<std::chrono::high_resolution_clock> m_lastFrameTime;
+    std::chrono::time_point<std::chrono::steady_clock> m_lastFrameTime;
     std::chrono::microseconds m_frameDuration;
 };
 

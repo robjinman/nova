@@ -1,6 +1,7 @@
 #pragma once
 
 #include "math.hpp"
+#include <memory>
 
 class Player
 {
