@@ -29,6 +29,9 @@ class GameImpl : public Game
     PlayerPtr m_player;
     std::set<KeyboardKey> m_keysPressed;
     Vec2f m_mouseDelta;
+    Timer m_timer;
+    size_t m_frame = 0;
+    double m_measuredFrameRate = 0;
 
     void handleKeyboardInput();
     void handleMouseInput();
@@ -77,7 +80,11 @@ void GameImpl::handleKeyboardInput()
 
   if (dir != Vec3f{}) {
     dir = dir.normalise();
-    m_player->translate(dir * m_player->getSpeed() / FRAME_RATE);
+    m_player->translate(dir * m_player->getSpeed() / static_cast<float_t>(TARGET_FRAME_RATE));
+  }
+
+  if (m_keysPressed.count(KeyboardKey::F)) {
+    m_logger.info(STR("Frame rate: " << m_measuredFrameRate));
   }
 }
 
@@ -89,6 +96,12 @@ void GameImpl::handleMouseInput()
 
 void GameImpl::update()
 {
+  ++m_frame;
+  if (m_frame % TARGET_FRAME_RATE == 0) {
+    m_measuredFrameRate = TARGET_FRAME_RATE / m_timer.elapsed();
+    m_timer.reset();
+  }
+
   handleKeyboardInput();
   handleMouseInput();
 }

@@ -27,3 +27,7 @@ double Timer::elapsed() const
   return std::chrono::duration<double>(now - m_start).count();
 }
 
+void Timer::reset()
+{
+  m_start = std::chrono::high_resolution_clock::now();
+}

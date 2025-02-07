@@ -2,7 +2,7 @@
 
 #include "math.hpp"
 
-const float_t FRAME_RATE = 60.0;
+const size_t TARGET_FRAME_RATE = 60;
 const float_t WORLD_UNITS_PER_METRE = 10;
 
 inline float_t metresToWorldUnits(float_t x)

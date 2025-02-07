@@ -99,7 +99,7 @@ Application::Application(GLFWwindow* window)
 
 void Application::run()
 {
-  FrameRateLimiter frameRateLimiter(FRAME_RATE);
+  FrameRateLimiter frameRateLimiter(TARGET_FRAME_RATE);
 
   while(!glfwWindowShouldClose(m_window)) {
     glfwPollEvents();
