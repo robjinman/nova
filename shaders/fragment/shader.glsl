@@ -2,7 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 // TODO: Pass these in
-const vec3 worldLightPos = vec3(0, 50, 0);
+const vec3 worldLightPos = vec3(150, 100, 400);
 const vec3 lightColour = vec3(1, 1, 1);
 const float ambient = 0.1;
 
