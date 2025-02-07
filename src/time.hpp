@@ -20,6 +20,7 @@ class Timer
     Timer();
 
     double elapsed() const;
+    void reset();
 
   private:
     std::chrono::time_point<std::chrono::high_resolution_clock> m_start;
