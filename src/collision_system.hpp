@@ -12,7 +12,6 @@ struct CCollision : public Component
 
   std::vector<Vec2f> perimeter;
   float_t height;
-  Mat4x4f transform = identityMatrix<float_t, 4>(); // TODO: Remove - use spatial system
 };
 
 using CCollisionPtr = std::unique_ptr<CCollision>;
@@ -32,6 +31,7 @@ class CollisionSystem : public System
 
 using CollisionSystemPtr = std::unique_ptr<CollisionSystem>;
 
+class SpatialSystem;
 class Logger;
 
-CollisionSystemPtr createCollisionSystem(Logger& logger);
+CollisionSystemPtr createCollisionSystem(const SpatialSystem& spatialSystem, Logger& logger);

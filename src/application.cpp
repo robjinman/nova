@@ -84,7 +84,7 @@ Application::Application(GLFWwindow* window)
   m_renderer = createRenderer(*m_window, *m_logger);
   m_spatialSystem = createSpatialSystem(*m_logger);
   m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_logger);
-  m_collisionSystem = createCollisionSystem(*m_logger);
+  m_collisionSystem = createCollisionSystem(*m_spatialSystem, *m_logger);
   m_mapParser = createMapParser(*m_logger);
   m_entityFactory = createEntityFactory(*m_spatialSystem, *m_renderSystem, *m_collisionSystem,
     *m_logger);

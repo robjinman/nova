@@ -398,6 +398,16 @@ void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTra
     auto mesh = cuboid(wallThickness, wallHeight, distance, colour);
     render->mesh = m_renderSystem.addMesh(std::move(mesh));
     m_renderSystem.addComponent(std::move(render));
+
+    CCollisionPtr collision = std::make_unique<CCollision>(entityId);
+    collision->height = wallHeight;
+    collision->perimeter = {
+      { 0.f, 0.f },
+      { wallThickness, 0.f },
+      { wallThickness, distance },
+      { 0.f, distance }
+    };
+    m_collisionSystem.addComponent(std::move(collision));
   }
 }
 
