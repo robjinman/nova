@@ -245,9 +245,11 @@ Mat4x4f MapParserImpl::parseMatrixTransform(const std::string& s, float_t scale)
   ASSERT(comma == ',', "Syntax error");
   stream >> value >> comma;                     // cos(a)
   ASSERT(comma == ',', "Syntax error");
-  stream >> translation[0] >> comma;            // tx
+  stream >> value >> comma;                     // tx
+  translation[0] = value * scale;
   ASSERT(comma == ',', "Syntax error");
-  stream >> translation[2] >> buf;              // tz
+  stream >> value >> buf;                       // tz
+  translation[2] = value * scale;
   ASSERT(buf == ")", "Syntax error");
 
   return transform(translation, Vec3f{ 0, a, 0 });
