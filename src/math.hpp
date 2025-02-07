@@ -394,11 +394,14 @@ using Mat3x3f = Matrix<float_t, 3, 3>;
 using Mat4x4f = Matrix<float_t, 4, 4>;
 
 template<typename T, size_t M>
-Matrix<T, M, M> scaleMatrix(T scale)
+Matrix<T, M, M> scaleMatrix(T scale, bool homogeneous)
 {
   Matrix<T, M, M> m;
   for (size_t i = 0; i < M; ++i) {
     m.set(i, i, scale);
+  }
+  if (homogeneous) {
+    m.set(M - 1, M - 1, 1);
   }
   return m;
 };
@@ -406,7 +409,7 @@ Matrix<T, M, M> scaleMatrix(T scale)
 template<typename T, size_t M>
 Matrix<T, M, M> identityMatrix()
 {
-  return scaleMatrix<T, M>(1);
+  return scaleMatrix<T, M>(1, false);
 }
 
 template<typename T>

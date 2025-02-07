@@ -2,6 +2,7 @@
 #include "logger.hpp"
 #include "exception.hpp"
 #include "utils.hpp"
+#include "units.hpp"
 #include "xml.hpp"
 #include "spatial_system.hpp"
 #include "render_system.hpp"
@@ -37,9 +38,11 @@ class EntityFactoryImpl : public EntityFactory
     void loadMaterials(const XmlNode& node);
     void loadEntities();
     void parseEntityFile(const std::filesystem::path& path);
-    void constructSpatialComponent(EntityId entityId, const Mat4x4f& transform) const;
+    void constructSpatialComponent(EntityId entityId, const XmlNode& node,
+      const Mat4x4f& transform) const;
     void constructRenderComponent(EntityId entityId, const XmlNode& node) const;
     void constructCollisionComponent(EntityId entityId, const XmlNode& node) const;
+    Mat4x4f parseTransform(const XmlNode& node) const;
 };
 
 EntityFactoryImpl::EntityFactoryImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
@@ -139,7 +142,7 @@ EntityId EntityFactoryImpl::constructEntity(const std::string& name, const Mat4x
 
   for (auto& node : root) {
     if (node.name() == "spatial-component") {
-      constructSpatialComponent(id, transform);
+      constructSpatialComponent(id, node, transform);
     }
     else if (node.name() == "render-component") {
       constructRenderComponent(id, node);
@@ -156,10 +159,36 @@ EntityId EntityFactoryImpl::constructEntity(const std::string& name, const Mat4x
   return id;
 }
 
-void EntityFactoryImpl::constructSpatialComponent(EntityId entityId, const Mat4x4f& transform) const
+Mat4x4f EntityFactoryImpl::parseTransform(const XmlNode& node) const
+{
+  ASSERT(node.name() == "transform", "Expected 'transform' node");
+
+  auto& posNode = *node.child("pos");
+  auto& oriNode = *node.child("ori");
+
+  Vec3f pos{
+    parseFloat<float_t>(posNode.attribute("x")),
+    parseFloat<float_t>(posNode.attribute("y")),
+    parseFloat<float_t>(posNode.attribute("z"))
+  };
+
+  Vec3f ori{
+    degreesToRadians(parseFloat<float_t>(oriNode.attribute("x"))),
+    degreesToRadians(parseFloat<float_t>(oriNode.attribute("y"))),
+    degreesToRadians(parseFloat<float_t>(oriNode.attribute("z")))
+  };
+
+  float_t scale = parseFloat<float_t>(node.attribute("scale"));
+
+  return transform(metresToWorldUnits(pos), ori) * scaleMatrix<float_t, 4>(scale, true);
+}
+
+void EntityFactoryImpl::constructSpatialComponent(EntityId entityId, const XmlNode& node,
+  const Mat4x4f& transform) const
 {
   auto spatial = std::make_unique<CSpatial>(entityId);
-  spatial->setTransform(transform);
+  auto& transformNode = *node.child("transform");
+  spatial->setTransform(transform * parseTransform(transformNode));
   m_spatialSystem.addComponent(std::move(spatial));
 }
 
