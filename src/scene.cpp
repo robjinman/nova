@@ -45,8 +45,6 @@ std::pair<Vec2f, Vec2f> computeMapBounds(const ObjectData& root)
 
 MeshPtr cuboid(float_t w, float_t h, float_t d, const Vec3f& colour)
 {
-  // TODO: Normals
-
   MeshPtr mesh = std::make_unique<Mesh>();
   // Viewed from above
   //
@@ -56,24 +54,48 @@ MeshPtr cuboid(float_t w, float_t h, float_t d, const Vec3f& colour)
   //
   mesh->vertices = {
     // Bottom face
-    {{ 0, 0, 0 }, { 0, 0, 1 }, colour, { 0, 0 }}, // A  0
-    {{ w, 0, 0 }, { 0, 0, 1 }, colour, { 1, 0 }}, // B  1
-    {{ w, 0, d }, { 0, 0, 1 }, colour, { 1, 1 }}, // C  2
-    {{ 0, 0, d }, { 0, 0, 1 }, colour, { 0, 1 }}, // D  3
+    {{ 0, 0, 0 }, { 0, -1, 0 }, colour, { 0, 0 }},  // A  0
+    {{ w, 0, 0 }, { 0, -1, 0 }, colour, { 1, 0 }},  // B  1
+    {{ w, 0, d }, { 0, -1, 0 }, colour, { 1, 1 }},  // C  2
+    {{ 0, 0, d }, { 0, -1, 0 }, colour, { 0, 1 }},  // D  3
 
     // Top face
-    {{ 0, h, 0 }, { 0, 0, 1 }, colour, { 0, 0 }}, // A  4
-    {{ w, h, 0 }, { 0, 0, 1 }, colour, { 1, 0 }}, // B  5
-    {{ w, h, d }, { 0, 0, 1 }, colour, { 1, 1 }}, // C  6
-    {{ 0, h, d }, { 0, 0, 1 }, colour, { 0, 1 }}, // D  7
+    {{ 0, h, d }, { 0, 1, 0 }, colour, { 0, 0 }},   // D' 4
+    {{ w, h, d }, { 0, 1, 0 }, colour, { 1, 0 }},   // C' 5
+    {{ w, h, 0 }, { 0, 1, 0 }, colour, { 1, 1 }},   // B' 6
+    {{ 0, h, 0 }, { 0, 1, 0 }, colour, { 0, 1 }},   // A' 7
+
+    // Right face
+    {{ w, 0, d }, { 1, 0, 0 }, colour, { 0, 0 }},   // C  8
+    {{ w, 0, 0 }, { 1, 0, 0 }, colour, { 1, 0 }},   // B  9
+    {{ w, h, 0 }, { 1, 0, 0 }, colour, { 1, 1 }},   // B' 10
+    {{ w, h, d }, { 1, 0, 0 }, colour, { 0, 1 }},   // C' 11
+
+    // Left face
+    {{ 0, 0, 0 }, { -1, 0, 0 }, colour, { 0, 0 }},  // A  12
+    {{ 0, 0, d }, { -1, 0, 0 }, colour, { 1, 0 }},  // D  13
+    {{ 0, h, d }, { -1, 0, 0 }, colour, { 1, 1 }},  // D' 14
+    {{ 0, h, 0 }, { -1, 0, 0 }, colour, { 0, 1 }},  // A' 15
+
+    // Far face
+    {{ 0, 0, 0 }, { 0, 0, -1 }, colour, { 0, 0 }},  // A  16
+    {{ 0, h, 0 }, { 0, 0, -1 }, colour, { 1, 0 }},  // A' 17
+    {{ w, h, 0 }, { 0, 0, -1 }, colour, { 1, 1 }},  // B' 18
+    {{ w, 0, 0 }, { 0, 0, -1 }, colour, { 0, 0 }},  // B  19
+
+    // Near face
+    {{ 0, 0, d }, { 0, 0, 1 }, colour, { 0, 0 }},   // D  20
+    {{ w, 0, d }, { 0, 0, 1 }, colour, { 1, 0 }},   // C  21
+    {{ w, h, d }, { 0, 0, 1 }, colour, { 1, 1 }},   // C' 22
+    {{ 0, h, d }, { 0, 0, 1 }, colour, { 0, 1 }},   // D' 23
   };
   mesh->indices = {
-    0, 1, 2, 0, 2, 3, // Bottom face
-    0, 3, 7, 0, 7, 4, // Left face
-    2, 1, 5, 2, 5, 6, // Right face
-    3, 2, 6, 3, 6, 7, // Near face
-    0, 4, 5, 0, 5, 1, // Far face
-    7, 6, 5, 7, 5, 4  // Top face
+    0, 1, 2, 0, 2, 3,         // Bottom face
+    4, 5, 6, 4, 6, 7,         // Top face
+    8, 9, 10, 8, 10, 11,      // Left face
+    12, 13, 14, 12, 14, 15,   // Right face
+    16, 17, 18, 16, 18, 19,   // Near face
+    20, 21, 22, 20, 22, 23,   // Far face
   };
 
   return mesh;
