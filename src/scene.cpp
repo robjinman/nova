@@ -241,8 +241,8 @@ MeshPtr createBottomFace(const std::vector<Vec4f>& points, const Vec3f& colour)
   for (auto i = points.rbegin(); i != points.rend(); ++i) {
     auto& p = *i;
     vertices.push_back(p);
-    // TODO: Normals and UVs
-    Vertex vertex{Vec3f{ p[0], p[1], p[2] }, Vec3f{ 0, 0, 0 }, colour, Vec2f{ 0, 0 }};
+    // TODO: UVs
+    Vertex vertex{Vec3f{ p[0], p[1], p[2] }, Vec3f{ 0, -1, 0 }, colour, Vec2f{ 0, 0 }};
     mesh->vertices.push_back(vertex);
   }
 
@@ -254,9 +254,11 @@ MeshPtr createBottomFace(const std::vector<Vec4f>& points, const Vec3f& colour)
 MeshPtr createTopFace(const std::vector<Vec4f>& points, const Vec3f& colour, float_t height)
 {
   auto mesh = createBottomFace(points, colour);
+  Vec3f normal{ 0, 1, 0 };
 
   for (auto& p : mesh->vertices) {
     p.pos[1] += height;
+    p.normal = normal;
   }
 
   std::reverse(mesh->indices.begin(), mesh->indices.end());
@@ -274,7 +276,28 @@ void createSideFaces(Mesh& mesh)
     uint16_t nextI = (i + 1) % n;
     uint16_t nextJ = n + nextI;
 
-    mesh.indices.insert(mesh.indices.end(), { i, j, nextJ, i, nextJ, nextI });
+    // Face
+    Vertex A = mesh.vertices[i];
+    Vertex B = mesh.vertices[nextI];
+    Vertex C = mesh.vertices[j];
+    Vertex D = mesh.vertices[nextJ];
+
+    Vec3f normal = -(A.pos - B.pos).cross(A.pos - C.pos).normalise();
+    A.normal = normal;
+    B.normal = normal;
+    C.normal = normal;
+    D.normal = normal;
+
+    uint16_t idx = mesh.vertices.size();
+    mesh.vertices.insert(mesh.vertices.end(), { A, B, C, D });
+
+    mesh.indices.push_back(idx);      // A
+    mesh.indices.push_back(idx + 2);  // C
+    mesh.indices.push_back(idx + 1);  // B
+
+    mesh.indices.push_back(idx + 1);  // B
+    mesh.indices.push_back(idx + 2);  // C
+    mesh.indices.push_back(idx + 3);  // D
   }
 }
 
