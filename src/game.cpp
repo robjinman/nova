@@ -1,24 +1,22 @@
 #include "game.hpp"
-#include "render_system.hpp"
-#include "spatial_system.hpp"
+#include "player.hpp"
 #include "collision_system.hpp"
 #include "time.hpp"
 #include "camera.hpp"
 #include "logger.hpp"
 #include "utils.hpp"
+#include "units.hpp"
 #include <set>
 
 namespace
 {
 
 const float_t MOUSE_LOOK_SPEED = 2.5;
-const float_t PLAYER_SPEED = 1.f;
 
 class GameImpl : public Game
 {
   public:
-    GameImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
-      CollisionSystem& collisionSystem, Logger& logger);
+    GameImpl(PlayerPtr player, CollisionSystem& collisionSystem, Logger& logger);
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
@@ -27,27 +25,19 @@ class GameImpl : public Game
 
   private:
     Logger& m_logger;
-    SpatialSystem& m_spatialSystem;
-    RenderSystem& m_renderSystem;
     CollisionSystem& m_collisionSystem;
-    Camera& m_camera;
+    PlayerPtr m_player;
     std::set<KeyboardKey> m_keysPressed;
     Vec2f m_mouseDelta;
-    Timer m_timer;
-    std::vector<EntityId> m_model1Entities;
-    std::vector<EntityId> m_model2Entities;
 
     void handleKeyboardInput();
     void handleMouseInput();
 };
 
-GameImpl::GameImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
-  CollisionSystem& collisionSystem, Logger& logger)
+GameImpl::GameImpl(PlayerPtr player, CollisionSystem& collisionSystem, Logger& logger)
   : m_logger(logger)
-  , m_spatialSystem(spatialSystem)
-  , m_renderSystem(renderSystem)
   , m_collisionSystem(collisionSystem)
-  , m_camera(m_renderSystem.camera())
+  , m_player(std::move(player))
 {
 }
 
@@ -71,29 +61,29 @@ void GameImpl::handleKeyboardInput()
   Vec3f dir{};
 
   if (m_keysPressed.count(KeyboardKey::W)) {
-    dir = m_camera.getDirection();
+    dir = m_player->getDirection();
   }
   if (m_keysPressed.count(KeyboardKey::S)) {
-    dir = -m_camera.getDirection();
+    dir = -m_player->getDirection();
   }
   if (m_keysPressed.count(KeyboardKey::D)) {
-    dir = m_camera.getDirection().cross(Vec3f{0, 1, 0});
+    dir = m_player->getDirection().cross(Vec3f{0, 1, 0});
   }
   if (m_keysPressed.count(KeyboardKey::A)) {
-    dir = -m_camera.getDirection().cross(Vec3f{0, 1, 0});
+    dir = -m_player->getDirection().cross(Vec3f{0, 1, 0});
   }
 
-  //dir[1] = 0;
+  dir[1] = 0;
 
   if (dir != Vec3f{}) {
     dir = dir.normalise();
-    m_camera.translate(dir * PLAYER_SPEED);
+    m_player->translate(dir * m_player->getSpeed() / FRAME_RATE);
   }
 }
 
 void GameImpl::handleMouseInput()
 {
-  m_camera.rotate(-MOUSE_LOOK_SPEED * m_mouseDelta[1], -MOUSE_LOOK_SPEED * m_mouseDelta[0]);
+  m_player->rotate(-MOUSE_LOOK_SPEED * m_mouseDelta[1], -MOUSE_LOOK_SPEED * m_mouseDelta[0]);
   m_mouseDelta = Vec2f{};
 }
 
@@ -105,8 +95,7 @@ void GameImpl::update()
 
 } // namespace
 
-GamePtr createGame(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
-  CollisionSystem& collisionSystem, Logger& logger)
+GamePtr createGame(PlayerPtr player, CollisionSystem& collisionSystem, Logger& logger)
 {
-  return std::make_unique<GameImpl>(spatialSystem, renderSystem, collisionSystem, logger);
+  return std::make_unique<GameImpl>(std::move(player), collisionSystem, logger);
 }

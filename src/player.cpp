@@ -23,7 +23,7 @@ class PlayerImpl : public Player
   private:
     Camera& m_camera;
     Vec3f m_position;
-    float_t m_speed = metresToWorldUnits(20.0);
+    float_t m_speed = metresToWorldUnits(9.0);
     float_t m_radius = metresToWorldUnits(0.2);
     float_t m_tallness = metresToWorldUnits(1.7);
     float_t m_stepHeight = metresToWorldUnits(0.3);

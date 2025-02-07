@@ -43,8 +43,8 @@ class Application
     RenderSystemPtr m_renderSystem;
     CollisionSystemPtr m_collisionSystem;
     MapParserPtr m_mapParser;
-    GamePtr m_game;
     EntityFactoryPtr m_entityFactory;
+    GamePtr m_game;
 
     Vec2f m_lastMousePos;
 
@@ -86,12 +86,13 @@ Application::Application(GLFWwindow* window)
   m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_logger);
   m_collisionSystem = createCollisionSystem(*m_logger);
   m_mapParser = createMapParser(*m_logger);
-  m_game = createGame(*m_spatialSystem, *m_renderSystem, *m_collisionSystem, *m_logger);
   m_entityFactory = createEntityFactory(*m_spatialSystem, *m_renderSystem, *m_collisionSystem,
     *m_logger);
 
-  createScene(*m_entityFactory, *m_spatialSystem, *m_renderSystem, *m_collisionSystem, *m_mapParser,
-    *m_logger);
+  auto player = createScene(*m_entityFactory, *m_spatialSystem, *m_renderSystem, *m_collisionSystem,
+    *m_mapParser, *m_logger);
+
+  m_game = createGame(std::move(player), *m_collisionSystem, *m_logger);
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);
 }
