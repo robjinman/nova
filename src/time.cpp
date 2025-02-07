@@ -10,18 +10,19 @@ FrameRateLimiter::FrameRateLimiter(unsigned frameRate)
 
 void FrameRateLimiter::wait()
 {
+  auto entryTime = std::chrono::steady_clock::now();
   auto getElapsed = [this]() {
     auto time = std::chrono::steady_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(time - m_lastFrameTime);
   };
 
   auto elapsed = getElapsed();
-  while (elapsed <= m_frameDuration) {
+  while (elapsed < m_frameDuration) {
     std::this_thread::sleep_for(m_frameDuration - elapsed);
     elapsed = getElapsed();
   }
 
-  m_lastFrameTime = std::chrono::steady_clock::now();
+  m_lastFrameTime = entryTime;
 }
 
 Timer::Timer()
