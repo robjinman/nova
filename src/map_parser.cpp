@@ -190,7 +190,7 @@ Path MapParserImpl::constructPath(const XmlNode& node, float_t scale) const
   std::string svgPathString = node.attribute("d");
   Path path = parseSvgPathString(svgPathString);
 
-  auto m = scaleMatrix<float_t, 4>(scale);
+  auto m = scaleMatrix<float_t, 4>(scale, true);
 
   for (auto& p : path.points) {
     p = m * p;
