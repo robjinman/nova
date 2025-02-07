@@ -32,6 +32,7 @@ class GameImpl : public Game
     Timer m_timer;
     size_t m_frame = 0;
     double m_measuredFrameRate = 0;
+    bool m_freeflyMode = false;
 
     void handleKeyboardInput();
     void handleMouseInput();
@@ -47,6 +48,16 @@ GameImpl::GameImpl(PlayerPtr player, CollisionSystem& collisionSystem, Logger& l
 void GameImpl::onKeyDown(KeyboardKey key)
 {
   m_keysPressed.insert(key);
+
+  switch (key) {
+    case KeyboardKey::F:
+      m_logger.info(STR("Frame rate: " << m_measuredFrameRate));
+      break;
+    case KeyboardKey::P:
+      m_freeflyMode = !m_freeflyMode;
+      break;
+    default: break;
+  }
 }
 
 void GameImpl::onKeyUp(KeyboardKey key)
@@ -61,30 +72,34 @@ void GameImpl::onMouseMove(const Vec2f& delta)
 
 void GameImpl::handleKeyboardInput()
 {
-  Vec3f dir{};
+  Vec3f direction{};
 
   if (m_keysPressed.count(KeyboardKey::W)) {
-    dir = m_player->getDirection();
+    direction = m_player->getDirection();
   }
   if (m_keysPressed.count(KeyboardKey::S)) {
-    dir = -m_player->getDirection();
+    direction = -m_player->getDirection();
   }
   if (m_keysPressed.count(KeyboardKey::D)) {
-    dir = m_player->getDirection().cross(Vec3f{0, 1, 0});
+    direction = m_player->getDirection().cross(Vec3f{0, 1, 0});
   }
   if (m_keysPressed.count(KeyboardKey::A)) {
-    dir = -m_player->getDirection().cross(Vec3f{0, 1, 0});
+    direction = -m_player->getDirection().cross(Vec3f{0, 1, 0});
   }
 
-  dir[1] = 0;
+  if (direction != Vec3f{}) {
+    if (!m_freeflyMode) {
+      direction[1] = 0;
+    }
 
-  if (dir != Vec3f{}) {
-    dir = dir.normalise();
-    m_player->translate(dir * m_player->getSpeed() / static_cast<float_t>(TARGET_FRAME_RATE));
-  }
+    direction = direction.normalise();
+    auto playerPos = m_player->getPosition();
+    auto desiredDelta = direction * m_player->getSpeed() / static_cast<float_t>(TARGET_FRAME_RATE);
 
-  if (m_keysPressed.count(KeyboardKey::F)) {
-    m_logger.info(STR("Frame rate: " << m_measuredFrameRate));
+    Vec3f delta = m_collisionSystem.tryMove(playerPos, desiredDelta, m_player->getRadius(),
+      m_player->getStepHeight());
+
+    m_player->translate(delta);
   }
 }
 

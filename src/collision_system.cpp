@@ -1,4 +1,5 @@
 #include "collision_system.hpp"
+#include "spatial_system.hpp"
 #include "logger.hpp"
 #include "utils.hpp"
 #include <array>
@@ -14,7 +15,6 @@ CCollision::CCollision(EntityId entityId, const CCollision& cpy)
   : Component(entityId)
   , perimeter(cpy.perimeter)
   , height(cpy.height)
-  , transform(cpy.transform)
 {
 }
 
@@ -80,10 +80,8 @@ Grid::Grid(const Vec2f& worldMin, const Vec2f& worldMax, Logger& logger)
 
 void Grid::boundsCheck(const Vec2f& p) const
 {
-  ASSERT(p[0] >= m_worldMin[0] && p[0] <= m_worldMax[0],
-    "Point (" << p[0] << ", " << p[1] << ") is out of bounds");
-  ASSERT(p[1] >= m_worldMin[1] && p[1] <= m_worldMax[1],
-    "Point (" << p[0] << ", " << p[1] << ") is out of bounds");
+  ASSERT(p[0] >= m_worldMin[0] && p[0] <= m_worldMax[0], "Point (" << p << ") is out of bounds");
+  ASSERT(p[1] >= m_worldMin[1] && p[1] <= m_worldMax[1], "Point (" << p << ") is out of bounds");
 }
 
 Vec2i Grid::worldToGridCoords(const Vec2f& p) const
@@ -191,7 +189,7 @@ std::set<const CollisionItem*> Grid::getItems(const Vec2f& pos) const
 class CollisionSystemImpl : public CollisionSystem
 {
   public:
-    CollisionSystemImpl(Logger& logger);
+    CollisionSystemImpl(const SpatialSystem& spatialSystem, Logger& logger);
 
     void initialise(const Vec2f& worldMin, const Vec2f& worldMax) override;
     Vec3f tryMove(const Vec3f& pos, const Vec3f& delta, float_t radius,
@@ -207,6 +205,7 @@ class CollisionSystemImpl : public CollisionSystem
 
   private:
     Logger& m_logger;
+    const SpatialSystem& m_spatialSystem;
     std::list<CollisionItemPtr> m_items;
     std::unique_ptr<Grid> m_edgeGrid;
     std::unique_ptr<Grid> m_areaGrid;
@@ -217,8 +216,9 @@ class CollisionSystemImpl : public CollisionSystem
       const Vec3f& pos3, float_t radius, float_t stepHeight) const;
 };
 
-CollisionSystemImpl::CollisionSystemImpl(Logger& logger)
+CollisionSystemImpl::CollisionSystemImpl(const SpatialSystem& spatialSystem, Logger& logger)
   : m_logger(logger)
+  , m_spatialSystem(spatialSystem)
 {
 }
 
@@ -260,13 +260,14 @@ void CollisionSystemImpl::addComponent(ComponentPtr component)
 {
   ASSERT(m_edgeGrid, "Collision system not initialised");
 
+  auto spatialComp = m_spatialSystem.getComponent(component->id());
   auto collisionComp = CCollisionPtr(dynamic_cast<CCollision*>(component.release()));
   auto item = std::make_unique<CollisionItem>(std::move(collisionComp));
 
   for (auto& p : item->volume->perimeter) {
-    Vec4f transformedP = item->volume->transform * Vec4f{ p[0], p[1], item->volume->height, 1 };
-    item->absPerimeter.push_back({transformedP[0], transformedP[1]});
-    item->absHeight = transformedP[2];
+    Vec4f transformedP = spatialComp.absTransform() * Vec4f{ p[0], item->volume->height, p[1], 1 };
+    item->absPerimeter.push_back({ transformedP[0], transformedP[2] });
+    item->absHeight = transformedP[1];
   }
 
   m_items.push_back(std::move(item));
@@ -284,7 +285,7 @@ Vec3f CollisionSystemImpl::tryMove(const Vec3f& pos, const Vec3f& dir, float_t r
 
 float_t CollisionSystemImpl::altitude(const Vec3f& pos3) const
 {
-  Vec2f pos{ pos3[0], pos3[1] };
+  Vec2f pos{ pos3[0], pos3[2] };
 
   auto items = m_areaGrid->getItems(pos);
   float_t highestFloor = std::numeric_limits<float_t>::lowest();
@@ -302,18 +303,18 @@ float_t CollisionSystemImpl::altitude(const Vec3f& pos3) const
     EXCEPTION("Player is not inside any collision volume");
   }
 
-  return pos3[2] - highestFloor;
+  return pos3[1] - highestFloor;
 }
 
 std::vector<LineSegment> CollisionSystemImpl::intersectingLineSegments(
   std::set<const CollisionItem*>& items, const Vec3f& pos3, float_t radius,
   float_t stepHeight) const
 {
-  Vec2f pos{ pos3[0], pos3[1] };
+  Vec2f pos{ pos3[0], pos3[2] };
   std::vector<LineSegment> lineSegments;
 
   auto permitsEntry = [stepHeight](const CollisionItem& item, const Vec3f& pos) {
-    return item.absHeight - pos[2] <= stepHeight;
+    return item.absHeight - pos[1] <= stepHeight;
   };
 
   for (auto item : items) {
@@ -344,10 +345,10 @@ Vec3f CollisionSystemImpl::tryMove(const Vec3f& pos3, const Vec3f& delta, float_
     return Vec3f{};
   }
 
-  Vec2f pos{ pos3[0], pos3[1] };
+  Vec2f pos{ pos3[0], pos3[2] };
 
   Vec3f nextPos3 = pos3 + delta;
-  Vec2f nextPos{ nextPos3[0], nextPos3[1] };
+  Vec2f nextPos{ nextPos3[0], nextPos3[2] };
 
   auto items = m_edgeGrid->getItems(nextPos, radius);
   auto lineSegments = intersectingLineSegments(items, nextPos3, radius, stepHeight);
@@ -360,8 +361,8 @@ Vec3f CollisionSystemImpl::tryMove(const Vec3f& pos3, const Vec3f& delta, float_
     Vec2f X = projectionOntoLine(line, nextPos);
     Vec2f toLine = nextPos - X;
 
-    Vec2f adjustment = toLine.normalise() * (radius - toLine.magnitude()) * 1.00001;
-    Vec3f adjustment3{ adjustment[0], adjustment[1], 0 };
+    Vec2f adjustment = toLine.normalise() * (radius - toLine.magnitude()) * 1.01f;
+    Vec3f adjustment3{ adjustment[0], 0, adjustment[1] };
 
     auto newDelta = tryMove(pos3, delta + adjustment3, radius, stepHeight, depth + 1);
 
@@ -378,7 +379,7 @@ Vec3f CollisionSystemImpl::tryMove(const Vec3f& pos3, const Vec3f& delta, float_
 
 } // namespace
 
-CollisionSystemPtr createCollisionSystem(Logger& logger)
+CollisionSystemPtr createCollisionSystem(const SpatialSystem& spatialSystem, Logger& logger)
 {
-  return std::make_unique<CollisionSystemImpl>(logger);
+  return std::make_unique<CollisionSystemImpl>(spatialSystem, logger);
 }
