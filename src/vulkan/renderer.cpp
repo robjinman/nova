@@ -62,7 +62,8 @@ enum class PipelineName : long
 
 struct UniformBufferObject
 {
-  Mat4x4f viewProjectionMatrix;
+  Mat4x4f viewMatrix;
+  Mat4x4f projMatrix;
 };
 
 struct QueueFamilyIndices
@@ -376,7 +377,8 @@ void RendererImpl::finishFrame()
 void RendererImpl::updateUniformBuffer(const Camera& camera)
 {
   UniformBufferObject ubo{};
-  ubo.viewProjectionMatrix = m_projectionMatrix * camera.getMatrix();
+  ubo.viewMatrix = camera.getMatrix();
+  ubo.projMatrix = m_projectionMatrix;
 
   memcpy(m_uniformBuffersMapped[m_currentFrame], &ubo, sizeof(ubo));
 }
