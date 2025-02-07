@@ -24,8 +24,8 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="3.6937501"
-     inkscape:cx="183.28257"
-     inkscape:cy="141.18443"
+     inkscape:cx="140.10152"
+     inkscape:cy="78.917089"
      inkscape:window-width="1200"
      inkscape:window-height="950"
      inkscape:window-x="723"
@@ -263,6 +263,35 @@
          style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
          d="M 0.46031218,29.920292 13.003819,45.570907 25.087014,34.408334 33.257556,33.142478 45.340751,45.685985 59.150114,30.610759 59.610428,11.737961 52.130353,7.364995 50.404183,0.46031218 0.11507805,0.23015609 Z"
          id="path8" />
+      <g
+         id="g9">
+        <path
+           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
+           d="m 13.394811,42.906373 10.88776,-10.672871 9.097011,-1.217711 11.604061,11.74732 6.16018,-7.019739"
+           id="path9" />
+        <text
+           xml:space="preserve"
+           style="font-size:1.27155px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.105963;stroke-opacity:1"
+           x="24.984867"
+           y="28.853315"
+           id="text9"><tspan
+             sodipodi:role="line"
+             id="tspan9"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.105963"
+             x="24.984867"
+             y="28.853315">type=wall</tspan></text>
+        <text
+           xml:space="preserve"
+           style="font-size:1.27155px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.105963;stroke-opacity:1"
+           x="24.980074"
+           y="30.505844"
+           id="text9-3"><tspan
+             sodipodi:role="line"
+             id="tspan9-7"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.105963"
+             x="24.980074"
+             y="30.505844">height=1</tspan></text>
+      </g>
     </g>
   </g>
 </svg>

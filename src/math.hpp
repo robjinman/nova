@@ -56,6 +56,17 @@ class Vector
       std::copy(data.begin(), data.end(), m_data.begin());
     }
 
+    template<size_t M>
+    Vector(const Vector<T, M>& rhs, const std::initializer_list<T>& rest)
+    {
+      static_assert(M <= N, "Expected M <= N");
+      for (size_t i = 0; i < M; ++i) {
+        m_data[i] = rhs[i];
+      }
+      ASSERT(rest.size() == N - M, "Vector initialised with incorrect number of values");
+      std::copy(rest.begin(), rest.end(), m_data.begin() + M);
+    }
+
     const T* data() const
     {
       return m_data.data();
@@ -74,6 +85,18 @@ class Vector
     T& operator[](size_t i)
     {
       return m_data[i];
+    }
+
+    template<size_t M>
+    Vector<T, M> sub() const
+    {
+      static_assert(M <= N, "Expected M <= N");
+
+      Vector<T, M> v;
+      for (size_t i = 0; i < M; ++i) {
+        v[i] = m_data[i];
+      }
+      return v;
     }
 
     template<typename U>

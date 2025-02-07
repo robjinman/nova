@@ -14,14 +14,14 @@
 namespace
 {
 
-double getDoubleValue(const KeyValueMap& map, const std::string& key)
+float_t getFloatValue(const KeyValueMap& map, const std::string& key)
 {
   if (map.count(key) == 0) {
     EXCEPTION("Map does not contain '" << key << "' value");
   }
 
   try {
-    return std::stod(map.at(key));
+    return parseFloat<float_t>(map.at(key));
   }
   catch (...) {
     EXCEPTION("Error parsing value with name '" << key << "' as double");
@@ -269,7 +269,7 @@ MeshPtr createBottomFace(const std::vector<Vec4f>& points, const Vec3f& colour)
     auto& p = *i;
     vertices.push_back(p);
     // TODO: UVs
-    Vertex vertex{Vec3f{ p[0], p[1], p[2] }, Vec3f{ 0, -1, 0 }, colour, Vec2f{ 0, 0 }};
+    Vertex vertex{ p.sub<3>(), Vec3f{ 0, -1, 0 }, colour, Vec2f{ 0, 0 } };
     mesh->vertices.push_back(vertex);
   }
 
@@ -331,7 +331,7 @@ void createSideFaces(Mesh& mesh)
 Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parentTransform)
 {
   EntityId id = System::nextId();
-  auto floorHeight = metresToWorldUnits(getDoubleValue(obj.values, "floor"));
+  float_t floorHeight = metresToWorldUnits(getFloatValue(obj.values, "floor"));
   float_t height = floorHeight;
   auto offset = identityMatrix<float_t, 4>();
   if (floorHeight == 0) {
@@ -361,7 +361,44 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
 void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTransform,
   bool interior)
 {
-  // TODO
+  const float_t wallThickness = metresToWorldUnits(0.4);
+
+  float_t wallHeight = metresToWorldUnits(getFloatValue(obj.values, "height"));
+  const Vec3f colour{ 0.3f, 0.25f, 0.2f };
+
+  auto& points = obj.path.points;
+
+  if (points.size() < 2) {
+    EXCEPTION("Wall path must have at least 2 points");
+  }
+
+  size_t n = obj.path.closed ? points.size() + 1 : points.size();
+
+  for (size_t i = 1; i < n; ++i) {
+    Vec4f p1 = points[i - 1];
+    Vec4f p2 = points[i % points.size()];
+    Vec3f vec = p2.sub<3>() - p1.sub<3>();
+    float_t distance = vec.magnitude();
+    Vec3f v = vec.normalise();
+
+    Mat4x4f m{
+      v[2],   0,  v[0],   p1[0],
+      0,      1,  0,      0,
+      -v[0],  0,  v[2],   p1[2],
+      0,      0,  0,      1
+    };
+
+    EntityId entityId = System::nextId();
+
+    CSpatialPtr spatial = std::make_unique<CSpatial>(entityId);
+    spatial->setTransform(parentTransform * obj.transform * m);
+    m_spatialSystem.addComponent(std::move(spatial));
+
+    CRenderPtr render = std::make_unique<CRender>(entityId);
+    auto mesh = cuboid(wallThickness, wallHeight, distance, colour);
+    render->mesh = m_renderSystem.addMesh(std::move(mesh));
+    m_renderSystem.addComponent(std::move(render));
+  }
 }
 
 } // namespace
