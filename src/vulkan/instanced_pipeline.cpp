@@ -45,7 +45,7 @@ InstancedPipeline::InstancedPipeline(VkDevice device, VkExtent2D swapchainExtent
   : m_device(device)
 {
   auto vertShaderCode = readBinaryFile("shaders/vertex/instanced.spv");
-  auto fragShaderCode = readBinaryFile("shaders/fragment/shader.spv");
+  auto fragShaderCode = readBinaryFile("shaders/fragment/default.spv");
 
   VkShaderModule vertShaderModule = createShaderModule(m_device, vertShaderCode);
   VkShaderModule fragShaderModule = createShaderModule(m_device, fragShaderCode);

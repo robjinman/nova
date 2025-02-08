@@ -24,7 +24,6 @@ struct Texture
   std::vector<uint8_t> data;
 };
 
-using TextureId = RenderItemId;
 using TexturePtr = std::unique_ptr<Texture>;
 
 using VertexList = std::vector<Vertex>;
@@ -32,11 +31,11 @@ using IndexList = std::vector<uint16_t>;
 
 struct Material
 {
-  TextureId texture = NULL_ID;
-  TextureId normalMap = NULL_ID;
+  RenderItemId texture = NULL_ID;
+  RenderItemId cubeMap = NULL_ID;
+  RenderItemId normalMap = NULL_ID;
 };
 
-using MaterialId = RenderItemId;
 using MaterialPtr = std::unique_ptr<Material>;
 
 struct Mesh
@@ -47,7 +46,6 @@ struct Mesh
   size_t maxInstances = 1;
 };
 
-using MeshId = RenderItemId;
 using MeshPtr = std::unique_ptr<Mesh>;
 
 MeshPtr loadMesh(const std::string& objFilePath);

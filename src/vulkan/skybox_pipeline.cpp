@@ -1,15 +1,15 @@
-#include "vulkan/default_pipeline.hpp"
+#include "vulkan/skybox_pipeline.hpp"
 #include "vulkan/vulkan_utils.hpp"
 #include "utils.hpp"
 #include "model.hpp"
 
-DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
+SkyboxPipeline::SkyboxPipeline(VkDevice device, VkExtent2D swapchainExtent,
   VkRenderPass renderPass, VkDescriptorSetLayout uboDescriptorSetLayout,
   VkDescriptorSetLayout materialDescriptorSetLayout)
   : m_device(device)
 {
-  auto vertShaderCode = readBinaryFile("shaders/vertex/default.spv");
-  auto fragShaderCode = readBinaryFile("shaders/fragment/default.spv");
+  auto vertShaderCode = readBinaryFile("shaders/vertex/skybox.spv");
+  auto fragShaderCode = readBinaryFile("shaders/fragment/skybox.spv");
 
   VkShaderModule vertShaderModule = createShaderModule(m_device, vertShaderCode);
   VkShaderModule fragShaderModule = createShaderModule(m_device, fragShaderCode);
@@ -178,12 +178,9 @@ DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
   vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
 }
 
-void DefaultPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
-  const DefaultModelNode& node, VkDescriptorSet uboDescriptorSet,
-  VkDescriptorSet materialDescriptorSet, bool useMaterial)
+void SkyboxPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
+  VkDescriptorSet uboDescriptorSet, VkDescriptorSet cubeMapDescriptorSet)
 {
-  VkBool32 bUseMaterial = useMaterial;
-
   // TODO: Only bind things that have changed since last iteration
   vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
   std::vector<VkBuffer> vertexBuffers{ mesh.vertexBuffer };
@@ -194,15 +191,11 @@ void DefaultPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const M
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0, 1,
     &uboDescriptorSet, 0, nullptr);
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 1, 1,
-    &materialDescriptorSet, 0, nullptr);
-  vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4x4f),
-    &node.modelMatrix);
-  vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(Mat4x4f),
-    sizeof(VkBool32), &bUseMaterial);
+    &cubeMapDescriptorSet, 0, nullptr);
   vkCmdDrawIndexed(commandBuffer, mesh.mesh->indices.size(), 1, 0, 0, 0);
 }
 
-DefaultPipeline::~DefaultPipeline()
+SkyboxPipeline::~SkyboxPipeline()
 {
   vkDestroyPipeline(m_device, m_pipeline, nullptr);
   vkDestroyPipelineLayout(m_device, m_layout, nullptr);

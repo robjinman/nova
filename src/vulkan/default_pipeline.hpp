@@ -7,8 +7,8 @@ struct DefaultModelNode : public RenderNode
   DefaultModelNode()
     : RenderNode(RenderNodeType::defaultModel) {}
 
-  MeshId mesh;
-  MaterialId material;
+  RenderItemId mesh;
+  RenderItemId material;
   Mat4x4f modelMatrix;
 };
 

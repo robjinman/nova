@@ -12,8 +12,8 @@ struct InstancedModelNode : public RenderNode
   InstancedModelNode()
     : RenderNode(RenderNodeType::instancedModel) {}
 
-  MeshId mesh;
-  MaterialId material;
+  RenderItemId mesh;
+  RenderItemId material;
   std::vector<InstanceData> instances;
 };
 

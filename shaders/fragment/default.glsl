@@ -8,7 +8,8 @@ const float ambient = 0.1;
 
 layout(set = 1, binding = 0) uniform sampler2D texSampler;
 
-layout(push_constant) uniform Constants {
+layout(push_constant) uniform Constants
+{
   layout(offset = 64) bool hasTexture;
 } constants;
 
@@ -19,7 +20,8 @@ layout(location = 3) in vec3 inNormal;
 
 layout(location = 0) out vec4 outColour;
 
-void main() {
+void main()
+{
   vec3 normal = normalize(inNormal);
   vec3 lightDir = normalize(worldLightPos - inWorldPos);
   float cosTheta = min(max(dot(normal, lightDir), 0.0), 1.0 - ambient);

@@ -68,6 +68,7 @@ class SceneBuilder
     void constructInstance(const ObjectData& obj, const Mat4x4f& parentTransform);
     Mat4x4f constructZone(const ObjectData& obj, const Mat4x4f& parentTransform);
     void constructWall(const ObjectData& obj, const Mat4x4f& parentTransform, bool interior);
+    void constructSky();
 };
 
 SceneBuilder::SceneBuilder(EntityFactory& entityFactory, SpatialSystem& spatialSystem,
@@ -92,6 +93,7 @@ PlayerPtr SceneBuilder::createScene()
   m_collisionSystem.initialise(bounds.first, bounds.second);
 
   constructInstances(objectData);
+  constructSky();
   constructOriginMarkers();
 
   ASSERT(m_player != nullptr, "Map does not contain player");
@@ -99,6 +101,25 @@ PlayerPtr SceneBuilder::createScene()
   m_player = nullptr;
 
   return player;
+}
+
+void SceneBuilder::constructSky()
+{
+  EntityId entityId = System::nextId();
+  auto render = std::make_unique<CRender>(entityId, CRenderType::skybox);
+
+  auto mesh = cuboid(1, 1, 1, { 1, 1, 1 });
+  std::array<TexturePtr, 6> textures{
+    loadTexture("./data/resources/textures/skybox/back.png"),
+    loadTexture("./data/resources/textures/skybox/front.png"),
+    loadTexture("./data/resources/textures/skybox/left.png"),
+    loadTexture("./data/resources/textures/skybox/right.png"),
+    loadTexture("./data/resources/textures/skybox/top.png"),
+    loadTexture("./data/resources/textures/skybox/bottom.png")
+  };
+  render->mesh = m_renderSystem.addMesh(std::move(mesh));
+  render->cubeMap = m_renderSystem.addCubeMap(std::move(textures));
+  m_renderSystem.addComponent(std::move(render));
 }
 
 void SceneBuilder::constructOriginMarkers()
@@ -111,8 +132,8 @@ void SceneBuilder::constructOriginMarkers()
     float_t h = metresToWorldUnits(20);
 
     MeshPtr mesh = cuboid(w, h, d, colour);
-    MeshId meshId = m_renderSystem.addMesh(std::move(mesh));
-    CRenderPtr render = std::make_unique<CRender>(id);
+    auto meshId = m_renderSystem.addMesh(std::move(mesh));
+    CRenderPtr render = std::make_unique<CRender>(id, CRenderType::regular);
     render->mesh = meshId;
     m_renderSystem.addComponent(std::move(render));
 
@@ -293,7 +314,7 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
   auto mesh = mergeMeshes(*bottomFace, *topFace);
   createSideFaces(*mesh);
 
-  CRenderPtr render = std::make_unique<CRender>(entityId);
+  CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::regular);
   render->mesh = m_renderSystem.addMesh(std::move(mesh));
   m_renderSystem.addComponent(std::move(render));
 
@@ -342,7 +363,7 @@ void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTra
     spatial->setTransform(parentTransform * obj.transform * m);
     m_spatialSystem.addComponent(std::move(spatial));
 
-    CRenderPtr render = std::make_unique<CRender>(entityId);
+    CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::regular);
     auto mesh = cuboid(wallThickness, wallHeight, distance, colour);
     render->mesh = m_renderSystem.addMesh(std::move(mesh));
     m_renderSystem.addComponent(std::move(render));
