@@ -5,5 +5,5 @@
       <ori x="0" y="0" z="0"/>
     </transform>
   </spatial-component>
-  <render-component mesh="monkey" material="monkey" is-instance="false"/>
+  <render-component mesh="monkey" material="monkey" type="regular"/>
 </entity>

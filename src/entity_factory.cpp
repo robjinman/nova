@@ -27,9 +27,9 @@ class EntityFactoryImpl : public EntityFactory
     RenderSystem& m_renderSystem;
     CollisionSystem& m_collisionSystem;
 
-    std::map<std::string, TextureId> m_textures;
-    std::map<std::string, MeshId> m_meshes;
-    std::map<std::string, MaterialId> m_materials;
+    std::map<std::string, RenderItemId> m_textures;
+    std::map<std::string, RenderItemId> m_meshes;
+    std::map<std::string, RenderItemId> m_materials;
     std::map<std::string, XmlNodePtr> m_definitions;
 
     void loadResources();
@@ -132,10 +132,6 @@ void EntityFactoryImpl::parseEntityFile(const std::filesystem::path& path)
 
 EntityId EntityFactoryImpl::constructEntity(const std::string& name, const Mat4x4f& transform) const
 {
-  if (m_definitions.count(name) == 0) {
-    return 0; // TODO: Remove this
-  }
-
   EntityId id = System::nextId();
 
   const auto& root = *m_definitions.at(name);
@@ -192,12 +188,22 @@ void EntityFactoryImpl::constructSpatialComponent(EntityId entityId, const XmlNo
   m_spatialSystem.addComponent(std::move(spatial));
 }
 
+CRenderType parseCRenderType(const std::string& type)
+{
+  if (type == "regular")        return CRenderType::regular;
+  else if (type == "instance")  return CRenderType::instance;
+  else if (type == "skybox")    return CRenderType::skybox;
+  else EXCEPTION(STR("Unrecognised render component type '" << type << "'"));
+}
+
 void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNode& node) const
 {
-  auto render = std::make_unique<CRender>(entityId);
+  auto type = parseCRenderType(node.attribute("type"));
+
+  auto render = std::make_unique<CRender>(entityId, type);
   render->mesh = m_meshes.at(node.attribute("mesh"));
   render->material = m_materials.at(node.attribute("material"));
-  render->isInstance = node.attribute("is-instance") == "true";
+
   m_renderSystem.addComponent(std::move(render));
 }
 

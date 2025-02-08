@@ -1,6 +1,7 @@
 #include "vulkan/vulkan_utils.hpp"
 #include "vulkan/default_pipeline.hpp"
 #include "vulkan/instanced_pipeline.hpp"
+#include "vulkan/skybox_pipeline.hpp"
 #include "renderer.hpp"
 #include "exception.hpp"
 #include "version.hpp"
@@ -54,10 +55,11 @@ struct MaterialData
 
 using MaterialDataPtr = std::unique_ptr<MaterialData>;
 
-enum class PipelineName : long
+enum class PipelineName : RenderGraphKey
 {
   defaultModel,
-  instancedModel
+  instancedModel,
+  skybox
 };
 
 struct UniformBufferObject
@@ -89,17 +91,20 @@ class RendererImpl : public Renderer
     RendererImpl(GLFWwindow& window, Logger& logger);
 
     void beginFrame(const Camera& camera) override;
-    void stageInstance(MeshId mesh, MaterialId material, const Mat4x4f& transform) override;
-    void stageModel(MeshId mesh, MaterialId material, const Mat4x4f& transform) override;
+    void stageInstance(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform) override;
+    void stageModel(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform) override;
+    void stageSkybox(RenderItemId mesh, RenderItemId material) override;
     void endFrame() override;
 
-    TextureId addTexture(TexturePtr texture) override;
-    MeshId addMesh(MeshPtr model) override;
-    MaterialId addMaterial(MaterialPtr material) override;
+    RenderItemId addTexture(TexturePtr texture) override;
+    RenderItemId addCubeMap(const std::array<TexturePtr, 6>& textures) override;
+    RenderItemId addMesh(MeshPtr model) override;
+    RenderItemId addMaterial(MaterialPtr material) override;
 
-    void removeTexture(TextureId id) override;
-    void removeMesh(MeshId id) override;
-    void removeMaterial(MaterialId id) override;
+    void removeTexture(RenderItemId id) override;
+    void removeCubeMap(RenderItemId id) override;
+    void removeMesh(RenderItemId id) override;
+    void removeMaterial(RenderItemId id) override;
 
     ~RendererImpl() override;
 
@@ -205,8 +210,10 @@ class RendererImpl : public Renderer
     VkDescriptorSetLayout m_materialDescriptorSetLayout;
     VkSampler m_textureSampler;
 
+    // TODO: Polymorphism
     DefaultPipelinePtr m_defaultPipeline;
     InstancedPipelinePtr m_instancedPipeline;
+    SkyboxPipelinePtr m_skyboxPipeline;
 
     size_t m_currentFrame = 0;
     bool m_framebufferResized = false;
@@ -217,10 +224,10 @@ class RendererImpl : public Renderer
     std::vector<VkFence> m_inFlightFences;
 
     RenderGraph m_renderGraph;
-    std::map<MeshId, MeshDataPtr> m_meshes;
-    std::map<TextureId, TextureDataPtr> m_textures;
-    std::map<MaterialId, MaterialDataPtr> m_materials;
-    MaterialId m_nullMaterialId;
+    std::map<RenderItemId, MeshDataPtr> m_meshes;
+    std::map<RenderItemId, TextureDataPtr> m_textures;
+    std::map<RenderItemId, MaterialDataPtr> m_materials;
+    RenderItemId m_nullMaterialId;
 };
 
 RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
@@ -233,16 +240,17 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
   m_projectionMatrix = perspective(degreesToRadians(45.f), aspectRatio, 0.1f, 1000.f);
 }
 
-void RendererImpl::stageInstance(MeshId meshId, MaterialId materialId, const Mat4x4f& transform)
+void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
+  const Mat4x4f& transform)
 {
   auto& mesh = m_meshes.at(meshId);
   ASSERT(mesh->mesh->isInstanced, "Can't instance a non-instanced mesh");
   ASSERT(mesh->numInstances < mesh->mesh->maxInstances, "Max instances reached for this mesh");
 
   RenderGraph::Key key{
-    static_cast<long>(PipelineName::instancedModel),
-    static_cast<long>(meshId),
-    static_cast<long>(materialId)
+    static_cast<RenderGraphKey>(PipelineName::instancedModel),
+    static_cast<RenderGraphKey>(meshId),
+    static_cast<RenderGraphKey>(materialId)
   };
   InstancedModelNode* node = nullptr;
   auto i = m_renderGraph.find(key);
@@ -261,9 +269,9 @@ void RendererImpl::stageInstance(MeshId meshId, MaterialId materialId, const Mat
   mesh->numInstances++;
 }
 
-void RendererImpl::stageModel(MeshId mesh, MaterialId material, const Mat4x4f& transform)
+void RendererImpl::stageModel(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform)
 {
-  static long nextId = 0; // TODO
+  static RenderGraphKey nextId = 0; // TODO
 
   auto node = std::make_unique<DefaultModelNode>();
   node->mesh = mesh;
@@ -271,11 +279,21 @@ void RendererImpl::stageModel(MeshId mesh, MaterialId material, const Mat4x4f& t
   node->modelMatrix = transform;
 
   RenderGraph::Key key{
-    static_cast<long>(PipelineName::defaultModel),
-    static_cast<long>(mesh),
-    static_cast<long>(material),
+    static_cast<RenderGraphKey>(PipelineName::defaultModel),
+    static_cast<RenderGraphKey>(mesh),
+    static_cast<RenderGraphKey>(material),
     nextId++
   };
+  m_renderGraph.insert(key, std::move(node));
+}
+
+void RendererImpl::stageSkybox(RenderItemId mesh, RenderItemId material)
+{
+  auto node = std::make_unique<SkyboxNode>();
+  node->mesh = mesh;
+  node->material = material;
+
+  RenderGraph::Key key{ static_cast<RenderGraphKey>(PipelineName::skybox) };
   m_renderGraph.insert(key, std::move(node));
 }
 
@@ -383,9 +401,9 @@ void RendererImpl::updateUniformBuffer(const Camera& camera)
   memcpy(m_uniformBuffersMapped[m_currentFrame], &ubo, sizeof(ubo));
 }
 
-MeshId RendererImpl::addMesh(MeshPtr mesh)
+RenderItemId RendererImpl::addMesh(MeshPtr mesh)
 {
-  static MeshId nextMeshId = 0;
+  static RenderItemId nextMeshId = 0;
 
   auto data = std::make_unique<MeshData>();
   data->mesh = std::move(mesh);
@@ -395,13 +413,13 @@ MeshId RendererImpl::addMesh(MeshPtr mesh)
     data->instanceBufferMemory);
   data->numInstances = 0;
 
-  MeshId id = nextMeshId++;
+  RenderItemId id = nextMeshId++;
   m_meshes[id] = std::move(data);
 
   return id;
 }
 
-void RendererImpl::removeMesh(MeshId id)
+void RendererImpl::removeMesh(RenderItemId id)
 {
   auto i = m_meshes.find(id);
   if (i == m_meshes.end()) {
@@ -418,7 +436,7 @@ void RendererImpl::removeMesh(MeshId id)
   m_meshes.erase(i);
 }
 
-void RendererImpl::removeTexture(TextureId id)
+void RendererImpl::removeTexture(RenderItemId id)
 {
   auto i = m_textures.find(id);
   if (i == m_textures.end()) {
@@ -430,6 +448,12 @@ void RendererImpl::removeTexture(TextureId id)
   vkFreeMemory(m_device, i->second->imageMemory, nullptr);
 
   m_textures.erase(i);
+}
+
+void RendererImpl::removeCubeMap(RenderItemId id)
+{
+  // TODO
+  EXCEPTION("Not implemented");
 }
 
 bool RendererImpl::hasStencilComponent(VkFormat format) const
@@ -454,10 +478,10 @@ uint32_t RendererImpl::findMemoryType(uint32_t typeFilter,
   EXCEPTION("Failed to find suitable memory type");
 }
 
-void RendererImpl::removeMaterial(MaterialId id)
+void RendererImpl::removeMaterial(RenderItemId id)
 {
-  m_materials.erase(id);
   // TODO
+  EXCEPTION("Not implemented");
 }
 
 VkExtent2D RendererImpl::chooseSwapChainExtent(
@@ -991,6 +1015,16 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
 
         break;
       }
+      case RenderNodeType::skybox: {
+        auto& nodeData = dynamic_cast<const SkyboxNode&>(*node);
+        auto& mesh = *m_meshes.at(nodeData.mesh);
+        auto& cubeMap = *m_cubeMaps.at(nodeData.cubeMap);
+
+        m_skyboxPipeline->recordCommandBuffer(commandBuffer, mesh,
+          m_uboDescriptorSets[m_currentFrame], cubeMap.descriptorSet);
+
+        break;
+      }
     }
   }
 
@@ -1181,9 +1215,9 @@ void RendererImpl::createDescriptorSetLayouts()
   createMaterialDescriptorSetLayout();
 }
 
-TextureId RendererImpl::addTexture(TexturePtr texture)
+RenderItemId RendererImpl::addTexture(TexturePtr texture)
 {
-  static TextureId nextTextureId = 1;
+  static RenderItemId nextTextureId = 1;
 
   auto textureData = std::make_unique<TextureData>();
 
@@ -1227,9 +1261,9 @@ TextureId RendererImpl::addTexture(TexturePtr texture)
   return textureId;
 }
 
-MaterialId RendererImpl::addMaterial(MaterialPtr material)
+RenderItemId RendererImpl::addMaterial(MaterialPtr material)
 {
-  static MaterialId nextMaterialId = 1;
+  static RenderItemId nextMaterialId = 1;
 
   auto materialData = std::make_unique<MaterialData>();
   auto& textureData = m_textures.at(material->texture);
@@ -1613,6 +1647,8 @@ void RendererImpl::initVulkan()
     m_uboDescriptorSetLayout, m_materialDescriptorSetLayout);
   m_instancedPipeline = std::make_unique<InstancedPipeline>(m_device, m_swapchainExtent,
     m_renderPass, m_uboDescriptorSetLayout, m_materialDescriptorSetLayout);
+  m_skyboxPipeline = std::make_unique<SkyboxPipeline>(m_device, m_swapchainExtent, m_renderPass,
+    m_uboDescriptorSetLayout, m_materialDescriptorSetLayout);
   createCommandPool();
   createDepthResources();
   createFramebuffers();
@@ -1788,6 +1824,7 @@ RendererImpl::~RendererImpl()
   vkDestroyCommandPool(m_device, m_commandPool, nullptr);
   m_defaultPipeline.reset();
   m_instancedPipeline.reset();
+  m_skyboxPipeline.reset();
   vkDestroyRenderPass(m_device, m_renderPass, nullptr);
   cleanupSwapChain();
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {

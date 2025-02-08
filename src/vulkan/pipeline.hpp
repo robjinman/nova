@@ -9,7 +9,8 @@
 enum class RenderNodeType
 {
   defaultModel,
-  instancedModel
+  instancedModel,
+  skybox
 };
 
 struct RenderNode
@@ -22,8 +23,9 @@ struct RenderNode
   virtual ~RenderNode() {}
 };
 
+using RenderGraphKey = long;
 using RenderNodePtr = std::unique_ptr<RenderNode>;
-using RenderGraph = TreeSet<long, RenderNodePtr>;
+using RenderGraph = TreeSet<RenderGraphKey, RenderNodePtr>;
 
 struct MeshData
 {

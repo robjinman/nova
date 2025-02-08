@@ -23,13 +23,15 @@ class RenderSystemImpl : public RenderSystem
     const CRender& getComponent(EntityId entityId) const override;
     void update() override;
 
-    TextureId addTexture(TexturePtr texture) override;
-    MaterialId addMaterial(MaterialPtr material) override;
-    MeshId addMesh(MeshPtr mesh) override;
+    RenderItemId addTexture(TexturePtr texture) override;
+    RenderItemId addCubeMap(const std::array<TexturePtr, 6>& textures) override;
+    RenderItemId addMaterial(MaterialPtr material) override;
+    RenderItemId addMesh(MeshPtr mesh) override;
 
-    void removeTexture(TextureId id) override;
-    void removeMaterial(MaterialId id) override;
-    void removeMesh(MeshId id) override;
+    void removeTexture(RenderItemId id) override;
+    void removeCubeMap(RenderItemId id) override;
+    void removeMaterial(RenderItemId id) override;
+    void removeMesh(RenderItemId id) override;
 
     Camera& camera() override;
     const Camera& camera() const override;
@@ -76,32 +78,32 @@ const CRender& RenderSystemImpl::getComponent(EntityId entityId) const
   return *m_components.at(entityId);
 }
 
-TextureId RenderSystemImpl::addTexture(TexturePtr texture)
+RenderItemId RenderSystemImpl::addTexture(TexturePtr texture)
 {
   return m_renderer.addTexture(std::move(texture));
 }
 
-MaterialId RenderSystemImpl::addMaterial(MaterialPtr material)
+RenderItemId RenderSystemImpl::addMaterial(MaterialPtr material)
 {
   return m_renderer.addMaterial(std::move(material));
 }
 
-MeshId RenderSystemImpl::addMesh(MeshPtr mesh)
+RenderItemId RenderSystemImpl::addMesh(MeshPtr mesh)
 {
   return m_renderer.addMesh(std::move(mesh));
 }
 
-void RenderSystemImpl::removeTexture(TextureId id)
+void RenderSystemImpl::removeTexture(RenderItemId id)
 {
   m_renderer.removeTexture(id);
 }
 
-void RenderSystemImpl::removeMaterial(MaterialId id)
+void RenderSystemImpl::removeMaterial(RenderItemId id)
 {
   m_renderer.removeMaterial(id);
 }
 
-void RenderSystemImpl::removeMesh(MeshId id)
+void RenderSystemImpl::removeMesh(RenderItemId id)
 {
   m_renderer.removeMesh(id);
 }
@@ -125,11 +127,16 @@ void RenderSystemImpl::update()
       const auto& component = *entry.second;
       const auto& spatial = m_spatialSystem.getComponent(component.id());
 
-      if (component.isInstance) {
-        m_renderer.stageInstance(component.mesh, component.material, spatial.absTransform());
-      }
-      else {
-        m_renderer.stageModel(component.mesh, component.material, spatial.absTransform());
+      switch(component.type) {
+        case CRenderType::instance:
+          m_renderer.stageInstance(component.mesh, component.material, spatial.absTransform());
+          break;
+        case CRenderType::regular:
+          m_renderer.stageModel(component.mesh, component.material, spatial.absTransform());
+          break;
+        case CRenderType::skybox:
+          m_renderer.stageSkybox(component.mesh, component.material);
+          break;
       }
     }
 

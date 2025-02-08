@@ -6,14 +6,24 @@
 #include <set>
 #include <memory>
 
+enum class CRenderType
+{
+  regular,
+  instance,
+  skybox
+};
+
 struct CRender : public Component
 {
-  CRender(EntityId entityId)
-    : Component(entityId) {}
+  CRender(EntityId entityId, CRenderType type)
+    : Component(entityId)
+    , type(type) {}
 
-  MeshId mesh = NULL_ID;
-  MaterialId material = NULL_ID;
-  bool isInstance = false;
+  // TODO: Consider subclassing this
+  RenderItemId mesh = NULL_ID;
+  RenderItemId material = NULL_ID;
+  RenderItemId cubeMap = NULL_ID;
+  CRenderType type;
 };
 
 using CRenderPtr = std::unique_ptr<CRender>;
@@ -26,13 +36,15 @@ class RenderSystem : public System
     CRender& getComponent(EntityId entityId) override = 0;
     const CRender& getComponent(EntityId entityId) const override = 0;
 
-    virtual TextureId addTexture(TexturePtr texture) = 0;
-    virtual MaterialId addMaterial(MaterialPtr material) = 0;
-    virtual MeshId addMesh(MeshPtr mesh) = 0;
+    virtual RenderItemId addTexture(TexturePtr texture) = 0;
+    virtual RenderItemId addCubeMap(const std::array<TexturePtr, 6>& textures) = 0;
+    virtual RenderItemId addMaterial(MaterialPtr material) = 0;
+    virtual RenderItemId addMesh(MeshPtr mesh) = 0;
 
-    virtual void removeTexture(TextureId id) = 0;
-    virtual void removeMaterial(MaterialId id) = 0;
-    virtual void removeMesh(MeshId id) = 0;
+    virtual void removeTexture(RenderItemId id) = 0;
+    virtual void removeCubeMap(RenderItemId id) = 0;
+    virtual void removeMaterial(RenderItemId id) = 0;
+    virtual void removeMesh(RenderItemId id) = 0;
 
     virtual Camera& camera() = 0;
     virtual const Camera& camera() const = 0;

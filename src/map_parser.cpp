@@ -312,7 +312,7 @@ Mat4x4f transformFromTriangle(const Path& path)
   Vec4f v = mostDistantPoint - centre;
   float_t a = (3.f * PI / 2.f) - atan2(v[2], v[0]);  // Angle from vertical (negative z)
 
-  return transform(Vec3f{centre[0], 0, centre[2]}, Vec3f{0, a, 0});
+  return transform(Vec3f{ centre[0], 0, centre[2] }, Vec3f{ 0, a, 0 });
 }
 
 MapParserPtr createMapParser(Logger& logger)
