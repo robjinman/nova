@@ -9,7 +9,6 @@ layout(location = 0) out vec4 outColour;
 
 void main()
 {
-  // TODO: In one line?
   vec3 texel = texture(texSampler, inWorldPos).rgb;
   outColour = vec4(texel, 1.0);
 }
