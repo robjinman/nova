@@ -357,10 +357,16 @@ void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTra
       0,      0,  0,      1
     };
 
+    float_t w = wallThickness;
+    float_t h = wallHeight;
+    float_t d = distance;
+
+    Mat4x4f shift = translationMatrix4x4(Vec3f{ w / 2.f, h / 2.f, d / 2.f });
+
     EntityId entityId = System::nextId();
 
     CSpatialPtr spatial = std::make_unique<CSpatial>(entityId);
-    spatial->setTransform(parentTransform * obj.transform * m);
+    spatial->setTransform(parentTransform * obj.transform * m * shift);
     m_spatialSystem.addComponent(std::move(spatial));
 
     CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::regular);
@@ -371,10 +377,10 @@ void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTra
     CCollisionPtr collision = std::make_unique<CCollision>(entityId);
     collision->height = wallHeight;
     collision->perimeter = {
-      { 0.f, 0.f },
-      { wallThickness, 0.f },
-      { wallThickness, distance },
-      { 0.f, distance }
+      { -w / 2.f, -d / 2.f },
+      { w / 2.f, -d / 2.f },
+      { w / 2.f, d / 2.f },
+      { -w / 2.f, d / 2.f }
     };
     m_collisionSystem.addComponent(std::move(collision));
   }
