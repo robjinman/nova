@@ -60,7 +60,7 @@ class Grid
     float_t m_worldH;
     float_t m_cellW;
     float_t m_cellH;
-    std::array<std::array<std::set<const CollisionItem*>, GRID_H>, GRID_W> m_items{};
+    std::array<std::array<std::set<const CollisionItem*>, GRID_H>, GRID_W> m_items;
 
     void boundsCheck(const Vec2f& p) const;
     std::set<std::pair<int, int>> gridCellsBetweenPoints(const Vec2f& A, const Vec2f& B) const;
