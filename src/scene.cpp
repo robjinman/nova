@@ -108,7 +108,7 @@ void SceneBuilder::constructSky()
   EntityId entityId = System::nextId();
 
   auto render = std::make_unique<CRender>(entityId, CRenderType::skybox);
-  auto mesh = cuboid(1000, 1000, 1000, { 1, 1, 1 });
+  auto mesh = cuboid(10000, 10000, 10000, { 1, 1, 1 });
   std::reverse(mesh->indices.begin(), mesh->indices.end());
   std::array<TexturePtr, 6> textures{
     loadTexture("./data/resources/textures/skybox/right.png"),
@@ -334,7 +334,7 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
 }
 
 void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTransform,
-  bool interior)
+  bool /*interior*/) // TODO: Interiors
 {
   const float_t wallThickness = metresToWorldUnits(0.4);
 

@@ -165,8 +165,8 @@ std::set<const CollisionItem*> Grid::getItems(const Vec2f& pos, float_t radius) 
   Vec2i p0 = worldToGridCoords(Vec2f{ pos[0] - radius, pos[1] - radius });
   Vec2i p1 = worldToGridCoords(Vec2f{ pos[0] + radius, pos[1] + radius });
 
-  for (size_t i = std::max(0, p0[0]); i <= std::min(p1[0], GRID_W - 1); ++i) {
-    for (size_t j = std::max(0, p0[1]); j <= std::min(p1[1], GRID_H - 1); ++j) {
+  for (int i = std::max(0, p0[0]); i <= std::min(p1[0], GRID_W - 1); ++i) {
+    for (int j = std::max(0, p0[1]); j <= std::min(p1[1], GRID_H - 1); ++j) {
       auto& list = m_items[i][j];
       for (auto item : list) {
         items.insert(item);
@@ -232,25 +232,25 @@ void CollisionSystemImpl::update()
 {
 }
 
-void CollisionSystemImpl::removeComponent(EntityId entityId)
+void CollisionSystemImpl::removeComponent(EntityId)
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-bool CollisionSystemImpl::hasComponent(EntityId entityId) const
+bool CollisionSystemImpl::hasComponent(EntityId) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-CCollision& CollisionSystemImpl::getComponent(EntityId entityId)
+CCollision& CollisionSystemImpl::getComponent(EntityId)
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-const CCollision& CollisionSystemImpl::getComponent(EntityId entityId) const
+const CCollision& CollisionSystemImpl::getComponent(EntityId) const
 {
   // TODO
   EXCEPTION("Not implemented");
