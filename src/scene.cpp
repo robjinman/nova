@@ -93,7 +93,7 @@ PlayerPtr SceneBuilder::createScene()
   m_collisionSystem.initialise(bounds.first, bounds.second);
 
   constructInstances(objectData);
-  //constructSky();
+  constructSky();
   constructOriginMarkers();
 
   ASSERT(m_player != nullptr, "Map does not contain player");
@@ -106,20 +106,26 @@ PlayerPtr SceneBuilder::createScene()
 void SceneBuilder::constructSky()
 {
   EntityId entityId = System::nextId();
-  auto render = std::make_unique<CRender>(entityId, CRenderType::skybox);
 
-  auto mesh = cuboid(1, 1, 1, { 1, 1, 1 });
+  auto render = std::make_unique<CRender>(entityId, CRenderType::skybox);
+  auto mesh = cuboid(1000, 1000, 1000, { 1, 1, 1 });
+  std::reverse(mesh->indices.begin(), mesh->indices.end());
   std::array<TexturePtr, 6> textures{
-    loadTexture("./data/resources/textures/skybox/back.png"),
-    loadTexture("./data/resources/textures/skybox/front.png"),
-    loadTexture("./data/resources/textures/skybox/left.png"),
     loadTexture("./data/resources/textures/skybox/right.png"),
+    loadTexture("./data/resources/textures/skybox/left.png"),
     loadTexture("./data/resources/textures/skybox/top.png"),
-    loadTexture("./data/resources/textures/skybox/bottom.png")
+    loadTexture("./data/resources/textures/skybox/bottom.png"),
+    loadTexture("./data/resources/textures/skybox/front.png"),
+    loadTexture("./data/resources/textures/skybox/back.png")
   };
+  auto material = std::make_unique<Material>();
+  material->cubeMap = m_renderSystem.addCubeMap(std::move(textures));
   render->mesh = m_renderSystem.addMesh(std::move(mesh));
-  render->cubeMap = m_renderSystem.addCubeMap(std::move(textures));
+  render->material = m_renderSystem.addMaterial(std::move(material));
   m_renderSystem.addComponent(std::move(render));
+
+  CSpatialPtr spatial = std::make_unique<CSpatial>(entityId);
+  m_spatialSystem.addComponent(std::move(spatial));
 }
 
 void SceneBuilder::constructOriginMarkers()

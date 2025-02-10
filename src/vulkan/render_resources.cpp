@@ -2,6 +2,7 @@
 #include "vulkan/vulkan_utils.hpp"
 #include <map>
 #include <cstring>
+#include <cassert>
 
 namespace
 {
@@ -30,6 +31,16 @@ struct TextureData
 
 using TextureDataPtr = std::unique_ptr<TextureData>;
 
+struct CubeMapData
+{
+  std::array<TexturePtr, 6> textures;
+  VkImage image;
+  VkDeviceMemory imageMemory;
+  VkImageView imageView;
+};
+
+using CubeMapDataPtr = std::unique_ptr<CubeMapData>;
+
 struct MaterialData
 {
   MaterialPtr material;
@@ -47,7 +58,7 @@ class RenderResourcesImpl : public RenderResources
     // Resources
     //
     RenderItemId addTexture(TexturePtr texture) override;
-    RenderItemId addCubeMap(const std::array<TexturePtr, 6>& textures) override;
+    RenderItemId addCubeMap(std::array<TexturePtr, 6> textures) override;
     void removeTexture(RenderItemId id) override;
     void removeCubeMap(RenderItemId id) override;
 
@@ -76,6 +87,7 @@ class RenderResourcesImpl : public RenderResources
   private:
     std::map<RenderItemId, MeshDataPtr> m_meshes;
     std::map<RenderItemId, TextureDataPtr> m_textures;
+    std::map<RenderItemId, CubeMapDataPtr> m_cubeMaps;
     std::map<RenderItemId, MaterialDataPtr> m_materials;
     RenderItemId m_nullMaterialId;
 
@@ -95,7 +107,8 @@ class RenderResourcesImpl : public RenderResources
     VkSampler m_textureSampler;
 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height,
+      VkDeviceSize bufferOffset, uint32_t layer);
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
       VkBuffer& buffer, VkDeviceMemory& bufferMemory);
     VkBuffer createVertexBuffer(const VertexList& vertices, VkDeviceMemory& vertexBufferMemory);
@@ -110,7 +123,7 @@ class RenderResourcesImpl : public RenderResources
     void createUboDescriptorSetLayout();
     void createMaterialDescriptorSetLayout();
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
-      VkImageLayout newLayout);
+      VkImageLayout newLayout, uint32_t layerCount);
     void createNullMaterial();
     VkCommandBuffer beginSingleTimeCommands();
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
@@ -157,18 +170,18 @@ RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture)
     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureData->image, textureData->imageMemory);
 
   transitionImageLayout(textureData->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
-    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1);
 
-  copyBufferToImage(stagingBuffer, textureData->image, texture->width, texture->height);
+  copyBufferToImage(stagingBuffer, textureData->image, texture->width, texture->height, 0, 0);
 
   transitionImageLayout(textureData->image, VK_FORMAT_R8G8B8A8_SRGB,
-    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
 
   vkDestroyBuffer(m_device, stagingBuffer, nullptr);
   vkFreeMemory(m_device, stagingBufferMemory, nullptr);
 
   textureData->imageView = createImageView(m_device, textureData->image, VK_FORMAT_R8G8B8A8_SRGB,
-    VK_IMAGE_ASPECT_COLOR_BIT);
+    VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
 
   auto textureId = nextTextureId++;
   textureData->texture = std::move(texture);
@@ -177,10 +190,63 @@ RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture)
   return textureId;
 }
 
-RenderItemId RenderResourcesImpl::addCubeMap(const std::array<TexturePtr, 6>& textures)
+RenderItemId RenderResourcesImpl::addCubeMap(std::array<TexturePtr, 6> textures)
 {
-  // TODO
-  EXCEPTION("Not implemented");
+  auto cubeMapData = std::make_unique<CubeMapData>();
+
+  VkDeviceSize imageSize = textures[0]->data.size();
+  VkDeviceSize cubeMapSize = imageSize * 6;
+  VkBuffer stagingBuffer;
+  VkDeviceMemory stagingBufferMemory;
+
+  createBuffer(cubeMapSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
+    stagingBufferMemory);
+
+  uint32_t width = textures[0]->width;
+  uint32_t height = textures[0]->height;
+
+  void* data = nullptr;
+  vkMapMemory(m_device, stagingBufferMemory, 0, cubeMapSize, 0, &data);
+  for (size_t i = 0; i < 6; ++i) {
+    ASSERT(textures[i]->data.size() % 4 == 0, "Texture data size should be multiple of 4");
+    ASSERT(textures[i]->width == width, "Cube map images should have same size");
+    ASSERT(textures[i]->height == height, "Cube map images should have same size");
+
+    size_t offset = i * imageSize;
+    memcpy(data + offset, textures[i]->data.data(), static_cast<size_t>(imageSize));
+  }
+  vkUnmapMemory(m_device, stagingBufferMemory);
+
+  createImage(m_physicalDevice, m_device, width, height, VK_FORMAT_R8G8B8A8_SRGB,
+    VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, cubeMapData->image, cubeMapData->imageMemory, 6,
+    VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT);
+
+  transitionImageLayout(cubeMapData->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 6);
+
+  for (size_t i = 0; i < 6; ++i) {
+    VkDeviceSize offset = i * imageSize;
+    copyBufferToImage(stagingBuffer, cubeMapData->image, width, height, offset, i);
+  }
+
+  transitionImageLayout(cubeMapData->image, VK_FORMAT_R8G8B8A8_SRGB,
+    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 6);
+
+  vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+  vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+
+  cubeMapData->imageView = createImageView(m_device, cubeMapData->image, VK_FORMAT_R8G8B8A8_SRGB,
+    VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_CUBE, 6);
+
+  static RenderItemId nextCubeMapId = 1;
+
+  auto cubeMapId = nextCubeMapId++;
+  cubeMapData->textures = std::move(textures);
+  m_cubeMaps[cubeMapId] = std::move(cubeMapData);
+
+  return cubeMapId;
 }
 
 void RenderResourcesImpl::removeTexture(RenderItemId id)
@@ -199,13 +265,21 @@ void RenderResourcesImpl::removeTexture(RenderItemId id)
 
 void RenderResourcesImpl::removeCubeMap(RenderItemId id)
 {
-  // TODO
-  EXCEPTION("Not implemented");
+  auto i = m_cubeMaps.find(id);
+  if (i == m_cubeMaps.end()) {
+    return;
+  }
+
+  vkDestroyImageView(m_device, i->second->imageView, nullptr);
+  vkDestroyImage(m_device, i->second->image, nullptr);
+  vkFreeMemory(m_device, i->second->imageMemory, nullptr);
+
+  m_cubeMaps.erase(i);
 }
 
 RenderItemId RenderResourcesImpl::addMesh(MeshPtr mesh)
 {
-  static RenderItemId nextMeshId = 0;
+  static RenderItemId nextMeshId = 1;
 
   auto data = std::make_unique<MeshData>();
   data->mesh = std::move(mesh);
@@ -264,8 +338,23 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
 {
   static RenderItemId nextMaterialId = 1;
 
+  // TODO: Use descriptorBindingPartiallyBound feature provided by VK_EXT_descriptor_indexing
+  // extension
+
   auto materialData = std::make_unique<MaterialData>();
-  auto& textureData = m_textures.at(material->texture);
+
+  // TODO
+  ASSERT(!(material->cubeMap != NULL_ID && material->texture != NULL_ID),
+    "Currently, materials must have either texture or cube map, but not both");
+
+  VkImageView imageView = VK_NULL_HANDLE;
+  if (material->texture != NULL_ID) {
+    imageView = m_textures.at(material->texture)->imageView;
+  }
+  else if (material->cubeMap != NULL_ID) {
+    imageView = m_cubeMaps.at(material->cubeMap)->imageView;
+  }
+  assert(imageView != VK_NULL_HANDLE);
 
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -278,7 +367,7 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
 
   VkDescriptorImageInfo imageInfo{};
   imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  imageInfo.imageView = textureData->imageView;
+  imageInfo.imageView = imageView;
   imageInfo.sampler = m_textureSampler;
 
   VkWriteDescriptorSet descriptorWrite{};
@@ -351,18 +440,18 @@ void RenderResourcesImpl::createDescriptorPool()
 }
 
 void RenderResourcesImpl::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
-  uint32_t height)
+  uint32_t height, VkDeviceSize bufferOffset, uint32_t layer)
 {
   VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
   VkBufferImageCopy region{};
-  region.bufferOffset = 0;
+  region.bufferOffset = bufferOffset;
   region.bufferRowLength = 0;
   region.bufferImageHeight = 0;
 
   region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
   region.imageSubresource.mipLevel = 0;
-  region.imageSubresource.baseArrayLayer = 0;
+  region.imageSubresource.baseArrayLayer = layer;
   region.imageSubresource.layerCount = 1;
 
   region.imageOffset = { 0, 0, 0 };
@@ -591,7 +680,7 @@ void RenderResourcesImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
 }
 
 void RenderResourcesImpl::transitionImageLayout(VkImage image, VkFormat format,
-  VkImageLayout oldLayout, VkImageLayout newLayout)
+  VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t layerCount)
 {
   VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
@@ -606,7 +695,7 @@ void RenderResourcesImpl::transitionImageLayout(VkImage image, VkFormat format,
   barrier.subresourceRange.baseMipLevel = 0;
   barrier.subresourceRange.levelCount = 1;
   barrier.subresourceRange.baseArrayLayer = 0;
-  barrier.subresourceRange.layerCount = 1;
+  barrier.subresourceRange.layerCount = layerCount;
 
   VkPipelineStageFlags sourceStage;
   VkPipelineStageFlags destinationStage;
@@ -745,6 +834,9 @@ RenderResourcesImpl::~RenderResourcesImpl()
   vkDestroySampler(m_device, m_textureSampler, nullptr);
   while (!m_textures.empty()) {
     removeTexture(m_textures.begin()->first);
+  }
+  while (!m_cubeMaps.empty()) {
+    removeCubeMap(m_cubeMaps.begin()->first);
   }
 }
 

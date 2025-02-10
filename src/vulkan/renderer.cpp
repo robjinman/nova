@@ -25,6 +25,8 @@
 namespace
 {
 
+const float_t DRAW_DISTANCE = 10000.f;
+
 const std::vector<const char*> ValidationLayers = {
   "VK_LAYER_KHRONOS_validation"
 };
@@ -69,7 +71,7 @@ class RendererImpl : public Renderer
     // Resources
     //
     RenderItemId addTexture(TexturePtr texture) override;
-    RenderItemId addCubeMap(const std::array<TexturePtr, 6>& textures) override;
+    RenderItemId addCubeMap(std::array<TexturePtr, 6>&& textures) override;
     void removeTexture(RenderItemId id) override;
     void removeCubeMap(RenderItemId id) override;
 
@@ -177,7 +179,7 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
   initVulkan();
 
   float_t aspectRatio = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
-  m_projectionMatrix = perspective(degreesToRadians(45.f), aspectRatio, 0.1f, 1000.f);
+  m_projectionMatrix = perspective(degreesToRadians(45.f), aspectRatio, 0.1f, DRAW_DISTANCE);
 }
 
 void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
@@ -702,7 +704,7 @@ void RendererImpl::createImageViews()
 
   for (size_t i = 0; i < m_swapchainImages.size(); ++i) {
     m_swapchainImageViews[i] = createImageView(m_device, m_swapchainImages[i],
-      m_swapchainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+      m_swapchainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
   }
 }
 
@@ -867,9 +869,9 @@ RenderItemId RendererImpl::addTexture(TexturePtr texture)
   return m_resources->addTexture(std::move(texture));
 }
 
-RenderItemId RendererImpl::addCubeMap(const std::array<TexturePtr, 6>& textures)
+RenderItemId RendererImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
 {
-  return m_resources->addCubeMap(textures);
+  return m_resources->addCubeMap(std::move(textures));
 }
 
 RenderItemId RendererImpl::addMaterial(MaterialPtr material)
@@ -938,7 +940,7 @@ void RendererImpl::createDepthResources()
     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_depthImage, m_depthImageMemory);
 
   m_depthImageView = createImageView(m_device, m_depthImage, depthFormat,
-    VK_IMAGE_ASPECT_DEPTH_BIT);
+    VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
 }
 
 void RendererImpl::createPipelines()

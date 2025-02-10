@@ -29,7 +29,7 @@ class RenderResources
     // Resources
     //
     virtual RenderItemId addTexture(TexturePtr texture) = 0;
-    virtual RenderItemId addCubeMap(const std::array<TexturePtr, 6>& textures) = 0;
+    virtual RenderItemId addCubeMap(std::array<TexturePtr, 6> textures) = 0;
     virtual void removeTexture(RenderItemId id) = 0;
     virtual void removeCubeMap(RenderItemId id) = 0;
 
