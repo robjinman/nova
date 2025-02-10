@@ -22,7 +22,6 @@ struct CRender : public Component
   // TODO: Consider subclassing this
   RenderItemId mesh = NULL_ID;
   RenderItemId material = NULL_ID;
-  RenderItemId cubeMap = NULL_ID;
   CRenderType type;
 };
 
@@ -39,7 +38,7 @@ class RenderSystem : public System
     // Resources
     //
     virtual RenderItemId addTexture(TexturePtr texture) = 0;
-    virtual RenderItemId addCubeMap(const std::array<TexturePtr, 6>& textures) = 0;
+    virtual RenderItemId addCubeMap(std::array<TexturePtr, 6>&& textures) = 0;
 
     virtual void removeTexture(RenderItemId id) = 0;
     virtual void removeCubeMap(RenderItemId id) = 0;

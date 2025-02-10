@@ -12,13 +12,16 @@ layout(push_constant) uniform PushConstants
 } constants;
 
 layout(location = 0) in vec3 inPos;
+layout(location = 1) in vec3 inNormal;
+layout(location = 2) in vec3 inColour;
+layout(location = 3) in vec2 inTexCoord;
 
 layout(location = 0) out vec3 outWorldPos;
 
 void main()
 {
   vec4 worldPos = constants.modelMatrix * vec4(inPos, 1.0);
-  gl_Position = ubo.projMatrix * ubo.viewMatrix * worldPos;
+  gl_Position = ubo.projMatrix * mat4(mat3(ubo.viewMatrix)) * worldPos;
 
   outWorldPos = worldPos.xyz;
 }

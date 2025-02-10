@@ -26,7 +26,7 @@ class RenderSystemImpl : public RenderSystem
     // Resources
     //
     RenderItemId addTexture(TexturePtr texture) override;
-    RenderItemId addCubeMap(const std::array<TexturePtr, 6>& textures) override;
+    RenderItemId addCubeMap(std::array<TexturePtr, 6>&& textures) override;
 
     void removeTexture(RenderItemId id) override;
     void removeCubeMap(RenderItemId id) override;
@@ -91,9 +91,9 @@ RenderItemId RenderSystemImpl::addTexture(TexturePtr texture)
   return m_renderer.addTexture(std::move(texture));
 }
 
-RenderItemId RenderSystemImpl::addCubeMap(const std::array<TexturePtr, 6>& textures)
+RenderItemId RenderSystemImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
 {
-  return m_renderer.addCubeMap(textures);
+  return m_renderer.addCubeMap(std::move(textures));
 }
 
 RenderItemId RenderSystemImpl::addMaterial(MaterialPtr material)
