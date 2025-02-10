@@ -104,16 +104,16 @@ void GameImpl::processKeyboardInput()
   Vec3f direction{};
 
   if (m_keysPressed.count(KeyboardKey::W)) {
-    direction = m_player->getDirection();
+    direction += m_player->getDirection();
   }
   if (m_keysPressed.count(KeyboardKey::S)) {
-    direction = -m_player->getDirection();
+    direction += -m_player->getDirection();
   }
   if (m_keysPressed.count(KeyboardKey::D)) {
-    direction = m_player->getDirection().cross(Vec3f{0, 1, 0});
+    direction += m_player->getDirection().cross(Vec3f{0, 1, 0});
   }
   if (m_keysPressed.count(KeyboardKey::A)) {
-    direction = -m_player->getDirection().cross(Vec3f{0, 1, 0});
+    direction += -m_player->getDirection().cross(Vec3f{0, 1, 0});
   }
   if (m_keysPressed.count(KeyboardKey::E)) {
     if (m_collisionSystem.altitude(m_player->getPosition()) == 0) {

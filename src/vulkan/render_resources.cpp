@@ -122,8 +122,8 @@ class RenderResourcesImpl : public RenderResources
     void createDescriptorSetLayouts();
     void createUboDescriptorSetLayout();
     void createMaterialDescriptorSetLayout();
-    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
-      VkImageLayout newLayout, uint32_t layerCount);
+    void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
+      uint32_t layerCount);
     void createNullMaterial();
     VkCommandBuffer beginSingleTimeCommands();
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
@@ -169,13 +169,13 @@ RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture)
     VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureData->image, textureData->imageMemory);
 
-  transitionImageLayout(textureData->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+  transitionImageLayout(textureData->image, VK_IMAGE_LAYOUT_UNDEFINED,
     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1);
 
   copyBufferToImage(stagingBuffer, textureData->image, texture->width, texture->height, 0, 0);
 
-  transitionImageLayout(textureData->image, VK_FORMAT_R8G8B8A8_SRGB,
-    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
+  transitionImageLayout(textureData->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
 
   vkDestroyBuffer(m_device, stagingBuffer, nullptr);
   vkFreeMemory(m_device, stagingBufferMemory, nullptr);
@@ -206,8 +206,8 @@ RenderItemId RenderResourcesImpl::addCubeMap(std::array<TexturePtr, 6> textures)
   uint32_t width = textures[0]->width;
   uint32_t height = textures[0]->height;
 
-  void* data = nullptr;
-  vkMapMemory(m_device, stagingBufferMemory, 0, cubeMapSize, 0, &data);
+  uint8_t* data = nullptr;
+  vkMapMemory(m_device, stagingBufferMemory, 0, cubeMapSize, 0, reinterpret_cast<void**>(&data));
   for (size_t i = 0; i < 6; ++i) {
     ASSERT(textures[i]->data.size() % 4 == 0, "Texture data size should be multiple of 4");
     ASSERT(textures[i]->width == width, "Cube map images should have same size");
@@ -223,7 +223,7 @@ RenderItemId RenderResourcesImpl::addCubeMap(std::array<TexturePtr, 6> textures)
     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, cubeMapData->image, cubeMapData->imageMemory, 6,
     VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT);
 
-  transitionImageLayout(cubeMapData->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+  transitionImageLayout(cubeMapData->image, VK_IMAGE_LAYOUT_UNDEFINED,
     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 6);
 
   for (size_t i = 0; i < 6; ++i) {
@@ -231,8 +231,8 @@ RenderItemId RenderResourcesImpl::addCubeMap(std::array<TexturePtr, 6> textures)
     copyBufferToImage(stagingBuffer, cubeMapData->image, width, height, offset, i);
   }
 
-  transitionImageLayout(cubeMapData->image, VK_FORMAT_R8G8B8A8_SRGB,
-    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 6);
+  transitionImageLayout(cubeMapData->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 6);
 
   vkDestroyBuffer(m_device, stagingBuffer, nullptr);
   vkFreeMemory(m_device, stagingBufferMemory, nullptr);
@@ -388,7 +388,7 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
   return materialId;
 }
 
-void RenderResourcesImpl::removeMaterial(RenderItemId id)
+void RenderResourcesImpl::removeMaterial(RenderItemId)
 {
   // TODO
   EXCEPTION("Not implemented");
@@ -679,8 +679,8 @@ void RenderResourcesImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
   vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
 }
 
-void RenderResourcesImpl::transitionImageLayout(VkImage image, VkFormat format,
-  VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t layerCount)
+void RenderResourcesImpl::transitionImageLayout(VkImage image, VkImageLayout oldLayout,
+  VkImageLayout newLayout, uint32_t layerCount)
 {
   VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 

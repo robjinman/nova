@@ -209,7 +209,20 @@ void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNod
 
 void EntityFactoryImpl::constructCollisionComponent(EntityId entityId, const XmlNode& node) const
 {
-  // TODO
+  auto collision = std::make_unique<CCollision>(entityId);
+
+  collision->height = parseFloat<float_t>(node.attribute("height"));
+
+  for (auto& pointNode : node) {
+    ASSERT(pointNode.name() == "point", "Expected point node");
+
+    collision->perimeter.push_back(Vec2f{
+      parseFloat<float_t>(pointNode.attribute("x")),
+      parseFloat<float_t>(pointNode.attribute("y"))
+    });
+  }
+
+  m_collisionSystem.addComponent(std::move(collision));
 }
 
 }
