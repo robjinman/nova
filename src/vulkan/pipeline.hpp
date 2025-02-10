@@ -20,26 +20,23 @@ struct RenderNode
 
   RenderNodeType type;
 
-  virtual ~RenderNode() {}
+  virtual ~RenderNode() = default;
 };
 
 using RenderGraphKey = long;
 using RenderNodePtr = std::unique_ptr<RenderNode>;
 using RenderGraph = TreeSet<RenderGraphKey, RenderNodePtr>;
 
-struct MeshData
+class Pipeline
 {
-  MeshPtr mesh;
-  VkBuffer vertexBuffer;
-  VkDeviceMemory vertexBufferMemory;
-  VkBuffer indexBuffer;
-  VkDeviceMemory indexBufferMemory;
-  VkBuffer instanceBuffer;
-  VkDeviceMemory instanceBufferMemory;
-  size_t numInstances;
+  public:
+    virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
+      size_t currentFrame) = 0;
+
+    virtual ~Pipeline() = default;
 };
 
-using MeshDataPtr = std::unique_ptr<MeshData>;
+using PipelinePtr = std::unique_ptr<Pipeline>;
 
 VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code);
 VkVertexInputBindingDescription getDefaultVertexBindingDescription();

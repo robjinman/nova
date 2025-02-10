@@ -1,12 +1,13 @@
 #include "vulkan/default_pipeline.hpp"
 #include "vulkan/vulkan_utils.hpp"
+#include "vulkan/render_resources.hpp"
 #include "utils.hpp"
 #include "model.hpp"
 
 DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
-  VkRenderPass renderPass, VkDescriptorSetLayout uboDescriptorSetLayout,
-  VkDescriptorSetLayout materialDescriptorSetLayout)
+  VkRenderPass renderPass, const RenderResources& renderResources)
   : m_device(device)
+  , m_renderResources(renderResources)
 {
   auto vertShaderCode = readBinaryFile("shaders/vertex/default.spv");
   auto fragShaderCode = readBinaryFile("shaders/fragment/default.spv");
@@ -126,8 +127,8 @@ DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
   };
 
   std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts{
-    uboDescriptorSetLayout,
-    materialDescriptorSetLayout
+    m_renderResources.getUboDescriptorSetLayout(),
+    m_renderResources.getMaterialDescriptorSetLayout()
   };
 
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -178,19 +179,23 @@ DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
   vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
 }
 
-void DefaultPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
-  const DefaultModelNode& node, VkDescriptorSet uboDescriptorSet,
-  VkDescriptorSet materialDescriptorSet, bool useMaterial)
+void DefaultPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node_,
+  size_t currentFrame)
 {
-  VkBool32 bUseMaterial = useMaterial;
+  auto& node = dynamic_cast<const DefaultModelNode&>(node_);
+  VkBool32 bUseMaterial = node.material != NULL_ID;
+
+  auto uboDescriptorSet = m_renderResources.getUboDescriptorSet(currentFrame);
+  auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material);
+  auto buffers = m_renderResources.getMeshBuffers(node.mesh);
 
   // TODO: Only bind things that have changed since last iteration
   vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
-  std::vector<VkBuffer> vertexBuffers{ mesh.vertexBuffer };
+  std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer };
   std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
   vkCmdBindVertexBuffers(commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(),
     offsets.data());
-  vkCmdBindIndexBuffer(commandBuffer, mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+  vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0, 1,
     &uboDescriptorSet, 0, nullptr);
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 1, 1,
@@ -199,7 +204,7 @@ void DefaultPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const M
     &node.modelMatrix);
   vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(Mat4x4f),
     sizeof(VkBool32), &bUseMaterial);
-  vkCmdDrawIndexed(commandBuffer, mesh.mesh->indices.size(), 1, 0, 0, 0);
+  vkCmdDrawIndexed(commandBuffer, buffers.numIndices, 1, 0, 0, 0);
 }
 
 DefaultPipeline::~DefaultPipeline()

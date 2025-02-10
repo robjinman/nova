@@ -1,11 +1,7 @@
 #pragma once
 
 #include "vulkan/pipeline.hpp"
-
-struct InstanceData
-{
-  Mat4x4f modelMatrix;
-};
+#include "vulkan/render_resources.hpp"
 
 struct InstancedModelNode : public RenderNode
 {
@@ -14,23 +10,23 @@ struct InstancedModelNode : public RenderNode
 
   RenderItemId mesh;
   RenderItemId material;
-  std::vector<InstanceData> instances;
+  std::vector<MeshInstance> instances;
 };
 
-class InstancedPipeline
+class InstancedPipeline : public Pipeline
 {
   public:
     InstancedPipeline(VkDevice device, VkExtent2D swapchainExtent, VkRenderPass renderPass,
-      VkDescriptorSetLayout uboDescriptorSetLayout,
-      VkDescriptorSetLayout materialDescriptorSetLayout);
+      const RenderResources& renderResources);
 
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
-      VkDescriptorSet uboDescriptorSet, VkDescriptorSet materialDescriptorSet, bool useMaterial);
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
+      size_t currentFrame) override;
 
     ~InstancedPipeline();
 
   private:
     VkDevice m_device;
+    const RenderResources& m_renderResources;
     VkPipeline m_pipeline;
     VkPipelineLayout m_layout;
 };

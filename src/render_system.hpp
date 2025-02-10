@@ -36,15 +36,23 @@ class RenderSystem : public System
     CRender& getComponent(EntityId entityId) override = 0;
     const CRender& getComponent(EntityId entityId) const override = 0;
 
+    // Resources
+    //
     virtual RenderItemId addTexture(TexturePtr texture) = 0;
     virtual RenderItemId addCubeMap(const std::array<TexturePtr, 6>& textures) = 0;
-    virtual RenderItemId addMaterial(MaterialPtr material) = 0;
-    virtual RenderItemId addMesh(MeshPtr mesh) = 0;
 
     virtual void removeTexture(RenderItemId id) = 0;
     virtual void removeCubeMap(RenderItemId id) = 0;
-    virtual void removeMaterial(RenderItemId id) = 0;
+
+    // Meshes
+    //
+    virtual RenderItemId addMesh(MeshPtr mesh) = 0;
     virtual void removeMesh(RenderItemId id) = 0;
+
+    // Materials
+    //
+    virtual RenderItemId addMaterial(MaterialPtr material) = 0;
+    virtual void removeMaterial(RenderItemId id) = 0;
 
     virtual Camera& camera() = 0;
     virtual const Camera& camera() const = 0;

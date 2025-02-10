@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vulkan/pipeline.hpp"
+#include "vulkan/render_resources.hpp"
 
 struct SkyboxNode : public RenderNode
 {
@@ -8,23 +9,23 @@ struct SkyboxNode : public RenderNode
     : RenderNode(RenderNodeType::skybox) {}
 
   RenderItemId mesh;
-  RenderItemId cubeMap;
+  RenderItemId material;
 };
 
-class SkyboxPipeline
+class SkyboxPipeline : public Pipeline
 {
   public:
     SkyboxPipeline(VkDevice device, VkExtent2D swapchainExtent, VkRenderPass renderPass,
-      VkDescriptorSetLayout uboDescriptorSetLayout,
-      VkDescriptorSetLayout cubeMapDescriptorSetLayout);
+      const RenderResources& renderResources);
 
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
-      VkDescriptorSet uboDescriptorSet, VkDescriptorSet cubeMapDescriptorSet);
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
+      size_t currentFrame) override;
 
     ~SkyboxPipeline();
 
   private:
     VkDevice m_device;
+    const RenderResources& m_renderResources;
     VkPipeline m_pipeline;
     VkPipelineLayout m_layout;
 };
