@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vulkan/pipeline.hpp"
+#include "vulkan/render_resources.hpp"
 
 struct DefaultModelNode : public RenderNode
 {
@@ -12,21 +13,20 @@ struct DefaultModelNode : public RenderNode
   Mat4x4f modelMatrix;
 };
 
-class DefaultPipeline
+class DefaultPipeline : public Pipeline
 {
   public:
     DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent, VkRenderPass renderPass,
-      VkDescriptorSetLayout uboDescriptorSetLayout,
-      VkDescriptorSetLayout materialDescriptorSetLayout);
+      const RenderResources& renderResources);
 
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
-      const DefaultModelNode& node, VkDescriptorSet uboDescriptorSet,
-      VkDescriptorSet materialDescriptorSet, bool useMaterial);
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
+      size_t currentFrame) override;
 
     ~DefaultPipeline();
 
   private:
     VkDevice m_device;
+    const RenderResources& m_renderResources;
     VkPipeline m_pipeline;
     VkPipelineLayout m_layout;
 };

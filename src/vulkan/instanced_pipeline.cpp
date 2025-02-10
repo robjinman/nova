@@ -11,7 +11,7 @@ VkVertexInputBindingDescription getInstanceBindingDescription()
   VkVertexInputBindingDescription binding{};
 
   binding.binding = 1;
-  binding.stride = sizeof(InstanceData);
+  binding.stride = sizeof(MeshInstance);
   binding.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
 
   return binding;
@@ -23,7 +23,7 @@ std::vector<VkVertexInputAttributeDescription> getInstancedAttributeDescriptions
   size_t n = attributes.size();
 
   for (unsigned int i = 0; i < 4; ++i) {
-    uint32_t offset = offsetof(InstanceData, modelMatrix) + 4 * sizeof(float_t) * i;
+    uint32_t offset = offsetof(MeshInstance, modelMatrix) + 4 * sizeof(float_t) * i;
 
     VkVertexInputAttributeDescription attr;
     attr.location = n + i;
@@ -40,9 +40,9 @@ std::vector<VkVertexInputAttributeDescription> getInstancedAttributeDescriptions
 } // namespace
 
 InstancedPipeline::InstancedPipeline(VkDevice device, VkExtent2D swapchainExtent,
-  VkRenderPass renderPass, VkDescriptorSetLayout uboDescriptorSetLayout,
-  VkDescriptorSetLayout materialDescriptorSetLayout)
+  VkRenderPass renderPass, const RenderResources& renderResources)
   : m_device(device)
+  , m_renderResources(renderResources)
 {
   auto vertShaderCode = readBinaryFile("shaders/vertex/instanced.spv");
   auto fragShaderCode = readBinaryFile("shaders/fragment/default.spv");
@@ -158,8 +158,8 @@ InstancedPipeline::InstancedPipeline(VkDevice device, VkExtent2D swapchainExtent
   };
 
   std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts{
-    uboDescriptorSetLayout,
-    materialDescriptorSetLayout
+    m_renderResources.getUboDescriptorSetLayout(),
+    m_renderResources.getMaterialDescriptorSetLayout()
   };
 
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -210,25 +210,30 @@ InstancedPipeline::InstancedPipeline(VkDevice device, VkExtent2D swapchainExtent
   vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
 }
 
-void InstancedPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
-  VkDescriptorSet uboDescriptorSet, VkDescriptorSet materialDescriptorSet, bool useMaterial)
+void InstancedPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node_,
+  size_t currentFrame)
 {
-  VkBool32 bUseMaterial = useMaterial;
+  auto& node = dynamic_cast<const InstancedModelNode&>(node_);
+  VkBool32 bUseMaterial = node.material != NULL_ID;
+
+  auto uboDescriptorSet = m_renderResources.getUboDescriptorSet(currentFrame);
+  auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material);
+  auto buffers = m_renderResources.getMeshBuffers(node.mesh);
 
   // TODO: Only bind things that have changed since last iteration
   vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
-  std::vector<VkBuffer> vertexBuffers{ mesh.vertexBuffer, mesh.instanceBuffer };
+  std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer, buffers.instanceBuffer };
   std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
   vkCmdBindVertexBuffers(commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(),
     offsets.data());
-  vkCmdBindIndexBuffer(commandBuffer, mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+  vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0, 1,
     &uboDescriptorSet, 0, nullptr);
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
     m_layout, 1, 1, &materialDescriptorSet, 0, nullptr);
   vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 64, sizeof(VkBool32),
     &bUseMaterial);
-  vkCmdDrawIndexed(commandBuffer, mesh.mesh->indices.size(), mesh.numInstances, 0, 0, 0);
+  vkCmdDrawIndexed(commandBuffer, buffers.numIndices, buffers.numInstances, 0, 0, 0);
 }
 
 InstancedPipeline::~InstancedPipeline()

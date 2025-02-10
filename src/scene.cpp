@@ -93,7 +93,7 @@ PlayerPtr SceneBuilder::createScene()
   m_collisionSystem.initialise(bounds.first, bounds.second);
 
   constructInstances(objectData);
-  constructSky();
+  //constructSky();
   constructOriginMarkers();
 
   ASSERT(m_player != nullptr, "Map does not contain player");

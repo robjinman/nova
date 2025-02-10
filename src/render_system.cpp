@@ -23,15 +23,23 @@ class RenderSystemImpl : public RenderSystem
     const CRender& getComponent(EntityId entityId) const override;
     void update() override;
 
+    // Resources
+    //
     RenderItemId addTexture(TexturePtr texture) override;
     RenderItemId addCubeMap(const std::array<TexturePtr, 6>& textures) override;
-    RenderItemId addMaterial(MaterialPtr material) override;
-    RenderItemId addMesh(MeshPtr mesh) override;
 
     void removeTexture(RenderItemId id) override;
     void removeCubeMap(RenderItemId id) override;
-    void removeMaterial(RenderItemId id) override;
+
+    // Meshes
+    //
+    RenderItemId addMesh(MeshPtr mesh) override;
     void removeMesh(RenderItemId id) override;
+
+    // Materials
+    //
+    RenderItemId addMaterial(MaterialPtr material) override;
+    void removeMaterial(RenderItemId id) override;
 
     Camera& camera() override;
     const Camera& camera() const override;
@@ -83,6 +91,11 @@ RenderItemId RenderSystemImpl::addTexture(TexturePtr texture)
   return m_renderer.addTexture(std::move(texture));
 }
 
+RenderItemId RenderSystemImpl::addCubeMap(const std::array<TexturePtr, 6>& textures)
+{
+  return m_renderer.addCubeMap(textures);
+}
+
 RenderItemId RenderSystemImpl::addMaterial(MaterialPtr material)
 {
   return m_renderer.addMaterial(std::move(material));
@@ -96,6 +109,11 @@ RenderItemId RenderSystemImpl::addMesh(MeshPtr mesh)
 void RenderSystemImpl::removeTexture(RenderItemId id)
 {
   m_renderer.removeTexture(id);
+}
+
+void RenderSystemImpl::removeCubeMap(RenderItemId id)
+{
+  m_renderer.removeCubeMap(id);
 }
 
 void RenderSystemImpl::removeMaterial(RenderItemId id)

@@ -4,9 +4,9 @@
 #include "model.hpp"
 
 SkyboxPipeline::SkyboxPipeline(VkDevice device, VkExtent2D swapchainExtent,
-  VkRenderPass renderPass, VkDescriptorSetLayout uboDescriptorSetLayout,
-  VkDescriptorSetLayout materialDescriptorSetLayout)
+  VkRenderPass renderPass, const RenderResources& renderResources)
   : m_device(device)
+  , m_renderResources(renderResources)
 {
   auto vertShaderCode = readBinaryFile("shaders/vertex/skybox.spv");
   auto fragShaderCode = readBinaryFile("shaders/fragment/skybox.spv");
@@ -126,8 +126,8 @@ SkyboxPipeline::SkyboxPipeline(VkDevice device, VkExtent2D swapchainExtent,
   };
 
   std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts{
-    uboDescriptorSetLayout,
-    materialDescriptorSetLayout
+    m_renderResources.getUboDescriptorSetLayout(),
+    m_renderResources.getMaterialDescriptorSetLayout()
   };
 
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -178,21 +178,27 @@ SkyboxPipeline::SkyboxPipeline(VkDevice device, VkExtent2D swapchainExtent,
   vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
 }
 
-void SkyboxPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const MeshData& mesh,
-  VkDescriptorSet uboDescriptorSet, VkDescriptorSet cubeMapDescriptorSet)
+void SkyboxPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node_,
+  size_t currentFrame)
 {
+  auto& node = dynamic_cast<const SkyboxNode&>(node_);
+
+  auto uboDescriptorSet = m_renderResources.getUboDescriptorSet(currentFrame);
+  auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material);
+  auto buffers = m_renderResources.getMeshBuffers(node.mesh);
+
   // TODO: Only bind things that have changed since last iteration
   vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
-  std::vector<VkBuffer> vertexBuffers{ mesh.vertexBuffer };
+  std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer };
   std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
   vkCmdBindVertexBuffers(commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(),
     offsets.data());
-  vkCmdBindIndexBuffer(commandBuffer, mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+  vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0, 1,
     &uboDescriptorSet, 0, nullptr);
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 1, 1,
-    &cubeMapDescriptorSet, 0, nullptr);
-  vkCmdDrawIndexed(commandBuffer, mesh.mesh->indices.size(), 1, 0, 0, 0);
+    &materialDescriptorSet, 0, nullptr);
+  vkCmdDrawIndexed(commandBuffer, buffers.numIndices, 1, 0, 0, 0);
 }
 
 SkyboxPipeline::~SkyboxPipeline()
