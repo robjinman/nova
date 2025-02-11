@@ -1,0 +1,9 @@
+<entity name="dinosaur">
+  <spatial-component>
+    <transform scale="4">
+      <pos x="0" y="0" z="0"/>
+      <ori x="0" y="0" z="0"/>
+    </transform>
+  </spatial-component>
+  <render-component mesh="dinosaur" material="dinosaur" type="regular"/>
+</entity>

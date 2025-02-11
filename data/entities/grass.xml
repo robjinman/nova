@@ -1,0 +1,9 @@
+<entity name="grass">
+  <spatial-component>
+    <transform scale="32">
+      <pos x="0" y="0" z="0"/>
+      <ori x="0" y="0" z="0"/>
+    </transform>
+  </spatial-component>
+  <render-component mesh="grass" material="grass" type="instance"/>
+</entity>

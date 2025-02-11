@@ -1,14 +1,18 @@
 <resources>
   <textures>
     <texture name="monkey-texture" file="./data/resources/textures/texture1.png"/>
-    <texture name="tree-texture" file="./data/resources/textures/texture2.png"/>
+    <texture name="dino1-texture" file="./data/resources/textures/dinosaur1.png"/>
+    <texture name="grass-texture" file="./data/resources/textures/grass.png"/>
   </textures>
   <meshes>
     <mesh name="monkey" file="./data/resources/meshes/monkey.obj" instanced="false"/>
-    <mesh name="tree" file="./data/resources/meshes/monkey.obj" instanced="true" max-instances="1000"/>
+    <mesh name="tree" file="./data/resources/meshes/tree.obj" instanced="false"/>
+    <mesh name="dinosaur" file="./data/resources/meshes/dinosaur.obj" instanced="false"/>
+    <mesh name="grass" file="./data/resources/meshes/grass.obj" instanced="true" max-instances="100"/>
   </meshes>
   <materials>
     <material name="monkey" texture="monkey-texture"/>
-    <material name="tree" texture="tree-texture"/>
+    <material name="dinosaur" texture="dino1-texture"/>
+    <material name="grass" texture="grass-texture"/>
   </materials>
 </resources>

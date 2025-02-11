@@ -5,6 +5,8 @@
 #include <stb_image.h>
 #include <fstream>
 #include <regex>
+#include <cassert>
+#include <iostream> // TODO
 
 bool startsWith(const std::string& str, const std::string& prefix)
 {
@@ -20,9 +22,9 @@ MeshPtr loadMesh(const std::string& objFilePath)
   std::vector<Vec3f> normals;
   std::vector<Vec2f> uvCoords;
 
-  std::regex vertexPattern{"v\\s+(-?\\d+\\.?\\d+)\\s+(-?\\d+\\.?\\d+)\\s+(-?\\d+\\.?\\d+)"};
-  std::regex normalPattern{"vn\\s+(-?\\d+\\.?\\d+)\\s+(-?\\d+\\.?\\d+)\\s+(-?\\d+\\.?\\d+)"};
-  std::regex uvCoordPattern{"vt\\s+(-?\\d+\\.?\\d+)\\s+(-?\\d+\\.?\\d+)"};
+  std::regex vertexPattern{"v\\s+(-?\\d+(?:\\.\\d+)?)\\s+(-?\\d+(?:\\.\\d+)?)\\s+(-?\\d+(?:\\.\\d+)?)"};
+  std::regex normalPattern{"vn\\s+(-?\\d+(?:\\.\\d+)?)\\s+(-?\\d+(?:\\.\\d+)?)\\s+(-?\\d+(?:\\.\\d+)?)"};
+  std::regex uvCoordPattern{"vt\\s+(-?\\d+(?:\\.\\d+)?)\\s+(-?\\d+(?:\\.\\d+)?)"};
   std::regex facePattern{
     "f\\s+(\\d+)/(\\d+)/(\\d+)\\s+(\\d+)/(\\d+)/(\\d+)\\s+(\\d+)/(\\d+)/(\\d+)"
   };
@@ -93,7 +95,12 @@ MeshPtr loadMesh(const std::string& objFilePath)
       makeVertex(4, 5, 6);
       makeVertex(7, 8, 9);
     }
+    else {
+      std::cout << line << "\n";
+    }
   }
+
+  assert(mesh->indices.size() % 3 == 0);
 
   // TODO: Re-index model
 

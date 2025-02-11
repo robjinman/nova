@@ -23,14 +23,14 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="0.78880265"
-     inkscape:cx="328.34575"
-     inkscape:cy="34.862966"
-     inkscape:window-width="1200"
-     inkscape:window-height="950"
-     inkscape:window-x="718"
-     inkscape:window-y="33"
-     inkscape:window-maximized="0"
+     inkscape:zoom="3.1552105"
+     inkscape:cx="162.90514"
+     inkscape:cy="343.08329"
+     inkscape:window-width="1920"
+     inkscape:window-height="990"
+     inkscape:window-x="0"
+     inkscape:window-y="28"
+     inkscape:window-maximized="1"
      inkscape:current-layer="g5"
      inkscape:pageshadow="2"
      showgrid="false" />
@@ -54,7 +54,7 @@
        style="text-align:start;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect1);display:inline;fill:#000000"><tspan
          x="357.96094"
          y="880.23047"
-         id="tspan3120">8</tspan></text>
+         id="tspan2891">8</tspan></text>
     <g
        id="g5">
       <text
@@ -161,7 +161,7 @@
       </g>
       <g
          id="g4-7-6"
-         transform="translate(-16.859875,-10.93312)"
+         transform="translate(14.592518,74.170763)"
          inkscape:transform-center-x="0.44292273"
          inkscape:transform-center-y="0.15714354">
         <path
@@ -374,7 +374,7 @@
              id="tspan3-9-5-4-3"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-5"
@@ -394,7 +394,7 @@
              id="tspan3-9-5-4-3-6"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-3"
@@ -414,7 +414,7 @@
              id="tspan3-9-5-4-3-61"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-1"
@@ -434,7 +434,7 @@
              id="tspan3-9-5-4-3-4"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-8"
@@ -454,7 +454,7 @@
              id="tspan3-9-5-4-3-3"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-0"
@@ -474,7 +474,7 @@
              id="tspan3-9-5-4-3-44"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=dinosaur</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-7"
@@ -494,7 +494,7 @@
              id="tspan3-9-5-4-3-1"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-75"
@@ -514,7 +514,7 @@
              id="tspan3-9-5-4-3-2"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-17"
@@ -534,7 +534,7 @@
              id="tspan3-9-5-4-3-41"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-85"
@@ -554,7 +554,7 @@
              id="tspan3-9-5-4-3-8"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-83"
@@ -574,7 +574,7 @@
              id="tspan3-9-5-4-3-43"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-33"
@@ -594,7 +594,7 @@
              id="tspan3-9-5-4-3-88"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-89"
@@ -614,7 +614,7 @@
              id="tspan3-9-5-4-3-430"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-30"
@@ -634,7 +634,7 @@
              id="tspan3-9-5-4-3-0"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-59"
@@ -654,7 +654,7 @@
              id="tspan3-9-5-4-3-24"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-77"
@@ -674,7 +674,7 @@
              id="tspan3-9-5-4-3-12"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-893"
@@ -694,7 +694,7 @@
              id="tspan3-9-5-4-3-10"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-51"
@@ -714,7 +714,7 @@
              id="tspan3-9-5-4-3-06"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-4"
@@ -734,7 +734,7 @@
              id="tspan3-9-5-4-3-62"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-84"
@@ -754,7 +754,7 @@
              id="tspan3-9-5-4-3-629"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-9"
@@ -774,7 +774,7 @@
              id="tspan3-9-5-4-3-31"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-5-1"
@@ -794,7 +794,7 @@
              id="tspan3-9-5-4-3-6-4"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-3-0"
@@ -814,7 +814,7 @@
              id="tspan3-9-5-4-3-61-1"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-1-9"
@@ -834,7 +834,7 @@
              id="tspan3-9-5-4-3-4-3"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-8-3"
@@ -854,7 +854,7 @@
              id="tspan3-9-5-4-3-3-5"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-0-6"
@@ -874,7 +874,7 @@
              id="tspan3-9-5-4-3-44-0"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-7-0"
@@ -894,7 +894,7 @@
              id="tspan3-9-5-4-3-1-2"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-75-6"
@@ -914,7 +914,7 @@
              id="tspan3-9-5-4-3-2-6"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-17-9"
@@ -934,7 +934,7 @@
              id="tspan3-9-5-4-3-41-2"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-85-8"
@@ -954,7 +954,7 @@
              id="tspan3-9-5-4-3-8-9"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-83-6"
@@ -974,7 +974,7 @@
              id="tspan3-9-5-4-3-43-7"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-33-6"
@@ -994,7 +994,7 @@
              id="tspan3-9-5-4-3-88-2"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-89-1"
@@ -1014,7 +1014,7 @@
              id="tspan3-9-5-4-3-430-9"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-30-1"
@@ -1034,7 +1034,7 @@
              id="tspan3-9-5-4-3-0-1"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-59-0"
@@ -1054,7 +1054,7 @@
              id="tspan3-9-5-4-3-24-8"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-77-7"
@@ -1074,7 +1074,7 @@
              id="tspan3-9-5-4-3-12-8"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-893-0"
@@ -1094,7 +1094,7 @@
              id="tspan3-9-5-4-3-10-9"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-51-6"
@@ -1114,7 +1114,7 @@
              id="tspan3-9-5-4-3-06-4"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-4-2"
@@ -1134,7 +1134,7 @@
              id="tspan3-9-5-4-3-62-0"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-84-5"
@@ -1154,7 +1154,7 @@
              id="tspan3-9-5-4-3-629-9"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-02"
@@ -1174,7 +1174,7 @@
              id="tspan3-9-5-4-3-40"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-5-9"
@@ -1194,7 +1194,7 @@
              id="tspan3-9-5-4-3-6-6"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-3-2"
@@ -1214,7 +1214,7 @@
              id="tspan3-9-5-4-3-61-4"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-1-99"
@@ -1234,7 +1234,7 @@
              id="tspan3-9-5-4-3-4-0"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-8-5"
@@ -1254,7 +1254,7 @@
              id="tspan3-9-5-4-3-3-9"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-0-4"
@@ -1274,7 +1274,7 @@
              id="tspan3-9-5-4-3-44-1"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-7-7"
@@ -1294,7 +1294,7 @@
              id="tspan3-9-5-4-3-1-4"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-75-69"
@@ -1314,7 +1314,7 @@
              id="tspan3-9-5-4-3-2-2"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-17-6"
@@ -1334,7 +1334,7 @@
              id="tspan3-9-5-4-3-41-28"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-85-89"
@@ -1354,7 +1354,7 @@
              id="tspan3-9-5-4-3-8-8"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-83-68"
@@ -1374,7 +1374,7 @@
              id="tspan3-9-5-4-3-43-3"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-33-3"
@@ -1394,7 +1394,7 @@
              id="tspan3-9-5-4-3-88-0"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-89-4"
@@ -1414,7 +1414,7 @@
              id="tspan3-9-5-4-3-430-8"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-30-9"
@@ -1434,7 +1434,7 @@
              id="tspan3-9-5-4-3-0-8"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-59-7"
@@ -1454,7 +1454,7 @@
              id="tspan3-9-5-4-3-24-3"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-77-3"
@@ -1474,7 +1474,7 @@
              id="tspan3-9-5-4-3-12-3"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-893-2"
@@ -1492,6 +1492,46 @@
            id="text3-3-1-9-2-02-5"><tspan
              sodipodi:role="line"
              id="tspan3-9-5-4-3-10-2"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
+             x="23.180428"
+             y="26.306543">type=grass</tspan></text>
+      </g>
+      <g
+         id="g4-5-8-6-0-893-2-3"
+         transform="translate(14.593337,91.975443)">
+        <path
+           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
+           d="m 27.161879,24.759967 0.687835,-1.008445 -1.776698,-0.465878 z"
+           id="path2-1-7-7-5-68-6-6"
+           sodipodi:nodetypes="cccc" />
+        <text
+           xml:space="preserve"
+           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
+           x="23.180428"
+           y="26.306543"
+           id="text3-3-1-9-2-02-5-7"><tspan
+             sodipodi:role="line"
+             id="tspan3-9-5-4-3-10-2-5"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
+             x="23.180428"
+             y="26.306543">type=tree</tspan></text>
+      </g>
+      <g
+         id="g4-5-8-6-0-893-2-3-3"
+         transform="translate(27.028471,69.581238)">
+        <path
+           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
+           d="m 27.161879,24.759967 0.687835,-1.008445 -1.776698,-0.465878 z"
+           id="path2-1-7-7-5-68-6-6-5"
+           sodipodi:nodetypes="cccc" />
+        <text
+           xml:space="preserve"
+           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
+           x="23.180428"
+           y="26.306543"
+           id="text3-3-1-9-2-02-5-7-6"><tspan
+             sodipodi:role="line"
+             id="tspan3-9-5-4-3-10-2-5-2"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
              y="26.306543">type=tree</tspan></text>
@@ -1514,7 +1554,7 @@
              id="tspan3-9-5-4-3-06-9"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-4-6"
@@ -1534,7 +1574,7 @@
              id="tspan3-9-5-4-3-62-1"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
       <g
          id="g4-5-8-6-0-84-0"
@@ -1554,7 +1594,7 @@
              id="tspan3-9-5-4-3-629-7"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=tree</tspan></text>
+             y="26.306543">type=grass</tspan></text>
       </g>
     </g>
   </g>
