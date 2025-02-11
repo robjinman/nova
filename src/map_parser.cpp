@@ -230,29 +230,30 @@ Mat4x4f MapParserImpl::parseMatrixTransform(const std::string& s, float_t scale)
   stream.read(&buf[0], 7);
   ASSERT(buf == "matrix(", "Syntax error");
 
-  float_t a = 0.f;
-  Vec3f translation{};
+  Mat4x4f m = identityMatrix<float_t, 4>();
 
   char comma;
   float_t value;
   stream >> value >> comma;                     // cos(a)
-  a = acos(value);
+  m.set(0, 0, value);
   ASSERT(comma == ',', "Syntax error");
   stream >> value >> comma;                     // sin(a)
-  ASSERT(fabs(value - a) <= 0.001, "Inconsistent rotation matrix");
+  m.set(0, 2, value);
   ASSERT(comma == ',', "Syntax error");
   stream >> value >> comma;                     // -sin(a)
+  m.set(2, 0, value);
   ASSERT(comma == ',', "Syntax error");
   stream >> value >> comma;                     // cos(a)
+  m.set(2, 2, value);
   ASSERT(comma == ',', "Syntax error");
   stream >> value >> comma;                     // tx
-  translation[0] = value * scale;
+  m.set(0, 3, value * scale);
   ASSERT(comma == ',', "Syntax error");
   stream >> value >> buf;                       // tz
-  translation[2] = value * scale;
+  m.set(2, 3, value * scale);
   ASSERT(buf == ")", "Syntax error");
 
-  return transform(translation, Vec3f{ 0, a, 0 });
+  return m;
 }
 
 Mat4x4f MapParserImpl::parseTransform(const std::string& s, float_t scale) const
