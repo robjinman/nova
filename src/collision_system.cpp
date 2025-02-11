@@ -361,7 +361,7 @@ Vec3f CollisionSystemImpl::tryMove(const Vec3f& pos3, const Vec3f& delta, float_
     Vec2f X = projectionOntoLine(line, nextPos);
     Vec2f toLine = nextPos - X;
 
-    Vec2f adjustment = toLine.normalise() * (radius - toLine.magnitude()) * 1.0001f;
+    Vec2f adjustment = toLine.normalise() * (radius - toLine.magnitude()) * 1.01f;
     Vec3f adjustment3{ adjustment[0], 0, adjustment[1] };
 
     auto newDelta = tryMove(pos3, delta + adjustment3, radius, stepHeight, depth + 1);

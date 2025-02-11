@@ -5,7 +5,7 @@
   </textures>
   <meshes>
     <mesh name="monkey" file="./data/resources/meshes/monkey.obj" instanced="false"/>
-    <mesh name="tree" file="./data/resources/meshes/monkey.obj" instanced="true" max-instances="10"/>
+    <mesh name="tree" file="./data/resources/meshes/monkey.obj" instanced="true" max-instances="1000"/>
   </meshes>
   <materials>
     <material name="monkey" texture="monkey-texture"/>

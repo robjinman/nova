@@ -66,7 +66,7 @@ class RenderResourcesImpl : public RenderResources
     //
     RenderItemId addMesh(MeshPtr mesh) override;
     void removeMesh(RenderItemId id) override;
-    MeshBuffers getMeshBuffers(RenderItemId id) const;
+    MeshBuffers getMeshBuffers(RenderItemId id) const override;
     void updateMeshInstances(RenderItemId id, const std::vector<MeshInstance>& instances) override;
 
     // Materials
