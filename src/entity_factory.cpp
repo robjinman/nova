@@ -202,7 +202,10 @@ void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNod
 
   auto render = std::make_unique<CRender>(entityId, type);
   render->mesh = m_meshes.at(node.attribute("mesh"));
-  render->material = m_materials.at(node.attribute("material"));
+  auto material = node.attribute("material");
+  if (!material.empty()) {
+    render->material = m_materials.at(material);
+  }
 
   m_renderSystem.addComponent(std::move(render));
 }

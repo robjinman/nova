@@ -6,4 +6,10 @@
     </transform>
   </spatial-component>
   <render-component mesh="monkey" material="monkey" type="regular"/>
+  <collision-component height="2.0">
+    <point x="-1" y="-1"/>
+    <point x="1" y="-1"/>
+    <point x="1" y="1"/>
+    <point x="-1" y="1"/>
+  </collision-component>
 </entity>
