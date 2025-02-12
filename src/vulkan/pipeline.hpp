@@ -39,5 +39,21 @@ class Pipeline
 using PipelinePtr = std::unique_ptr<Pipeline>;
 
 VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code);
-VkVertexInputBindingDescription getDefaultVertexBindingDescription();
-std::vector<VkVertexInputAttributeDescription> getDefaultAttributeDescriptions();
+
+VkVertexInputBindingDescription defaultVertexBindingDescription();
+
+std::vector<VkVertexInputAttributeDescription> defaultAttributeDescriptions();
+
+VkPipelineInputAssemblyStateCreateInfo defaultInputAssemblyState();
+
+VkPipelineViewportStateCreateInfo defaultViewportState(VkViewport& viewport, VkRect2D& scissor,
+  VkExtent2D swapchainExtent);
+
+VkPipelineRasterizationStateCreateInfo defaultRasterizationState();
+
+VkPipelineMultisampleStateCreateInfo defaultMultisamplingState();
+
+VkPipelineColorBlendStateCreateInfo
+defaultColourBlendState(VkPipelineColorBlendAttachmentState& colourBlendAttachment);
+
+VkPipelineDepthStencilStateCreateInfo defaultDepthStencilState();
