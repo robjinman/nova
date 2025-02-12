@@ -1,6 +1,7 @@
 <resources>
   <textures>
-    <texture name="monkey-texture" file="./data/resources/textures/texture1.png"/>
+    <texture name="stone-texture" file="./data/resources/textures/stone.png"/>
+    <texture name="bricks-texture" file="./data/resources/textures/bricks.png"/>
     <texture name="dino1-texture" file="./data/resources/textures/dinosaur1.png"/>
     <texture name="grass-texture" file="./data/resources/textures/grass.png"/>
   </textures>
@@ -11,7 +12,8 @@
     <mesh name="grass" file="./data/resources/meshes/grass.obj" instanced="true" max-instances="100"/>
   </meshes>
   <materials>
-    <material name="monkey" texture="monkey-texture"/>
+    <material name="stone" texture="stone-texture"/>
+    <material name="bricks" texture="bricks-texture"/>
     <material name="dinosaur" texture="dino1-texture"/>
     <material name="grass" texture="grass-texture"/>
   </materials>

@@ -4,7 +4,7 @@
 // TODO: Pass these in
 const vec3 worldLightPos = vec3(1000, 1000, 800);
 const vec3 lightColour = vec3(1, 1, 1);
-const float ambient = 0.2;
+const float ambient = 0.4;
 
 layout(set = 1, binding = 0) uniform sampler2D texSampler;
 

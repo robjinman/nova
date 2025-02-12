@@ -60,7 +60,10 @@ class SceneBuilder
     MapParser& m_mapParser;
     Logger& m_logger;
     PlayerPtr m_player = nullptr;
+    RenderItemId m_groundMaterial;
+    RenderItemId m_wallMaterial;
 
+    void createTerrainMaterials();
     void constructOriginMarkers();
     void constructInstances(const ObjectData& objectData);
     void constructObject(const ObjectData& obj, const Mat4x4f& parentTransform);
@@ -92,6 +95,7 @@ PlayerPtr SceneBuilder::createScene()
 
   m_collisionSystem.initialise(bounds.first, bounds.second);
 
+  createTerrainMaterials();
   constructInstances(objectData);
   constructSky();
   constructOriginMarkers();
@@ -103,12 +107,25 @@ PlayerPtr SceneBuilder::createScene()
   return player;
 }
 
+void SceneBuilder::createTerrainMaterials()
+{
+  auto groundTexture = loadTexture("./data/resources/textures/ground.png");
+  auto groundMaterial = std::make_unique<Material>();
+  groundMaterial->texture = m_renderSystem.addTexture(std::move(groundTexture));
+  m_groundMaterial = m_renderSystem.addMaterial(std::move(groundMaterial));
+
+  auto wallTexture = loadTexture("./data/resources/textures/bricks.png");
+  auto wallMaterial = std::make_unique<Material>();
+  wallMaterial->texture = m_renderSystem.addTexture(std::move(wallTexture));
+  m_wallMaterial = m_renderSystem.addMaterial(std::move(wallMaterial));
+}
+
 void SceneBuilder::constructSky()
 {
   EntityId entityId = System::nextId();
 
   auto render = std::make_unique<CRender>(entityId, CRenderType::skybox);
-  auto mesh = cuboid(10000, 10000, 10000, { 1, 1, 1 });
+  auto mesh = cuboid(10000, 10000, 10000, { 1, 1, 1 }, Vec2f{ 1, 1 });
   std::reverse(mesh->indices.begin(), mesh->indices.end());
   std::array<TexturePtr, 6> textures{
     loadTexture("./data/resources/textures/skybox/right.png"),
@@ -137,7 +154,7 @@ void SceneBuilder::constructOriginMarkers()
     float_t d = metresToWorldUnits(1);
     float_t h = metresToWorldUnits(20);
 
-    MeshPtr mesh = cuboid(w, h, d, colour);
+    MeshPtr mesh = cuboid(w, h, d, colour, Vec2f{ 1, 1 });
     auto meshId = m_renderSystem.addMesh(std::move(mesh));
     CRenderPtr render = std::make_unique<CRender>(id, CRenderType::regular);
     render->mesh = meshId;
@@ -233,7 +250,7 @@ MeshPtr createBottomFace(const std::vector<Vec4f>& points, const Vec3f& colour)
 {
   MeshPtr mesh = std::make_unique<Mesh>();
 
-  Vec2f textureSize = metresToWorldUnits(Vec2f{ 2, 2 });
+  Vec2f textureSize = metresToWorldUnits(Vec2f{ 4, 4 });
 
   std::vector<Vec4f> vertices;
   for (auto i = points.rbegin(); i != points.rend(); ++i) {
@@ -268,7 +285,7 @@ void createSideFaces(Mesh& mesh)
 {
   assert(mesh.vertices.size() % 2 == 0);
 
-  Vec2f textureSize = metresToWorldUnits(Vec2f{ 2, 2 });
+  Vec2f textureSize = metresToWorldUnits(Vec2f{ 4, 4 });
 
   uint16_t n = static_cast<uint16_t>(mesh.vertices.size() / 2);
   float_t distance = 0.f;
@@ -335,14 +352,9 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
   auto mesh = mergeMeshes(*bottomFace, *topFace);
   createSideFaces(*mesh);
 
-  auto texture = loadTexture("./data/resources/textures/ground.png");
-
-  auto material = std::make_unique<Material>();
-  material->texture = m_renderSystem.addTexture(std::move(texture));
-
   CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::regular);
   render->mesh = m_renderSystem.addMesh(std::move(mesh));
-  render->material = m_renderSystem.addMaterial(std::move(material));
+  render->material = m_groundMaterial;
   m_renderSystem.addComponent(std::move(render));
 
   CCollisionPtr collision = std::make_unique<CCollision>(entityId);
@@ -358,6 +370,7 @@ void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTra
   bool /*interior*/) // TODO: Interiors
 {
   const float_t wallThickness = metresToWorldUnits(0.4);
+  Vec2f textureSize = metresToWorldUnits(Vec2f{ 4, 4 });
 
   float_t wallHeight = metresToWorldUnits(getFloatValue(obj.values, "height"));
   const Vec3f colour{ 0.3f, 0.25f, 0.2f };
@@ -397,8 +410,9 @@ void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTra
     m_spatialSystem.addComponent(std::move(spatial));
 
     CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::regular);
-    auto mesh = cuboid(wallThickness, wallHeight, distance, colour);
+    auto mesh = cuboid(wallThickness, wallHeight, distance, colour, textureSize);
     render->mesh = m_renderSystem.addMesh(std::move(mesh));
+    render->material = m_wallMaterial;
     m_renderSystem.addComponent(std::move(render));
 
     CCollisionPtr collision = std::make_unique<CCollision>(entityId);
