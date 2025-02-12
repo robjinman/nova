@@ -9,7 +9,7 @@
     <mesh name="monkey" file="./data/resources/meshes/monkey.obj" instanced="false"/>
     <mesh name="tree" file="./data/resources/meshes/tree.obj" instanced="false"/>
     <mesh name="dinosaur" file="./data/resources/meshes/dinosaur.obj" instanced="false"/>
-    <mesh name="grass" file="./data/resources/meshes/grass.obj" instanced="true" max-instances="100"/>
+    <mesh name="grass" file="./data/resources/meshes/grass.obj" instanced="true" max-instances="10000"/>
   </meshes>
   <materials>
     <material name="stone" texture="stone-texture"/>

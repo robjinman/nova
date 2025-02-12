@@ -28,7 +28,7 @@ float_t getFloatValue(const KeyValueMap& map, const std::string& key)
   }
 }
 
-std::pair<Vec2f, Vec2f> computeMapBounds(const ObjectData& root)
+std::pair<Vec2f, Vec2f> computeBounds(const ObjectData& root)
 {
   ASSERT(root.name == "zone", "Expected root object to be a zone");
 
@@ -72,6 +72,8 @@ class SceneBuilder
     Mat4x4f constructZone(const ObjectData& obj, const Mat4x4f& parentTransform);
     void constructWall(const ObjectData& obj, const Mat4x4f& parentTransform, bool interior);
     void constructSky();
+    void fillArea(const ObjectData& area, const Mat4x4f& transform, float_t height,
+      const std::string& entityType);
 };
 
 SceneBuilder::SceneBuilder(EntityFactory& entityFactory, SpatialSystem& spatialSystem,
@@ -90,7 +92,7 @@ PlayerPtr SceneBuilder::createScene()
 {
   auto objectData = m_mapParser.parseMapFile("data/map.svg");
 
-  auto bounds = computeMapBounds(objectData);
+  auto bounds = computeBounds(objectData);
   m_logger.info(STR("Map boundary: (" << bounds.first << ") to (" << bounds.second << ")"));
 
   m_collisionSystem.initialise(bounds.first, bounds.second);
@@ -329,6 +331,27 @@ void createSideFaces(Mesh& mesh)
   }
 }
 
+void SceneBuilder::fillArea(const ObjectData& area, const Mat4x4f& transform, float_t height,
+  const std::string& entityType)
+{
+  const Vec2f spacing = metresToWorldUnits(Vec2f{ 1, 1 }); // TODO
+
+  auto bounds = computeBounds(area);
+
+  std::vector<Vec2f> perimeter;
+  std::transform(area.path.points.begin(), area.path.points.end(), std::back_inserter(perimeter),
+    [](const Vec4f& p) { return Vec2f{ p[0], p[2] }; });
+
+  for (float_t x = bounds.first[0]; x <= bounds.second[0]; x += spacing[0]) {
+    for (float_t z = bounds.first[1]; z <= bounds.second[1]; z += spacing[1]) {
+      if (pointIsInsidePoly(Vec2f{ x, z }, perimeter)) {
+        Mat4x4f m = translationMatrix4x4(Vec3f{ x, height, z });
+        m_entityFactory.constructEntity(entityType, transform * m);
+      }
+    }
+  }
+}
+
 Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parentTransform)
 {
   EntityId entityId = System::nextId();
@@ -340,8 +363,10 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
     offset = translationMatrix4x4(Vec3f{ 0, -height, 0 });
   }
 
+  Mat4x4f transform = parentTransform * offset * obj.transform;
+
   CSpatialPtr spatial = std::make_unique<CSpatial>(entityId);
-  spatial->setTransform( parentTransform * offset * obj.transform);
+  spatial->setTransform(transform);
   m_spatialSystem.addComponent(std::move(spatial));
 
   Vec3f colour{ 0.15, 0.1, 0.08 };
@@ -362,6 +387,11 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
   std::transform(obj.path.points.begin(), obj.path.points.end(),
     std::back_inserter(collision->perimeter), [](const Vec4f& p) { return Vec2f{ p[0], p[2] }; });
   m_collisionSystem.addComponent(std::move(collision));
+
+  auto i = obj.values.find("fill");
+  if (i != obj.values.end()) {
+    fillArea(obj, transform, height, i->second);
+  }
 
   return translationMatrix4x4(Vec3f{ 0, floorHeight, 0 }) * obj.transform;
 }

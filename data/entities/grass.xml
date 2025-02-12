@@ -1,6 +1,6 @@
 <entity name="grass">
   <spatial-component>
-    <transform scale="32">
+    <transform scale="48">
       <pos x="0" y="0" z="0"/>
       <ori x="0" y="0" z="0"/>
     </transform>
