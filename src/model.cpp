@@ -130,11 +130,14 @@ TexturePtr loadTexture(const std::string& filePath)
   return texture;
 }
 
-MeshPtr cuboid(float_t w_, float_t h_, float_t d_, const Vec3f& colour)
+MeshPtr cuboid(float_t W, float_t H, float_t D, const Vec3f& colour, const Vec2f& textureSize)
 {
-  float_t w = w_ / 2.f;
-  float_t h = h_ / 2.f;
-  float_t d = d_ / 2.f;
+  float_t w = W / 2.f;
+  float_t h = H / 2.f;
+  float_t d = D / 2.f;
+
+  float_t u = textureSize[0];
+  float_t v = textureSize[1];
 
   MeshPtr mesh = std::make_unique<Mesh>();
   // Viewed from above
@@ -145,40 +148,40 @@ MeshPtr cuboid(float_t w_, float_t h_, float_t d_, const Vec3f& colour)
   //
   mesh->vertices = {
     // Bottom face
-    {{ -w, -h, -d }, { 0, -1, 0 }, colour, { 0, 0 }},  // A  0
-    {{ w, -h, -d }, { 0, -1, 0 }, colour, { 1, 0 }},  // B  1
-    {{ w, -h, d }, { 0, -1, 0 }, colour, { 1, 1 }},   // C  2
-    {{ -w, -h, d }, { 0, -1, 0 }, colour, { 0, 1 }},  // D  3
+    {{ -w, -h, -d }, { 0, -1, 0 }, colour, { 0, 0 }},         // A  0
+    {{ w, -h, -d }, { 0, -1, 0 }, colour, { W / u, 0 }},      // B  1
+    {{ w, -h, d }, { 0, -1, 0 }, colour, { W /u, D / v }},    // C  2
+    {{ -w, -h, d }, { 0, -1, 0 }, colour, { 0, D / v }},      // D  3
 
     // Top face
-    {{ -w, h, d }, { 0, 1, 0 }, colour, { 0, 0 }},    // D' 4
-    {{ w, h, d }, { 0, 1, 0 }, colour, { 1, 0 }},     // C' 5
-    {{ w, h, -d }, { 0, 1, 0 }, colour, { 1, 1 }},    // B' 6
-    {{ -w, h, -d }, { 0, 1, 0 }, colour, { 0, 1 }},   // A' 7
+    {{ -w, h, d }, { 0, 1, 0 }, colour, { 0, D / v }},        // D' 4
+    {{ w, h, d }, { 0, 1, 0 }, colour, { W / u, D / v }},     // C' 5
+    {{ w, h, -d }, { 0, 1, 0 }, colour, { W / u, 0 }},        // B' 6
+    {{ -w, h, -d }, { 0, 1, 0 }, colour, { 0, 0 }},           // A' 7
 
     // Right face
-    {{ w, -h, d }, { 1, 0, 0 }, colour, { 0, 0 }},    // C  8
-    {{ w, -h, -d }, { 1, 0, 0 }, colour, { 1, 0 }},   // B  9
-    {{ w, h, -d }, { 1, 0, 0 }, colour, { 1, 1 }},    // B' 10
-    {{ w, h, d }, { 1, 0, 0 }, colour, { 0, 1 }},     // C' 11
+    {{ w, -h, d }, { 1, 0, 0 }, colour, { D / u, 0 }},        // C  8
+    {{ w, -h, -d }, { 1, 0, 0 }, colour, { 0, 0 }},           // B  9
+    {{ w, h, -d }, { 1, 0, 0 }, colour, { 0, H / v }},        // B' 10
+    {{ w, h, d }, { 1, 0, 0 }, colour, { D / u, H / v }},     // C' 11
 
     // Left face
-    {{ -w, -h, -d }, { -1, 0, 0 }, colour, { 0, 0 }}, // A  12
-    {{ -w, -h, d }, { -1, 0, 0 }, colour, { 1, 0 }},  // D  13
-    {{ -w, h, d }, { -1, 0, 0 }, colour, { 1, 1 }},   // D' 14
-    {{ -w, h, -d }, { -1, 0, 0 }, colour, { 0, 1 }},  // A' 15
+    {{ -w, -h, -d }, { -1, 0, 0 }, colour, { 0, 0 }},         // A  12
+    {{ -w, -h, d }, { -1, 0, 0 }, colour, { D / u, 0 }},      // D  13
+    {{ -w, h, d }, { -1, 0, 0 }, colour, { D / u, H / v }},   // D' 14
+    {{ -w, h, -d }, { -1, 0, 0 }, colour, { 0, H / v }},      // A' 15
 
     // Far face
-    {{ -w, -h, -d }, { 0, 0, -1 }, colour, { 0, 0 }}, // A  16
-    {{ -w, h, -d }, { 0, 0, -1 }, colour, { 1, 0 }},  // A' 17
-    {{ w, h, -d }, { 0, 0, -1 }, colour, { 1, 1 }},   // B' 18
-    {{ w, -h, -d }, { 0, 0, -1 }, colour, { 0, 0 }},  // B  19
+    {{ -w, -h, -d }, { 0, 0, -1 }, colour, { 0, 0 }},         // A  16
+    {{ -w, h, -d }, { 0, 0, -1 }, colour, { 0, H / v }},      // A' 17
+    {{ w, h, -d }, { 0, 0, -1 }, colour, { W / u, H / v }},   // B' 18
+    {{ w, -h, -d }, { 0, 0, -1 }, colour, { W / u, 0 }},      // B  19
 
     // Near face
-    {{ -w, -h, d }, { 0, 0, 1 }, colour, { 0, 0 }},   // D  20
-    {{ w, -h, d }, { 0, 0, 1 }, colour, { 1, 0 }},    // C  21
-    {{ w, h, d }, { 0, 0, 1 }, colour, { 1, 1 }},     // C' 22
-    {{ -w, h, d }, { 0, 0, 1 }, colour, { 0, 1 }},    // D' 23
+    {{ -w, -h, d }, { 0, 0, 1 }, colour, { 0, 0 }},           // D  20
+    {{ w, -h, d }, { 0, 0, 1 }, colour, { W / u, 0 }},        // C  21
+    {{ w, h, d }, { 0, 0, 1 }, colour, { W / u, H / v }},     // C' 22
+    {{ -w, h, d }, { 0, 0, 1 }, colour, { 0, H / v }},        // D' 23
   };
   mesh->indices = {
     0, 1, 2, 0, 2, 3,         // Bottom face

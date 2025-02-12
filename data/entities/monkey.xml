@@ -1,11 +1,11 @@
 <entity name="monkey">
   <spatial-component>
-    <transform scale="4">
+    <transform scale="6">
       <pos x="0" y="1" z="0"/>
       <ori x="0" y="0" z="0"/>
     </transform>
   </spatial-component>
-  <render-component mesh="monkey" material="monkey" type="regular"/>
+  <render-component mesh="monkey" material="stone" type="regular"/>
   <collision-component height="2.0">
     <point x="-1" y="-1"/>
     <point x="1" y="-1"/>
