@@ -233,12 +233,14 @@ MeshPtr createBottomFace(const std::vector<Vec4f>& points, const Vec3f& colour)
 {
   MeshPtr mesh = std::make_unique<Mesh>();
 
+  Vec2f textureSize = metresToWorldUnits(Vec2f{ 2, 2 });
+
   std::vector<Vec4f> vertices;
   for (auto i = points.rbegin(); i != points.rend(); ++i) {
     auto& p = *i;
     vertices.push_back(p);
-    // TODO: UVs
-    Vertex vertex{ p.sub<3>(), Vec3f{ 0, -1, 0 }, colour, Vec2f{ 0, 0 } };
+    Vec2f uv{ p[0] / textureSize[0], p[2] / textureSize[1] };
+    Vertex vertex{ p.sub<3>(), Vec3f{ 0, -1, 0 }, colour, uv };
     mesh->vertices.push_back(vertex);
   }
 
@@ -266,7 +268,10 @@ void createSideFaces(Mesh& mesh)
 {
   assert(mesh.vertices.size() % 2 == 0);
 
+  Vec2f textureSize = metresToWorldUnits(Vec2f{ 2, 2 });
+
   uint16_t n = static_cast<uint16_t>(mesh.vertices.size() / 2);
+  float_t distance = 0.f;
   for (uint16_t i = 0; i < n; ++i) {
     uint16_t j = n + i;
     uint16_t nextI = (i + 1) % n;
@@ -283,6 +288,16 @@ void createSideFaces(Mesh& mesh)
     B.normal = normal;
     C.normal = normal;
     D.normal = normal;
+
+    float_t edgeLength = (B.pos - A.pos).magnitude();
+    float_t height = C.pos[1] - A.pos[1];
+
+    A.texCoord = Vec2f{ distance / textureSize[0], height / textureSize[1] };
+    B.texCoord = Vec2f{ (distance + edgeLength) / textureSize[0], height / textureSize[1] };
+    C.texCoord = Vec2f{ distance / textureSize[0], 0 };
+    D.texCoord = Vec2f{ (distance + edgeLength) / textureSize[0], 0 };
+
+    distance += edgeLength;
 
     uint16_t idx = mesh.vertices.size();
     mesh.vertices.insert(mesh.vertices.end(), { A, B, C, D });
@@ -320,8 +335,14 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
   auto mesh = mergeMeshes(*bottomFace, *topFace);
   createSideFaces(*mesh);
 
+  auto texture = loadTexture("./data/resources/textures/ground.png");
+
+  auto material = std::make_unique<Material>();
+  material->texture = m_renderSystem.addTexture(std::move(texture));
+
   CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::regular);
   render->mesh = m_renderSystem.addMesh(std::move(mesh));
+  render->material = m_renderSystem.addMaterial(std::move(material));
   m_renderSystem.addComponent(std::move(render));
 
   CCollisionPtr collision = std::make_unique<CCollision>(entityId);
