@@ -399,7 +399,7 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
 void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTransform,
   bool /*interior*/) // TODO: Interiors
 {
-  const float_t wallThickness = metresToWorldUnits(0.4);
+  const float_t wallThickness = metresToWorldUnits(1.0);
   Vec2f textureSize = metresToWorldUnits(Vec2f{ 4, 4 });
 
   float_t wallHeight = metresToWorldUnits(getFloatValue(obj.values, "height"));
