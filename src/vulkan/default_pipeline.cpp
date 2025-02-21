@@ -55,14 +55,8 @@ DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
   vertexPushConstants.size = sizeof(Mat4x4f);
   vertexPushConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-  VkPushConstantRange fragmentPushConstants;
-  fragmentPushConstants.offset = sizeof(Mat4x4f);
-  fragmentPushConstants.size = sizeof(VkBool32);
-  fragmentPushConstants.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-  std::array<VkPushConstantRange, 2> pushConstantRanges{
-    vertexPushConstants,
-    fragmentPushConstants
+  std::array<VkPushConstantRange, 1> pushConstantRanges{
+    vertexPushConstants
   };
 
   std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts{
