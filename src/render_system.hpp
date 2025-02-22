@@ -32,6 +32,7 @@ class Camera;
 class RenderSystem : public System
 {
   public:
+    virtual void start() = 0;
     virtual double frameRate() const = 0;
 
     CRender& getComponent(EntityId entityId) override = 0;

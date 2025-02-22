@@ -4,6 +4,10 @@
 #include <thread>
 #include <condition_variable>
 #include <mutex>
+#include <future>
+#include <queue>
+#include <cassert>
+#include <memory>
 
 class Thread
 {
@@ -13,24 +17,22 @@ class Thread
       m_thread = std::thread([this]() { loop(); });
     }
 
-    void run(const std::function<void()>& task)
+    template<typename T>
+    std::future<T> run(const std::function<T()>& task)
     {
-      wait();
+      auto packagedTask = std::make_shared<std::packaged_task<T()>>(task);
+      std::future<T> future = packagedTask->get_future();
+
       {
         std::lock_guard lock(m_mutex);
-        m_hasWork = true;
-        m_task = task;
-      }
-      m_conditionVariable.notify_one();
-    }
 
-    void wait()
-    {
-      std::unique_lock lock(m_mutex);
-      if (!m_hasWork) {
-        return;
+        m_tasks.push([packagedTask]() { (*packagedTask)(); });
+        m_hasWork = true;
       }
-      m_conditionVariable.wait(lock, [this]() { return !m_hasWork; });
+
+      m_conditionVariable.notify_one();
+
+      return future;
     }
 
     ~Thread()
@@ -47,6 +49,8 @@ class Thread
     void loop()
     {
       while (true) {
+        std::function<void()> task;
+
         {
           std::unique_lock lock(m_mutex);
           m_conditionVariable.wait(lock, [this]() { return m_hasWork || !m_running; });
@@ -54,23 +58,23 @@ class Thread
           if (!m_running) {
             return;
           }
+
+          assert(!m_tasks.empty());
+
+          task = std::move(m_tasks.front());
+          m_tasks.pop();
+
+          m_hasWork = !m_tasks.empty();
         }
 
-        m_task();
-
-        {
-          std::lock_guard lock(m_mutex);
-          m_hasWork = false;
-        }
-
-        m_conditionVariable.notify_one();
+        task();
       }
     }
 
     std::thread m_thread;
     bool m_running = true;
     bool m_hasWork = false;
-    std::function<void()> m_task;
+    std::queue<std::function<void()>> m_tasks;
     std::mutex m_mutex;
     std::condition_variable m_conditionVariable;
 };
