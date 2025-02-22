@@ -117,12 +117,18 @@ void Application::onKeyboardInput(int code, int action)
 {
   auto key = static_cast<KeyboardKey>(code);
 
-  if (key == KeyboardKey::Escape) {
-    exitInputCapture();
-  }
-
   if (action == GLFW_PRESS) {
     m_game->onKeyDown(key);
+
+    switch (key) {
+      case KeyboardKey::Escape:
+        exitInputCapture();
+        break;
+      case KeyboardKey::F:
+        m_logger->info(STR("Renderer frame rate: " << m_renderer->frameRate()));
+        break;
+      default: break;
+    }
   }
   else if (action == GLFW_RELEASE) {
     m_game->onKeyUp(key);

@@ -9,6 +9,8 @@
 #include "logger.hpp"
 #include "camera.hpp"
 #include "utils.hpp"
+#include "time.hpp"
+#include "thread.hpp"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <array>
@@ -63,10 +65,67 @@ struct SwapChainSupportDetails
   std::vector<VkPresentModeKHR> presentModes;
 };
 
+template<typename T>
+class TripleBuffer
+{
+  public:
+    // Call from writer thread
+    //
+    T& writeComplete()
+    {
+      std::lock_guard lock(m_mutex);
+      m_writeState.frameNumber = ++m_frameCount;
+      std::swap(m_writeState.index, m_freeState.index);
+      assert(inRange(m_writeState.index, 0ul, 2ul));
+      return m_items[m_writeState.index];
+    }
+
+    T& getWritable()
+    {
+      assert(inRange(m_writeState.index, 0ul, 2ul));
+      return m_items[m_writeState.index];
+    }
+
+    // Call from reader thread
+    //
+    T& readComplete()
+    {
+      std::lock_guard lock(m_mutex);
+      if (m_freeState.frameNumber > m_readState.frameNumber) {
+        std::swap(m_readState.index, m_freeState.index);
+      }
+      assert(inRange(m_readState.index, 0ul, 2ul));
+      return m_items[m_readState.index];
+    }
+
+    T& getReadable()
+    {
+      assert(inRange(m_readState.index, 0ul, 2ul));
+      return m_items[m_readState.index];
+    }
+
+  private:
+    std::array<T, 3> m_items{};
+
+    struct State
+    {
+      size_t index;
+      size_t frameNumber;
+    };
+
+    std::mutex m_mutex;
+    State m_writeState{0, 0};
+    State m_readState{1, 0};
+    State m_freeState{2, 0};
+    size_t m_frameCount = 0;
+};
+
 class RendererImpl : public Renderer
 {
   public:
     RendererImpl(GLFWwindow& window, Logger& logger);
+
+    double frameRate() const override;
 
     // Resources
     //
@@ -100,7 +159,6 @@ class RendererImpl : public Renderer
       VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type,
       const VkDebugUtilsMessengerCallbackDataEXT* data, void* userData);
 
-    void initVulkan();
     void createInstance();
     void createSurface();
     void pickPhysicalDevice();
@@ -130,10 +188,12 @@ class RendererImpl : public Renderer
     void createCommandBuffers();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void updateResources();
-    void updateUniformBuffer(const Camera& camera);
+    void updateUniformBuffer(const Mat4x4f& cameraMatrix);
     void finishFrame();
     void createSyncObjects();
     VkFormat findDepthFormat() const;
+    void renderLoop();
+    void cleanUp();
 
     GLFWwindow& m_window;
     Logger& m_logger;
@@ -167,19 +227,64 @@ class RendererImpl : public Renderer
     std::vector<VkSemaphore> m_renderFinishedSemaphores;
     std::vector<VkFence> m_inFlightFences;
 
-    RenderGraph m_renderGraph;
+    struct RenderState
+    {
+      RenderGraph graph;
+      Mat4x4f cameraMatrix;
+    };
+
+    TripleBuffer<RenderState> m_renderStates;
+  
     RenderResourcesPtr m_resources;
     std::map<PipelineName, PipelinePtr> m_pipelines;
+
+    Timer m_timer;
+    std::atomic<double> m_frameRate;
+
+    Thread m_thread;
+    std::atomic<bool> m_running;
 };
 
 RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
   : m_window(window)
   , m_logger(logger)
 {
-  initVulkan();
+  m_thread.run([this]() {
+    createInstance();
+#ifndef NDEBUG
+    setupDebugMessenger();
+#endif
+    createSurface();
+    pickPhysicalDevice();
+    createLogicalDevice();
+  });
+  m_thread.wait();
+  createSwapChain();
+  m_thread.run([this]() {
+    createImageViews();
+    createRenderPass();
+    createCommandPool();
+    m_resources = createRenderResources(m_physicalDevice, m_device, m_graphicsQueue, m_commandPool);
+    createPipelines();
+    createDepthResources();
+    createFramebuffers();
+    createCommandBuffers();
+    createSyncObjects();
+  });
+  m_thread.wait();
 
   float_t aspectRatio = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
   m_projectionMatrix = perspective(degreesToRadians(45.f), aspectRatio, 0.1f, DRAW_DISTANCE);
+
+  m_running = true;
+  m_thread.run([&]() {
+    renderLoop();
+  });
+}
+
+double RendererImpl::frameRate() const
+{
+  return m_frameRate;
 }
 
 void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
@@ -191,8 +296,8 @@ void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
     static_cast<RenderGraphKey>(materialId)
   };
   InstancedModelNode* node = nullptr;
-  auto i = m_renderGraph.find(key);
-  if (i != m_renderGraph.end()) {
+  auto i = m_renderStates.getWritable().graph.find(key);
+  if (i != m_renderStates.getWritable().graph.end()) {
     node = dynamic_cast<InstancedModelNode*>(i->get());
   }
   else {
@@ -200,7 +305,7 @@ void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
     newNode->mesh = meshId;
     newNode->material = materialId;
     node = newNode.get();
-    m_renderGraph.insert(key, std::move(newNode));
+    m_renderStates.getWritable().graph.insert(key, std::move(newNode));
   }
   node->instances.push_back(MeshInstance{transform});
 }
@@ -220,7 +325,7 @@ void RendererImpl::stageModel(RenderItemId mesh, RenderItemId material, const Ma
     static_cast<RenderGraphKey>(material),
     nextId++
   };
-  m_renderGraph.insert(key, std::move(node));
+  m_renderStates.getWritable().graph.insert(key, std::move(node));
 }
 
 void RendererImpl::stageSkybox(RenderItemId mesh, RenderItemId material)
@@ -230,37 +335,58 @@ void RendererImpl::stageSkybox(RenderItemId mesh, RenderItemId material)
   node->material = material;
 
   RenderGraph::Key key{ static_cast<RenderGraphKey>(PipelineName::skybox) };
-  m_renderGraph.insert(key, std::move(node));
+  m_renderStates.getWritable().graph.insert(key, std::move(node));
 }
 
 void RendererImpl::beginFrame(const Camera& camera)
 {
-  m_renderGraph.clear();
+  auto& state = m_renderStates.getWritable();
+  state.graph.clear();
+  state.cameraMatrix = camera.getMatrix();
+}
 
-  VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
-    "Error waiting for fence");
+void RendererImpl::renderLoop()
+{
+  while (m_running) {
+    VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
+      "Error waiting for fence");
 
-  VkResult acqImgResult = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX,
-    m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_imageIndex);
+    VkResult acqImgResult = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX,
+      m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_imageIndex);
 
-  if (acqImgResult == VK_ERROR_OUT_OF_DATE_KHR) {
-    recreateSwapChain();
-    return;
+    if (acqImgResult == VK_ERROR_OUT_OF_DATE_KHR) {
+      recreateSwapChain();
+      return;
+    }
+    else if (acqImgResult != VK_SUCCESS && acqImgResult != VK_SUBOPTIMAL_KHR) {
+      EXCEPTION("Error obtaining image from swap chain");
+    }
+
+    VK_CHECK(vkResetFences(m_device, 1, &m_inFlightFences[m_currentFrame]),
+      "Error resetting fence");
+
+    vkResetCommandBuffer(m_commandBuffers[m_imageIndex], 0);
+
+    updateUniformBuffer(m_renderStates.getReadable().cameraMatrix);
+
+    updateResources();
+    recordCommandBuffer(m_commandBuffers[m_imageIndex], m_imageIndex);
+    finishFrame();
+
+    m_renderStates.readComplete();
+
+    m_frameRate = 1.0 / m_timer.elapsed();
+    m_timer.reset();
   }
-  else if (acqImgResult != VK_SUCCESS && acqImgResult != VK_SUBOPTIMAL_KHR) {
-    EXCEPTION("Error obtaining image from swap chain");
-  }
 
-  VK_CHECK(vkResetFences(m_device, 1, &m_inFlightFences[m_currentFrame]), "Error resetting fence");
-
-  vkResetCommandBuffer(m_commandBuffers[m_imageIndex], 0);
-
-  updateUniformBuffer(camera);
+  cleanUp();
 }
 
 void RendererImpl::updateResources()
 {
-  for (auto& node : m_renderGraph) {
+  auto& renderGraph = m_renderStates.getReadable().graph;
+
+  for (auto& node : renderGraph) {
     switch (node->type) {
       case RenderNodeType::instancedModel: {
         auto& nodeData = dynamic_cast<const InstancedModelNode&>(*node);
@@ -275,9 +401,7 @@ void RendererImpl::updateResources()
 
 void RendererImpl::endFrame()
 {
-  updateResources();
-  recordCommandBuffer(m_commandBuffers[m_imageIndex], m_imageIndex);
-  finishFrame();
+  m_renderStates.writeComplete();
 }
 
 void RendererImpl::finishFrame()
@@ -324,10 +448,10 @@ void RendererImpl::finishFrame()
   m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void RendererImpl::updateUniformBuffer(const Camera& camera)
+void RendererImpl::updateUniformBuffer(const Mat4x4f& cameraMatrix)
 {
   UniformBufferObject ubo{};
-  ubo.viewMatrix = camera.getMatrix();
+  ubo.viewMatrix = cameraMatrix;
   ubo.projMatrix = m_projectionMatrix;
 
   m_resources->updateUniformBuffer(ubo, m_currentFrame);
@@ -840,7 +964,8 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
     assert(false);
   };
 
-  for (auto& node : m_renderGraph) {
+  const auto& renderGraph = m_renderStates.getReadable().graph;
+  for (auto& node : renderGraph) {
     auto& pipeline = m_pipelines.at(choosePipeline(node->type));
     pipeline->recordCommandBuffer(commandBuffer, *node, m_currentFrame);
   }
@@ -951,27 +1076,6 @@ void RendererImpl::createPipelines()
     m_swapchainExtent, m_renderPass, *m_resources);
   m_pipelines[PipelineName::skybox] = std::make_unique<SkyboxPipeline>(m_device,
     m_swapchainExtent, m_renderPass, *m_resources);
-}
-
-void RendererImpl::initVulkan()
-{
-  createInstance();
-#ifndef NDEBUG
-  setupDebugMessenger();
-#endif
-  createSurface();
-  pickPhysicalDevice();
-  createLogicalDevice();
-  createSwapChain();
-  createImageViews();
-  createRenderPass();
-  createCommandPool();
-  m_resources = createRenderResources(m_physicalDevice, m_device, m_graphicsQueue, m_commandPool);
-  createPipelines();
-  createDepthResources();
-  createFramebuffers();
-  createCommandBuffers();
-  createSyncObjects();
 }
 
 void RendererImpl::createSurface()
@@ -1125,7 +1229,7 @@ void RendererImpl::destroyDebugMessenger()
   func(m_instance, m_debugMessenger, nullptr);
 }
 
-RendererImpl::~RendererImpl()
+void RendererImpl::cleanUp()
 {
   vkDeviceWaitIdle(m_device);
 
@@ -1145,6 +1249,11 @@ RendererImpl::~RendererImpl()
   vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
   vkDestroyDevice(m_device, nullptr);
   vkDestroyInstance(m_instance, nullptr);
+}
+
+RendererImpl::~RendererImpl()
+{
+  m_running = false;
 }
 
 } // namespace

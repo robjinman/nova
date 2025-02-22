@@ -8,6 +8,8 @@ class Camera;
 class Renderer
 {
   public:
+    virtual double frameRate() const = 0;
+
     // Resources
     //
     virtual RenderItemId addTexture(TexturePtr texture) = 0;

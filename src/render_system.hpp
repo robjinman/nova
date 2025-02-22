@@ -32,6 +32,8 @@ class Camera;
 class RenderSystem : public System
 {
   public:
+    virtual double frameRate() const = 0;
+
     CRender& getComponent(EntityId entityId) override = 0;
     const CRender& getComponent(EntityId entityId) const override = 0;
 

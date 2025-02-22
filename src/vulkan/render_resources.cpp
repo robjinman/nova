@@ -433,7 +433,7 @@ void RenderResourcesImpl::createDescriptorPool()
   poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
   poolInfo.poolSizeCount = poolSizes.size();
   poolInfo.pPoolSizes = poolSizes.data();
-  poolInfo.maxSets = 20; // TODO
+  poolInfo.maxSets = 100; // TODO
 
   VK_CHECK(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_descriptorPool),
     "Failed to create descriptor pool");

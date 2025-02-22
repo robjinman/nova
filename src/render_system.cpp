@@ -16,6 +16,8 @@ class RenderSystemImpl : public RenderSystem
   public:
     RenderSystemImpl(const SpatialSystem&, Renderer& renderer, Logger& logger);
 
+    double frameRate() const override;
+
     void addComponent(ComponentPtr component) override;
     void removeComponent(EntityId entityId) override;
     bool hasComponent(EntityId entityId) const override;
@@ -58,6 +60,11 @@ RenderSystemImpl::RenderSystemImpl(const SpatialSystem& spatialSystem, Renderer&
   , m_spatialSystem(spatialSystem)
   , m_renderer(renderer)
 {
+}
+
+double RenderSystemImpl::frameRate() const
+{
+  return m_renderer.frameRate();
 }
 
 void RenderSystemImpl::addComponent(ComponentPtr component)
