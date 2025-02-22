@@ -201,12 +201,13 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
 #ifndef NDEBUG
     setupDebugMessenger();
 #endif
-    createSurface();
+  }).wait();
+  createSurface();
+  m_thread.run<void>([this]() {
     pickPhysicalDevice();
     createLogicalDevice();
-    createSwapChain(); // TODO
   }).wait();
-  //createSwapChain();
+  createSwapChain();
   m_thread.run<void>([this]() {
     createImageViews();
     createRenderPass();

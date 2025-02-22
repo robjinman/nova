@@ -110,7 +110,7 @@ void Application::run()
     m_renderSystem->update();
     m_collisionSystem->update();
 
-    //frameRateLimiter.wait();
+    frameRateLimiter.wait();
   }
 }
 
