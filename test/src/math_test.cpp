@@ -92,7 +92,6 @@ TEST_F(MathTest, cross_product_matrix)
   ASSERT_EQ(a.cross(b), m * b);
 }
 
-
 TEST_F(MathTest, lineSegmentCircleIntersect_true_for_point_at_end_point)
 {
   LineSegment lseg{{20, 30}, {-10, 60}};

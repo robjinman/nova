@@ -10,6 +10,14 @@ class TreeSetTest : public testing::Test
     virtual void TearDown() override {}
 };
 
+TEST_F(TreeSetTest, iterate_over_empty_set)
+{
+  TreeSet<int, char> set;
+
+  for ([[maybe_unused]] auto& element : set) {
+  }
+}
+
 TEST_F(TreeSetTest, iterates_in_correct_order)
 {
   TreeSet<int, char> set;

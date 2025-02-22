@@ -46,6 +46,7 @@ file(GLOB
   "${PROJECT_SOURCE_DIR}/src/*.cpp"
   "${PROJECT_SOURCE_DIR}/src/vulkan/*.cpp"
 )
+list(REMOVE_ITEM CPP_SOURCES "${CMAKE_SOURCE_DIR}/src/application.cpp")
 
 if(PLATFORM_LINUX)
   set(COMPILE_FLAGS -Wextra -Wall)

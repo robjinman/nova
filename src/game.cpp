@@ -64,7 +64,7 @@ void GameImpl::onKeyDown(KeyboardKey key)
 
   switch (key) {
     case KeyboardKey::F:
-      m_logger.info(STR("Frame rate: " << m_measuredFrameRate));
+      m_logger.info(STR("Simulation frame rate: " << m_measuredFrameRate));
       break;
     case KeyboardKey::P:
       m_freeflyMode = !m_freeflyMode;

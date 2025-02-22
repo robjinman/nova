@@ -120,7 +120,9 @@ class Node
 
     Iterator begin() const
     {
-      return Iterator(Path{std::pair{&m_children, m_children.cbegin()}});
+      return m_children.empty() ?
+        end() :
+        Iterator(Path{std::pair{&m_children, m_children.cbegin()}});
     }
 
     Iterator end() const
@@ -139,7 +141,7 @@ class Node
 
   private:
     NodeMap m_children;
-    TData m_data;
+    TData m_data{};
 
     Iterator find(Path& path, Key& key) const
     {
