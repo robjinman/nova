@@ -13,12 +13,11 @@ TEST_F(ThreadTest, wait_for_task)
 {
   Thread thread;
   int result = 0;
-  std::future<void> future = thread.run<void>([&]() {
+  thread.run<void>([&]() {
     for (int i = 0; i < 100; ++i) {
       result += i;
     }
-  });
-  future.wait();
+  }).wait();
 
   ASSERT_EQ(4950, result);
 }
