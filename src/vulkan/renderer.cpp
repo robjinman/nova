@@ -240,14 +240,15 @@ double RendererImpl::frameRate() const
 void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
   const Mat4x4f& transform)
 {
+  RenderGraph& renderGraph = m_renderStates.getWritable().graph;
   RenderGraph::Key key{
     static_cast<RenderGraphKey>(PipelineName::instancedModel),
     static_cast<RenderGraphKey>(meshId),
     static_cast<RenderGraphKey>(materialId)
   };
   InstancedModelNode* node = nullptr;
-  auto i = m_renderStates.getWritable().graph.find(key);
-  if (i != m_renderStates.getWritable().graph.end()) {
+  auto i = renderGraph.find(key);
+  if (i != renderGraph.end()) {
     node = dynamic_cast<InstancedModelNode*>(i->get());
   }
   else {
@@ -255,14 +256,16 @@ void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
     newNode->mesh = meshId;
     newNode->material = materialId;
     node = newNode.get();
-    m_renderStates.getWritable().graph.insert(key, std::move(newNode));
+    renderGraph.insert(key, std::move(newNode));
   }
   node->instances.push_back(MeshInstance{transform});
 }
 
 void RendererImpl::stageModel(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform)
 {
-  static RenderGraphKey nextId = 0; // TODO
+  static RenderGraphKey nextId = 0;
+
+  RenderGraph& renderGraph = m_renderStates.getWritable().graph;
 
   auto node = std::make_unique<DefaultModelNode>();
   node->mesh = mesh;
@@ -275,17 +278,19 @@ void RendererImpl::stageModel(RenderItemId mesh, RenderItemId material, const Ma
     static_cast<RenderGraphKey>(material),
     nextId++
   };
-  m_renderStates.getWritable().graph.insert(key, std::move(node));
+  renderGraph.insert(key, std::move(node));
 }
 
 void RendererImpl::stageSkybox(RenderItemId mesh, RenderItemId material)
 {
+  RenderGraph& renderGraph = m_renderStates.getWritable().graph;
+
   auto node = std::make_unique<SkyboxNode>();
   node->mesh = mesh;
   node->material = material;
 
   RenderGraph::Key key{ static_cast<RenderGraphKey>(PipelineName::skybox) };
-  m_renderStates.getWritable().graph.insert(key, std::move(node));
+  renderGraph.insert(key, std::move(node));
 }
 
 void RendererImpl::beginFrame(const Camera& camera)
