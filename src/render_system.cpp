@@ -16,6 +16,7 @@ class RenderSystemImpl : public RenderSystem
   public:
     RenderSystemImpl(const SpatialSystem&, Renderer& renderer, Logger& logger);
 
+    void start() override;
     double frameRate() const override;
 
     void addComponent(ComponentPtr component) override;
@@ -60,6 +61,11 @@ RenderSystemImpl::RenderSystemImpl(const SpatialSystem& spatialSystem, Renderer&
   , m_spatialSystem(spatialSystem)
   , m_renderer(renderer)
 {
+}
+
+void RenderSystemImpl::start()
+{
+  m_renderer.start();
 }
 
 double RenderSystemImpl::frameRate() const

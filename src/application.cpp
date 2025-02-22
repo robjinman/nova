@@ -92,6 +92,7 @@ Application::Application(GLFWwindow* window)
   auto player = createScene(*m_entityFactory, *m_spatialSystem, *m_renderSystem, *m_collisionSystem,
     *m_mapParser, *m_logger);
 
+  m_renderSystem->start();
   m_game = createGame(std::move(player), *m_collisionSystem, *m_logger);
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);
@@ -109,7 +110,7 @@ void Application::run()
     m_renderSystem->update();
     m_collisionSystem->update();
 
-    frameRateLimiter.wait();
+    //frameRateLimiter.wait();
   }
 }
 

@@ -11,6 +11,7 @@
 #include "utils.hpp"
 #include "time.hpp"
 #include "thread.hpp"
+#include "triple_buffer.hpp"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <array>
@@ -65,66 +66,12 @@ struct SwapChainSupportDetails
   std::vector<VkPresentModeKHR> presentModes;
 };
 
-template<typename T>
-class TripleBuffer
-{
-  public:
-    // Call from writer thread
-    //
-    T& writeComplete()
-    {
-      std::lock_guard lock(m_mutex);
-      m_writeState.frameNumber = ++m_frameCount;
-      std::swap(m_writeState.index, m_freeState.index);
-      assert(inRange(m_writeState.index, 0ul, 2ul));
-      return m_items[m_writeState.index];
-    }
-
-    T& getWritable()
-    {
-      assert(inRange(m_writeState.index, 0ul, 2ul));
-      return m_items[m_writeState.index];
-    }
-
-    // Call from reader thread
-    //
-    T& readComplete()
-    {
-      std::lock_guard lock(m_mutex);
-      if (m_freeState.frameNumber > m_readState.frameNumber) {
-        std::swap(m_readState.index, m_freeState.index);
-      }
-      assert(inRange(m_readState.index, 0ul, 2ul));
-      return m_items[m_readState.index];
-    }
-
-    T& getReadable()
-    {
-      assert(inRange(m_readState.index, 0ul, 2ul));
-      return m_items[m_readState.index];
-    }
-
-  private:
-    std::array<T, 3> m_items{};
-
-    struct State
-    {
-      size_t index;
-      size_t frameNumber;
-    };
-
-    std::mutex m_mutex;
-    State m_writeState{0, 0};
-    State m_readState{1, 0};
-    State m_freeState{2, 0};
-    size_t m_frameCount = 0;
-};
-
 class RendererImpl : public Renderer
 {
   public:
     RendererImpl(GLFWwindow& window, Logger& logger);
 
+    void start() override;
     double frameRate() const override;
 
     // Resources
@@ -249,7 +196,7 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
   : m_window(window)
   , m_logger(logger)
 {
-  m_thread.run([this]() {
+  m_thread.run<void>([this]() {
     createInstance();
 #ifndef NDEBUG
     setupDebugMessenger();
@@ -257,10 +204,10 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
     createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
-  });
-  m_thread.wait();
-  createSwapChain();
-  m_thread.run([this]() {
+    createSwapChain(); // TODO
+  }).wait();
+  //createSwapChain();
+  m_thread.run<void>([this]() {
     createImageViews();
     createRenderPass();
     createCommandPool();
@@ -270,14 +217,16 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
     createFramebuffers();
     createCommandBuffers();
     createSyncObjects();
-  });
-  m_thread.wait();
+  }).wait();
 
   float_t aspectRatio = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
   m_projectionMatrix = perspective(degreesToRadians(45.f), aspectRatio, 0.1f, DRAW_DISTANCE);
+}
 
+void RendererImpl::start()
+{
   m_running = true;
-  m_thread.run([&]() {
+  m_thread.run<void>([&]() {
     renderLoop();
   });
 }
@@ -457,29 +406,32 @@ void RendererImpl::updateUniformBuffer(const Mat4x4f& cameraMatrix)
   m_resources->updateUniformBuffer(ubo, m_currentFrame);
 }
 
-RenderItemId RendererImpl::addMesh(MeshPtr mesh)
-{
-  return m_resources->addMesh(std::move(mesh));
-}
-
 void RendererImpl::removeMesh(RenderItemId id)
 {
-  m_resources->removeMesh(id);
+  // TODO
+  EXCEPTION("Not implemented");
+  //m_resources->removeMesh(id);
 }
 
 void RendererImpl::removeTexture(RenderItemId id)
 {
-  m_resources->removeTexture(id);
+  // TODO
+  EXCEPTION("Not implemented");
+  //m_resources->removeTexture(id);
 }
 
 void RendererImpl::removeCubeMap(RenderItemId id)
 {
-  m_resources->removeCubeMap(id);
+  // TODO
+  EXCEPTION("Not implemented");
+  //m_resources->removeCubeMap(id);
 }
 
 void RendererImpl::removeMaterial(RenderItemId id)
 {
-  m_resources->removeMaterial(id);
+  // TODO
+  EXCEPTION("Not implemented");
+  //m_resources->removeMaterial(id);
 }
 
 VkExtent2D RendererImpl::chooseSwapChainExtent(
@@ -962,6 +914,7 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
       case RenderNodeType::skybox: return PipelineName::skybox;
     }
     assert(false);
+    return PipelineName::defaultModel;
   };
 
   const auto& renderGraph = m_renderStates.getReadable().graph;
@@ -991,17 +944,34 @@ void RendererImpl::createCommandBuffers()
 
 RenderItemId RendererImpl::addTexture(TexturePtr texture)
 {
-  return m_resources->addTexture(std::move(texture));
+  ASSERT(!m_running, "Renderer already started"); // TODO
+  return m_thread.run<RenderItemId>([&, this]() {
+    return m_resources->addTexture(std::move(texture));
+  }).get();
 }
 
 RenderItemId RendererImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
 {
-  return m_resources->addCubeMap(std::move(textures));
+  ASSERT(!m_running, "Renderer already started"); // TODO
+  return m_thread.run<RenderItemId>([&, this]() {
+    return m_resources->addCubeMap(std::move(textures));
+  }).get();
 }
 
 RenderItemId RendererImpl::addMaterial(MaterialPtr material)
 {
-  return m_resources->addMaterial(std::move(material));
+  ASSERT(!m_running, "Renderer already started"); // TODO
+  return m_thread.run<RenderItemId>([&, this]() {
+    return m_resources->addMaterial(std::move(material));
+  }).get();
+}
+
+RenderItemId RendererImpl::addMesh(MeshPtr mesh)
+{
+  ASSERT(!m_running, "Renderer already started"); // TODO
+  return m_thread.run<RenderItemId>([&, this]() {
+    return m_resources->addMesh(std::move(mesh));
+  }).get();
 }
 
 void RendererImpl::createSyncObjects()

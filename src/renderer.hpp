@@ -8,6 +8,7 @@ class Camera;
 class Renderer
 {
   public:
+    virtual void start() = 0;
     virtual double frameRate() const = 0;
 
     // Resources
