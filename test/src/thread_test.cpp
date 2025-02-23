@@ -36,3 +36,26 @@ TEST_F(ThreadTest, wait_for_int_result)
 
   ASSERT_EQ(4950, result);
 }
+
+TEST_F(ThreadTest, exception_on_get)
+{
+  Thread thread;
+  std::future<int> future = thread.run<int>([&]() {
+    int result = 0;
+    for (int i = 0; i < 100; ++i) {
+      result += i;
+    }
+    throw std::runtime_error("Error!");
+    return result;
+  });
+
+  EXPECT_THROW({
+    try {
+      future.get();
+    }
+    catch (const std::exception& e) {
+      EXPECT_EQ(std::string("Error!"), e.what());
+      throw e;
+    }
+  }, std::exception);
+}

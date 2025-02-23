@@ -1,10 +1,10 @@
 #version 450
 
-layout(set = 0, binding = 0) uniform UniformBufferObject
+layout(std140, set = 0, binding = 0) uniform MatricesUbo
 {
   mat4 viewMatrix;
   mat4 projMatrix;
-} ubo;
+} matrices;
 
 layout(push_constant) uniform PushConstants
 {
@@ -24,7 +24,7 @@ layout(location = 3) out vec3 outNormal;
 void main()
 {
   vec4 worldPos = constants.modelMatrix * vec4(inPos, 1.0);
-  gl_Position = ubo.projMatrix * ubo.viewMatrix * worldPos;
+  gl_Position = matrices.projMatrix * matrices.viewMatrix * worldPos;
 
   outColour = inColour;
   outTexCoord = inTexCoord;

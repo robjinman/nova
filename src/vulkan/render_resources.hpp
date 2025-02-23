@@ -3,10 +3,31 @@
 #include "model.hpp"
 #include <vulkan/vulkan.h>
 
-struct UniformBufferObject
+struct MatricesUbo
 {
   Mat4x4f viewMatrix;
   Mat4x4f projMatrix;
+};
+
+struct Light
+{
+  Vec3f worldPos;
+  uint8_t _padding1[4];
+  Vec3f colour;
+  float_t ambient;
+  //uint8_t _padding2[12];
+};
+
+struct LightingUbo
+{
+  Light lights[8];
+  int32_t numLights;
+};
+
+struct MaterialUbo
+{
+  Vec3f colour;
+  VkBool32 hasTexture;
 };
 
 struct MeshInstance
@@ -48,16 +69,24 @@ class RenderResources
     virtual VkDescriptorSetLayout getMaterialDescriptorSetLayout() const = 0;
     virtual VkDescriptorSet getMaterialDescriptorSet(RenderItemId id) const = 0;
 
-    // UBO
+    // Matrices
     //
-    virtual void updateUniformBuffer(const UniformBufferObject& ubo, size_t currentFrame) = 0;
-    virtual VkDescriptorSetLayout getUboDescriptorSetLayout() const = 0;
-    virtual VkDescriptorSet getUboDescriptorSet(size_t currentFrame) const = 0;
+    virtual void updateMatricesUbo(const MatricesUbo& ubo, size_t currentFrame) = 0;
+    virtual VkDescriptorSetLayout getMatricesDescriptorSetLayout() const = 0;
+    virtual VkDescriptorSet getMatricesDescriptorSet(size_t currentFrame) const = 0;
+
+    // Lighting
+    //
+    virtual void updateLightingUbo(const LightingUbo& ubo, size_t currentFrame) = 0;
+    virtual VkDescriptorSetLayout getLightingDescriptorSetLayout() const = 0;
+    virtual VkDescriptorSet getLightingDescriptorSet(size_t currentFrame) const = 0;
 
     virtual ~RenderResources() = default;
 };
 
 using RenderResourcesPtr = std::unique_ptr<RenderResources>;
 
+class Logger;
+
 RenderResourcesPtr createRenderResources(VkPhysicalDevice physicalDevice, VkDevice device,
-  VkQueue graphicsQueue, VkCommandPool commandPool);
+  VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger);
