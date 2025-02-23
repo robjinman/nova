@@ -1,13 +1,6 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-struct Light
-{
-  vec3 worldPos;
-  vec3 colour;
-  float ambient;
-};
-
 layout(set = 1, binding = 0) uniform sampler2D texSampler;
 //layout(set = 1, binding = 0) uniform sampler2D normalMapSampler;
 
@@ -18,10 +11,17 @@ layout(std140, set = 1, binding = 1) uniform MaterialUbo
   //bool hasNormalMap;
 } material;
 
+layout(std140) struct Light
+{
+  vec3 worldPos;
+  vec3 colour;
+  float ambient;
+};
+
 layout(std140, set = 2, binding = 0) uniform LightingUbo
 {
-  Light lights[8];
   int numLights;
+  Light lights[8];
 } lighting;
 
 layout(location = 0) in vec3 inColour;
