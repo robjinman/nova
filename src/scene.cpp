@@ -9,6 +9,7 @@
 #include "units.hpp"
 #include "player.hpp"
 #include <numeric>
+#include <array>
 #include <cassert>
 
 namespace

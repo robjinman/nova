@@ -53,15 +53,15 @@ SkyboxPipeline::SkyboxPipeline(VkDevice device, VkExtent2D swapchainExtent,
   auto colourBlending = defaultColourBlendState(colourBlendAttachment);
 
   VkPushConstantRange vertexPushConstants{
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
     .offset = 0,
-    .size = sizeof(Mat4x4f),
-    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+    .size = sizeof(Mat4x4f)
   };
 
   VkPushConstantRange fragmentPushConstants{
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
     .offset = sizeof(Mat4x4f),
-    .size = sizeof(VkBool32),
-    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
+    .size = sizeof(VkBool32)
   };
 
   std::vector<VkPushConstantRange> pushConstantRanges{

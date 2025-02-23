@@ -4,6 +4,7 @@
 #include "trace.hpp"
 #include "utils.hpp"
 #include <map>
+#include <array>
 #include <cstring>
 #include <cassert>
 
@@ -413,9 +414,9 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
     "Failed to allocate descriptor sets");
 
   VkDescriptorImageInfo imageInfo{
-    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    .sampler = m_textureSampler,
     .imageView = imageView,
-    .sampler = m_textureSampler
+    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
   };
 
   VkWriteDescriptorSet samplerDescriptorWrite{
@@ -423,8 +424,8 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
     .dstSet = materialData->descriptorSet,
     .dstBinding = 0,
     .dstArrayElement = 0,
-    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
     .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
     .pImageInfo = &imageInfo
   };
 
@@ -444,8 +445,8 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
     .dstSet = materialData->descriptorSet,
     .dstBinding = 1,
     .dstArrayElement = 0,
-    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
     .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
     .pBufferInfo = &bufferInfo
   };
 
@@ -533,9 +534,9 @@ void RenderResourcesImpl::createDescriptorPool()
 
   VkDescriptorPoolCreateInfo poolInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-    .poolSizeCount = poolSizes.size(),
-    .pPoolSizes = poolSizes.data(),
     .maxSets = 100, // TODO
+    .poolSizeCount = poolSizes.size(),
+    .pPoolSizes = poolSizes.data()
   };
 
   VK_CHECK(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_descriptorPool),
@@ -553,12 +554,12 @@ void RenderResourcesImpl::copyBufferToImage(VkBuffer buffer, VkImage image, uint
     .bufferOffset = bufferOffset,
     .bufferRowLength = 0,
     .bufferImageHeight = 0,
-
-    .imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-    .imageSubresource.mipLevel = 0,
-    .imageSubresource.baseArrayLayer = layer,
-    .imageSubresource.layerCount = 1,
-
+    .imageSubresource = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .mipLevel = 0,
+      .baseArrayLayer = layer,
+      .layerCount = 1
+    },
     .imageOffset = { 0, 0, 0 },
     .imageExtent = { width, height, 1 }
   };
@@ -593,10 +594,10 @@ void RenderResourcesImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usa
 
   VkBufferCreateInfo bufferInfo{
     .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+    .flags = 0,
     .size = size,
     .usage = usage,
-    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    .flags = 0
+    .sharingMode = VK_SHARING_MODE_EXCLUSIVE
   };
 
   VK_CHECK(vkCreateBuffer(m_device, &bufferInfo, nullptr, &buffer), "Failed to create buffer");
@@ -785,8 +786,8 @@ void RenderResourcesImpl::createDescriptorSets(size_t n, VkDescriptorSetLayout l
       .dstSet = descriptorSets[i],
       .dstBinding = 0,
       .dstArrayElement = 0,
-      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .pBufferInfo = &bufferInfo
     };
 
@@ -809,8 +810,8 @@ VkCommandBuffer RenderResourcesImpl::beginSingleTimeCommands()
 {
   VkCommandBufferAllocateInfo allocInfo{
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
     .commandPool = m_commandPool, // TODO: Separate pool for temp buffers?
+    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
     .commandBufferCount = 1
   };
   
@@ -857,11 +858,13 @@ void RenderResourcesImpl::transitionImageLayout(VkImage image, VkImageLayout old
     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
     .image = image,
-    .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-    .subresourceRange.baseMipLevel = 0,
-    .subresourceRange.levelCount = 1,
-    .subresourceRange.baseArrayLayer = 0,
-    .subresourceRange.layerCount = layerCount
+    .subresourceRange = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = layerCount
+    }
   };
 
   VkPipelineStageFlags sourceStage;
@@ -897,8 +900,8 @@ void RenderResourcesImpl::createUboDescriptorSetLayout()
 
   VkDescriptorSetLayoutBinding uboLayoutBinding{
     .binding = 0,
-    .descriptorCount = 1,
     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
     .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
     .pImmutableSamplers = nullptr
   };
@@ -924,8 +927,8 @@ void RenderResourcesImpl::createLightingDescriptorSetLayout()
 
   VkDescriptorSetLayoutBinding lightingLayoutBinding{
     .binding = 0,
-    .descriptorCount = 1,
     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
     .pImmutableSamplers = nullptr
   };
@@ -951,16 +954,16 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
 
   VkDescriptorSetLayoutBinding samplerLayoutBinding{
     .binding = 0,
-    .descriptorCount = 1,
     .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 1,
     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
     .pImmutableSamplers = nullptr
   };
 
   VkDescriptorSetLayoutBinding materialLayoutBinding{
     .binding = 1,
-    .descriptorCount = 1,
     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
     .pImmutableSamplers = nullptr
   };
@@ -1001,19 +1004,19 @@ void RenderResourcesImpl::createTextureSampler()
     .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
     .magFilter = VK_FILTER_LINEAR,
     .minFilter = VK_FILTER_LINEAR,
+    .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
     .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
     .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
     .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .mipLodBias = 0.f,
     .anisotropyEnable = VK_TRUE,
     .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
-    .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
-    .unnormalizedCoordinates = VK_FALSE,
     .compareEnable = VK_FALSE,
     .compareOp = VK_COMPARE_OP_ALWAYS,
-    .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-    .mipLodBias = 0.f,
     .minLod = 0.f,
-    .maxLod = 0.f
+    .maxLod = 0.f,
+    .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+    .unnormalizedCoordinates = VK_FALSE
   };
 
   VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_textureSampler),
