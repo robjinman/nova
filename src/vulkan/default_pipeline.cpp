@@ -54,9 +54,9 @@ DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
   auto colourBlending = defaultColourBlendState(colourBlendAttachment);
 
   VkPushConstantRange vertexPushConstants{
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
     .offset = 0,
-    .size = sizeof(Mat4x4f),
-    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+    .size = sizeof(Mat4x4f)
   };
 
   std::vector<VkPushConstantRange> pushConstantRanges{

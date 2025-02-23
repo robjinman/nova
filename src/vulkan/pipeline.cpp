@@ -30,29 +30,29 @@ std::vector<VkVertexInputAttributeDescription> defaultAttributeDescriptions()
   std::vector<VkVertexInputAttributeDescription> attributes;
 
   attributes.push_back(VkVertexInputAttributeDescription{
-    .binding = 0,
     .location = 0,
+    .binding = 0,
     .format = VK_FORMAT_R32G32B32_SFLOAT,
     .offset = offsetof(Vertex, pos)
   });
 
   attributes.push_back(VkVertexInputAttributeDescription{
-    .binding = 0,
     .location = 1,
+    .binding = 0,
     .format = VK_FORMAT_R32G32B32_SFLOAT,
     .offset = offsetof(Vertex, normal)
   });
 
   attributes.push_back(VkVertexInputAttributeDescription{
-    .binding = 0,
     .location = 2,
+    .binding = 0,
     .format = VK_FORMAT_R32G32B32_SFLOAT,
     .offset = offsetof(Vertex, colour)
   });
 
   attributes.push_back(VkVertexInputAttributeDescription{
-    .binding = 0,
     .location = 3,
+    .binding = 0,
     .format = VK_FORMAT_R32G32_SFLOAT,
     .offset = offsetof(Vertex, texCoord)
   });
@@ -102,13 +102,13 @@ VkPipelineRasterizationStateCreateInfo defaultRasterizationState()
     .depthClampEnable = VK_FALSE,
     .rasterizerDiscardEnable = VK_FALSE,
     .polygonMode = VK_POLYGON_MODE_FILL,
-    .lineWidth = 1.0f,
     .cullMode = VK_CULL_MODE_BACK_BIT,
     .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
     .depthBiasEnable = VK_FALSE,
     .depthBiasConstantFactor = 0.0f,
     .depthBiasClamp = 0.0f,
-    .depthBiasSlopeFactor = 0.0f
+    .depthBiasSlopeFactor = 0.0f,
+    .lineWidth = 1.0f
   };
 }
 
@@ -116,8 +116,8 @@ VkPipelineMultisampleStateCreateInfo defaultMultisamplingState()
 {
   return VkPipelineMultisampleStateCreateInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-    .sampleShadingEnable = VK_FALSE,
     .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+    .sampleShadingEnable = VK_FALSE,
     .minSampleShading = 1.0f,
     .pSampleMask = nullptr,
     .alphaToCoverageEnable = VK_FALSE,
@@ -129,10 +129,6 @@ VkPipelineColorBlendStateCreateInfo
 defaultColourBlendState(VkPipelineColorBlendAttachmentState& colourBlendAttachment)
 {
   colourBlendAttachment = VkPipelineColorBlendAttachmentState{
-    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
-                      VK_COLOR_COMPONENT_G_BIT |
-                      VK_COLOR_COMPONENT_B_BIT |
-                      VK_COLOR_COMPONENT_A_BIT,
     .blendEnable = VK_FALSE,
     .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
     .dstColorBlendFactor = VK_BLEND_FACTOR_ZERO,
@@ -140,6 +136,10 @@ defaultColourBlendState(VkPipelineColorBlendAttachmentState& colourBlendAttachme
     .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
     .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
     .alphaBlendOp = VK_BLEND_OP_ADD,
+    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
+                      VK_COLOR_COMPONENT_G_BIT |
+                      VK_COLOR_COMPONENT_B_BIT |
+                      VK_COLOR_COMPONENT_A_BIT
   };
 
   return VkPipelineColorBlendStateCreateInfo{
@@ -148,10 +148,7 @@ defaultColourBlendState(VkPipelineColorBlendAttachmentState& colourBlendAttachme
     .logicOp = VK_LOGIC_OP_COPY,
     .attachmentCount = 1,
     .pAttachments = &colourBlendAttachment,
-    .blendConstants[0] = 0.0f,
-    .blendConstants[1] = 0.0f,
-    .blendConstants[2] = 0.0f,
-    .blendConstants[3] = 0.0f
+    .blendConstants = { 0, 0, 0, 0 }
   };
 }
 
@@ -163,10 +160,10 @@ VkPipelineDepthStencilStateCreateInfo defaultDepthStencilState()
     .depthWriteEnable = VK_TRUE,
     .depthCompareOp = VK_COMPARE_OP_LESS,
     .depthBoundsTestEnable = VK_FALSE,
-    .minDepthBounds = 0.f,
-    .maxDepthBounds = 1.f,
     .stencilTestEnable = VK_FALSE,
     .front = {},
-    .back = {}
+    .back = {},
+    .minDepthBounds = 0.f,
+    .maxDepthBounds = 1.f
   };
 }
