@@ -3,6 +3,7 @@
 #include "model.hpp"
 #include <vulkan/vulkan.h>
 
+#pragma pack(push, 4)
 struct MatricesUbo
 {
   Mat4x4f viewMatrix;
@@ -15,13 +16,13 @@ struct Light
   uint8_t _padding1[4];
   Vec3f colour;
   float_t ambient;
-  //uint8_t _padding2[12];
 };
 
 struct LightingUbo
 {
-  Light lights[8];
   int32_t numLights;
+  uint8_t _padding1[12];
+  Light lights[8];
 };
 
 struct MaterialUbo
@@ -34,6 +35,7 @@ struct MeshInstance
 {
   Mat4x4f modelMatrix;
 };
+#pragma pack(pop)
 
 struct MeshBuffers
 {

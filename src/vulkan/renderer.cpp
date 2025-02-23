@@ -436,9 +436,10 @@ void RendererImpl::updateLightingUbo()
   DBG_TRACE(m_logger);
 
   // TODO
-  LightingUbo ubo;
+  LightingUbo ubo{};
+  ubo.numLights = 2;
   ubo.lights[0] = Light{
-    .worldPos = { 0, 1000, 0 },
+    .worldPos = { 123, 1000, 0 },
     .colour = { 1, 1, 1 },
     .ambient = 0.4
   };
@@ -447,7 +448,6 @@ void RendererImpl::updateLightingUbo()
     .colour = { 1, 1, 1 },
     .ambient = 0.4
   };
-  ubo.numLights = 2;
 
   m_resources->updateLightingUbo(ubo, m_currentFrame);
 }
