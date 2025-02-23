@@ -1,5 +1,8 @@
 #include "vulkan/render_resources.hpp"
 #include "vulkan/vulkan_utils.hpp"
+#include "logger.hpp"
+#include "trace.hpp"
+#include "utils.hpp"
 #include <map>
 #include <cstring>
 #include <cassert>
@@ -45,6 +48,9 @@ struct MaterialData
 {
   MaterialPtr material;
   VkDescriptorSet descriptorSet;
+  VkBuffer uboBuffer;
+  VkDeviceMemory uboMemory;
+  void* uboMapped = nullptr;  // TOOD: Remove mapping to host memory
 };
 
 using MaterialDataPtr = std::unique_ptr<MaterialData>;
@@ -53,7 +59,7 @@ class RenderResourcesImpl : public RenderResources
 {
   public:
     RenderResourcesImpl(VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
-      VkCommandPool commandPool);
+      VkCommandPool commandPool, Logger& logger);
 
     // Resources
     //
@@ -76,11 +82,17 @@ class RenderResourcesImpl : public RenderResources
     VkDescriptorSetLayout getMaterialDescriptorSetLayout() const override;
     VkDescriptorSet getMaterialDescriptorSet(RenderItemId id) const override;
 
-    // UBO
+    // Matrices
     //
-    void updateUniformBuffer(const UniformBufferObject& ubo, size_t currentFrame) override;
-    VkDescriptorSetLayout getUboDescriptorSetLayout() const override;
-    VkDescriptorSet getUboDescriptorSet(size_t currentFrame) const override;
+    void updateMatricesUbo(const MatricesUbo& ubo, size_t currentFrame) override;
+    VkDescriptorSetLayout getMatricesDescriptorSetLayout() const override;
+    VkDescriptorSet getMatricesDescriptorSet(size_t currentFrame) const override;
+
+    // Lighting
+    //
+    void updateLightingUbo(const LightingUbo& ubo, size_t currentFrame) override;
+    VkDescriptorSetLayout getLightingDescriptorSetLayout() const override;
+    VkDescriptorSet getLightingDescriptorSet(size_t currentFrame) const override;
 
     ~RenderResourcesImpl() override;
 
@@ -89,22 +101,31 @@ class RenderResourcesImpl : public RenderResources
     std::map<RenderItemId, TextureDataPtr> m_textures;
     std::map<RenderItemId, CubeMapDataPtr> m_cubeMaps;
     std::map<RenderItemId, MaterialDataPtr> m_materials;
+
+    RenderItemId m_nullTextureId;
     RenderItemId m_nullMaterialId;
 
+    Logger& m_logger;
     VkPhysicalDevice m_physicalDevice;
     VkDevice m_device;
     VkQueue m_graphicsQueue;
     VkCommandPool m_commandPool;
     VkDescriptorPool m_descriptorPool;
 
-    VkDescriptorSetLayout m_uboDescriptorSetLayout;
-    std::vector<VkDescriptorSet> m_uboDescriptorSets;
-    std::vector<VkBuffer> m_uniformBuffers;
-    std::vector<VkDeviceMemory> m_uniformBuffersMemory;
-    std::vector<void*> m_uniformBuffersMapped;
+    VkDescriptorSetLayout m_matricesUboDescriptorSetLayout;
+    std::vector<VkDescriptorSet> m_matricesUboDescriptorSets;
+    std::vector<VkBuffer> m_matricesUboBuffers;
+    std::vector<VkDeviceMemory> m_matricesUboMemory;
+    std::vector<void*> m_matricesUboMapped;
   
     VkDescriptorSetLayout m_materialDescriptorSetLayout;
     VkSampler m_textureSampler;
+
+    VkDescriptorSetLayout m_lightingUboDescriptorSetLayout;
+    std::vector<VkDescriptorSet> m_lightingUboDescriptorSets;
+    std::vector<VkBuffer> m_lightingUboBuffers;
+    std::vector<VkDeviceMemory> m_lightingUboMemory;
+    std::vector<void*> m_lightingUboMapped;
 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height,
@@ -117,10 +138,16 @@ class RenderResourcesImpl : public RenderResources
     void createTextureSampler();
     VkBuffer createIndexBuffer(const IndexList& indices, VkDeviceMemory& indexBufferMemory);
     void createUniformBuffers();
+    void createPerFrameUbos(size_t size, std::vector<VkBuffer>& buffers,
+      std::vector<VkDeviceMemory>& memory, std::vector<void*>& mappings);
+    void createUbo(size_t size, VkBuffer& buffer, VkDeviceMemory& memory, void*& mapping);
     void createDescriptorPool();
     void createDescriptorSets();
+    void createDescriptorSets(size_t n, VkDescriptorSetLayout layout,
+      std::vector<VkDescriptorSet>& descriptorSets, const std::vector<VkBuffer>& buffers);
     void createDescriptorSetLayouts();
     void createUboDescriptorSetLayout();
+    void createLightingDescriptorSetLayout();
     void createMaterialDescriptorSetLayout();
     void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
       uint32_t layerCount);
@@ -130,12 +157,15 @@ class RenderResourcesImpl : public RenderResources
 };
 
 RenderResourcesImpl::RenderResourcesImpl(VkPhysicalDevice physicalDevice, VkDevice device,
-  VkQueue graphicsQueue, VkCommandPool commandPool)
-  : m_physicalDevice(physicalDevice)
+  VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger)
+  : m_logger(logger)
+  , m_physicalDevice(physicalDevice)
   , m_device(device)
   , m_graphicsQueue(graphicsQueue)
   , m_commandPool(commandPool)
 {
+  DBG_TRACE(m_logger);
+
   createDescriptorSetLayouts();
   createTextureSampler();
   createUniformBuffers();
@@ -285,7 +315,10 @@ RenderItemId RenderResourcesImpl::addMesh(MeshPtr mesh)
   data->mesh = std::move(mesh);
   data->vertexBuffer = createVertexBuffer(data->mesh->vertices, data->vertexBufferMemory);
   data->indexBuffer = createIndexBuffer(data->mesh->indices, data->indexBufferMemory);
-  data->instanceBuffer = createInstanceBuffer(data->mesh->maxInstances, data->instanceBufferMemory);
+  if (data->mesh->isInstanced) {
+    data->instanceBuffer = createInstanceBuffer(data->mesh->maxInstances,
+      data->instanceBufferMemory);
+  }
 
   RenderItemId id = nextMeshId++;
   m_meshes[id] = std::move(data);
@@ -304,8 +337,10 @@ void RenderResourcesImpl::removeMesh(RenderItemId id)
   vkFreeMemory(m_device, i->second->indexBufferMemory, nullptr);
   vkDestroyBuffer(m_device, i->second->vertexBuffer, nullptr);
   vkFreeMemory(m_device, i->second->vertexBufferMemory, nullptr);
-  vkDestroyBuffer(m_device, i->second->instanceBuffer, nullptr);
-  vkFreeMemory(m_device, i->second->instanceBufferMemory, nullptr);
+  if (i->second->instanceBuffer != VK_NULL_HANDLE) {
+    vkDestroyBuffer(m_device, i->second->instanceBuffer, nullptr);
+    vkFreeMemory(m_device, i->second->instanceBufferMemory, nullptr);
+  }
 
   m_meshes.erase(i);
 }
@@ -326,6 +361,8 @@ MeshBuffers RenderResourcesImpl::getMeshBuffers(RenderItemId id) const
 void RenderResourcesImpl::updateMeshInstances(RenderItemId id,
   const std::vector<MeshInstance>& instances)
 {
+  DBG_TRACE(m_logger);
+
   auto& mesh = m_meshes.at(id);
   ASSERT(mesh->mesh->isInstanced, "Can't instance a non-instanced mesh");
   ASSERT(instances.size() <= mesh->mesh->maxInstances, "Max instances exceeded for this mesh");
@@ -345,41 +382,82 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
 
   // TODO
   ASSERT(!(material->cubeMap != NULL_ID && material->texture != NULL_ID),
-    "Currently, materials must have either texture or cube map, but not both");
+    "Currently, materials cannot have both a cube map and a texture");
+
+  RenderItemId textureId = material->texture;
+  bool usingNullTexture = false;
+  bool usingCubeMap = material->cubeMap != NULL_ID;
+
+  if (textureId == NULL_ID) {
+    textureId = m_nullTextureId;
+    usingNullTexture = true;
+  }
 
   VkImageView imageView = VK_NULL_HANDLE;
-  if (material->texture != NULL_ID) {
-    imageView = m_textures.at(material->texture)->imageView;
+  if (!usingCubeMap) {
+    imageView = m_textures.at(textureId)->imageView;
   }
-  else if (material->cubeMap != NULL_ID) {
+  else {
     imageView = m_cubeMaps.at(material->cubeMap)->imageView;
   }
   assert(imageView != VK_NULL_HANDLE);
 
-  VkDescriptorSetAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-  allocInfo.descriptorPool = m_descriptorPool;
-  allocInfo.descriptorSetCount = 1;
-  allocInfo.pSetLayouts = &m_materialDescriptorSetLayout;
+  VkDescriptorSetAllocateInfo allocInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool = m_descriptorPool,
+    .descriptorSetCount = 1,
+    .pSetLayouts = &m_materialDescriptorSetLayout
+  };
 
   VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, &materialData->descriptorSet),
     "Failed to allocate descriptor sets");
 
-  VkDescriptorImageInfo imageInfo{};
-  imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  imageInfo.imageView = imageView;
-  imageInfo.sampler = m_textureSampler;
+  VkDescriptorImageInfo imageInfo{
+    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    .imageView = imageView,
+    .sampler = m_textureSampler
+  };
 
-  VkWriteDescriptorSet descriptorWrite{};
-  descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  descriptorWrite.dstSet = materialData->descriptorSet;
-  descriptorWrite.dstBinding = 0;
-  descriptorWrite.dstArrayElement = 0;
-  descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  descriptorWrite.descriptorCount = 1;
-  descriptorWrite.pImageInfo = &imageInfo;
+  VkWriteDescriptorSet samplerDescriptorWrite{
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = materialData->descriptorSet,
+    .dstBinding = 0,
+    .dstArrayElement = 0,
+    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 1,
+    .pImageInfo = &imageInfo
+  };
 
-  vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
+  createUbo(sizeof(MaterialUbo), materialData->uboBuffer, materialData->uboMemory,
+    materialData->uboMapped);
+
+  vkUpdateDescriptorSets(m_device, 1, &samplerDescriptorWrite, 0, nullptr);
+
+  VkDescriptorBufferInfo bufferInfo{
+    .buffer = materialData->uboBuffer,
+    .offset = 0,
+    .range = sizeof(MaterialUbo)
+  };
+
+  VkWriteDescriptorSet uboDescriptorWrite{
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = materialData->descriptorSet,
+    .dstBinding = 1,
+    .dstArrayElement = 0,
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
+    .pBufferInfo = &bufferInfo
+  };
+
+  vkUpdateDescriptorSets(m_device, 1, &uboDescriptorWrite, 0, nullptr);
+
+  // TODO: Use staging buffer instead of host mapping
+  MaterialUbo ubo{
+    .colour = { 1, 1, 1 }, // TODO
+    .hasTexture = !usingNullTexture
+  };
+
+  memcpy(materialData->uboMapped, &ubo, sizeof(ubo));
 
   auto materialId = nextMaterialId++;
   materialData->material = std::move(material);
@@ -388,10 +466,17 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
   return materialId;
 }
 
-void RenderResourcesImpl::removeMaterial(RenderItemId)
+void RenderResourcesImpl::removeMaterial(RenderItemId id)
 {
-  // TODO
-  EXCEPTION("Not implemented");
+  auto i = m_materials.find(id);
+  if (i == m_materials.end()) {
+    return;
+  }
+
+  vkDestroyBuffer(m_device, i->second->uboBuffer, nullptr);
+  vkFreeMemory(m_device, i->second->uboMemory, nullptr);
+
+  m_materials.erase(i);
 }
 
 VkDescriptorSetLayout RenderResourcesImpl::getMaterialDescriptorSetLayout() const
@@ -404,36 +489,54 @@ VkDescriptorSet RenderResourcesImpl::getMaterialDescriptorSet(RenderItemId id) c
   return m_materials.at(id == NULL_ID ? m_nullMaterialId : id)->descriptorSet;
 }
 
-void RenderResourcesImpl::updateUniformBuffer(const UniformBufferObject& ubo, size_t currentFrame)
+void RenderResourcesImpl::updateMatricesUbo(const MatricesUbo& ubo, size_t currentFrame)
 {
-  memcpy(m_uniformBuffersMapped[currentFrame], &ubo, sizeof(ubo));
+  memcpy(m_matricesUboMapped[currentFrame], &ubo, sizeof(ubo));
 }
 
-VkDescriptorSetLayout RenderResourcesImpl::getUboDescriptorSetLayout() const
+VkDescriptorSetLayout RenderResourcesImpl::getMatricesDescriptorSetLayout() const
 {
-  return m_uboDescriptorSetLayout;
+  return m_matricesUboDescriptorSetLayout;
 }
 
-VkDescriptorSet RenderResourcesImpl::getUboDescriptorSet(size_t currentFrame) const
+VkDescriptorSet RenderResourcesImpl::getMatricesDescriptorSet(size_t currentFrame) const
 {
-  return m_uboDescriptorSets[currentFrame];
+  return m_matricesUboDescriptorSets[currentFrame];
+}
+
+void RenderResourcesImpl::updateLightingUbo(const LightingUbo& ubo, size_t currentFrame)
+{
+  memcpy(m_lightingUboMapped[currentFrame], &ubo, sizeof(ubo));
+}
+
+VkDescriptorSetLayout RenderResourcesImpl::getLightingDescriptorSetLayout() const
+{
+  return m_lightingUboDescriptorSetLayout;
+}
+
+VkDescriptorSet RenderResourcesImpl::getLightingDescriptorSet(size_t currentFrame) const
+{
+  return m_lightingUboDescriptorSets[currentFrame];
 }
 
 void RenderResourcesImpl::createDescriptorPool()
 {
+  DBG_TRACE(m_logger);
+
   std::array<VkDescriptorPoolSize, 2> poolSizes{};
 
   poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+  poolSizes[0].descriptorCount = 50; // TODO
 
   poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   poolSizes[1].descriptorCount = 20; // TODO
 
-  VkDescriptorPoolCreateInfo poolInfo{};
-  poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  poolInfo.poolSizeCount = poolSizes.size();
-  poolInfo.pPoolSizes = poolSizes.data();
-  poolInfo.maxSets = 100; // TODO
+  VkDescriptorPoolCreateInfo poolInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+    .poolSizeCount = poolSizes.size(),
+    .pPoolSizes = poolSizes.data(),
+    .maxSets = 100, // TODO
+  };
 
   VK_CHECK(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_descriptorPool),
     "Failed to create descriptor pool");
@@ -442,20 +545,23 @@ void RenderResourcesImpl::createDescriptorPool()
 void RenderResourcesImpl::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
   uint32_t height, VkDeviceSize bufferOffset, uint32_t layer)
 {
+  DBG_TRACE(m_logger);
+
   VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
-  VkBufferImageCopy region{};
-  region.bufferOffset = bufferOffset;
-  region.bufferRowLength = 0;
-  region.bufferImageHeight = 0;
+  VkBufferImageCopy region{
+    .bufferOffset = bufferOffset,
+    .bufferRowLength = 0,
+    .bufferImageHeight = 0,
 
-  region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  region.imageSubresource.mipLevel = 0;
-  region.imageSubresource.baseArrayLayer = layer;
-  region.imageSubresource.layerCount = 1;
+    .imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .imageSubresource.mipLevel = 0,
+    .imageSubresource.baseArrayLayer = layer,
+    .imageSubresource.layerCount = 1,
 
-  region.imageOffset = { 0, 0, 0 };
-  region.imageExtent = { width, height, 1 };
+    .imageOffset = { 0, 0, 0 },
+    .imageExtent = { width, height, 1 }
+  };
 
   vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
     &region);
@@ -465,12 +571,16 @@ void RenderResourcesImpl::copyBufferToImage(VkBuffer buffer, VkImage image, uint
 
 void RenderResourcesImpl::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
 {
+  DBG_TRACE(m_logger);
+
   VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
-  VkBufferCopy copyRegion{};
-  copyRegion.srcOffset = 0;
-  copyRegion.dstOffset = 0;
-  copyRegion.size = size;
+  VkBufferCopy copyRegion{
+    .srcOffset = 0,
+    .dstOffset = 0,
+    .size = size
+  };
+
   vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
   endSingleTimeCommands(commandBuffer);
@@ -479,23 +589,26 @@ void RenderResourcesImpl::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkD
 void RenderResourcesImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
   VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
 {
-  VkBufferCreateInfo bufferInfo{};
-  bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  bufferInfo.size = size;
-  bufferInfo.usage = usage;
-  bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-  bufferInfo.flags = 0;
+  DBG_TRACE(m_logger);
+
+  VkBufferCreateInfo bufferInfo{
+    .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+    .size = size,
+    .usage = usage,
+    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    .flags = 0
+  };
 
   VK_CHECK(vkCreateBuffer(m_device, &bufferInfo, nullptr, &buffer), "Failed to create buffer");
 
   VkMemoryRequirements memRequirements;
   vkGetBufferMemoryRequirements(m_device, buffer, &memRequirements);
 
-  VkMemoryAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  allocInfo.allocationSize = memRequirements.size;
-  allocInfo.memoryTypeIndex = findMemoryType(m_physicalDevice, memRequirements.memoryTypeBits,
-    properties);
+  VkMemoryAllocateInfo allocInfo{
+    .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+    .allocationSize = memRequirements.size,
+    .memoryTypeIndex = findMemoryType(m_physicalDevice, memRequirements.memoryTypeBits, properties)
+  };
 
   VK_CHECK(vkAllocateMemory(m_device, &allocInfo, nullptr, &bufferMemory),
     "Failed to allocate memory for buffer");
@@ -506,6 +619,8 @@ void RenderResourcesImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usa
 VkBuffer RenderResourcesImpl::createVertexBuffer(const VertexList& vertices,
   VkDeviceMemory& vertexBufferMemory)
 {
+  DBG_TRACE(m_logger);
+
   VkDeviceSize size = sizeof(vertices[0]) * vertices.size();
 
   VkBuffer stagingBuffer;
@@ -534,6 +649,8 @@ VkBuffer RenderResourcesImpl::createVertexBuffer(const VertexList& vertices,
 VkBuffer RenderResourcesImpl::createIndexBuffer(const IndexList& indices,
   VkDeviceMemory& indexBufferMemory)
 {
+  DBG_TRACE(m_logger);
+
   VkDeviceSize size = sizeof(indices[0]) * indices.size();
 
   VkBuffer stagingBuffer;
@@ -562,6 +679,8 @@ VkBuffer RenderResourcesImpl::createIndexBuffer(const IndexList& indices,
 VkBuffer RenderResourcesImpl::createInstanceBuffer(size_t maxInstances,
   VkDeviceMemory& instanceBufferMemory)
 {
+  DBG_TRACE(m_logger);
+
   VkDeviceSize size = sizeof(MeshInstance) * maxInstances;
 
   VkBuffer buffer = VK_NULL_HANDLE;
@@ -574,6 +693,8 @@ VkBuffer RenderResourcesImpl::createInstanceBuffer(size_t maxInstances,
 void RenderResourcesImpl::updateInstanceBuffer(const std::vector<MeshInstance>& instances,
   VkBuffer buffer)
 {
+  DBG_TRACE(m_logger);
+
   VkDeviceSize size = sizeof(MeshInstance) * instances.size();
 
   VkBuffer stagingBuffer;
@@ -595,69 +716,111 @@ void RenderResourcesImpl::updateInstanceBuffer(const std::vector<MeshInstance>& 
   vkFreeMemory(m_device, stagingBufferMemory, nullptr);
 }
 
-void RenderResourcesImpl::createUniformBuffers()
+void RenderResourcesImpl::createUbo(size_t size, VkBuffer& buffer, VkDeviceMemory& memory,
+  void*& mapping)
 {
-  VkDeviceSize size = sizeof(UniformBufferObject);
+  DBG_TRACE(m_logger);
 
-  m_uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-  m_uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
-  m_uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+  createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, buffer, memory);
+
+  vkMapMemory(m_device, memory, 0, size, 0, &mapping);
+}
+
+void RenderResourcesImpl::createPerFrameUbos(size_t size, std::vector<VkBuffer>& buffers,
+  std::vector<VkDeviceMemory>& memory, std::vector<void*>& mappings)
+{
+  DBG_TRACE(m_logger);
+
+  buffers.resize(MAX_FRAMES_IN_FLIGHT);
+  memory.resize(MAX_FRAMES_IN_FLIGHT);
+  mappings.resize(MAX_FRAMES_IN_FLIGHT);
   
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      m_uniformBuffers[i], m_uniformBuffersMemory[i]);
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, buffers[i],
+      memory[i]);
 
-    vkMapMemory(m_device, m_uniformBuffersMemory[i], 0, size, 0, &m_uniformBuffersMapped[i]);
+    vkMapMemory(m_device, memory[i], 0, size, 0, &mappings[i]);
   }
 }
 
-void RenderResourcesImpl::createDescriptorSets()
+void RenderResourcesImpl::createUniformBuffers()
 {
-  std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_uboDescriptorSetLayout);
-  VkDescriptorSetAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-  allocInfo.descriptorPool = m_descriptorPool;
-  allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-  allocInfo.pSetLayouts = layouts.data();
+  DBG_TRACE(m_logger);
 
-  m_uboDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-  VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, m_uboDescriptorSets.data()),
+  createPerFrameUbos(sizeof(MatricesUbo), m_matricesUboBuffers, m_matricesUboMemory,
+    m_matricesUboMapped);
+  createPerFrameUbos(sizeof(LightingUbo), m_lightingUboBuffers, m_lightingUboMemory,
+    m_lightingUboMapped);
+}
+
+void RenderResourcesImpl::createDescriptorSets(size_t n, VkDescriptorSetLayout layout,
+  std::vector<VkDescriptorSet>& descriptorSets, const std::vector<VkBuffer>& buffers)
+{
+  DBG_TRACE(m_logger);
+
+  std::vector<VkDescriptorSetLayout> layouts(n, layout);
+
+  VkDescriptorSetAllocateInfo allocInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool = m_descriptorPool,
+    .descriptorSetCount = static_cast<uint32_t>(n),
+    .pSetLayouts = layouts.data()
+  };
+
+  descriptorSets.resize(n);
+  VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, descriptorSets.data()),
     "Failed to allocate descriptor sets");
 
-  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-    VkDescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = m_uniformBuffers[i];
-    bufferInfo.offset = 0;
-    bufferInfo.range = sizeof(UniformBufferObject);
+  for (size_t i = 0; i < n; ++i) {
+    VkDescriptorBufferInfo bufferInfo{
+      .buffer = buffers[i],
+      .offset = 0,
+      .range = sizeof(MatricesUbo)
+    };
 
-    VkWriteDescriptorSet descriptorWrite{};
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet = m_uboDescriptorSets[i];
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pBufferInfo = &bufferInfo;
+    VkWriteDescriptorSet descriptorWrite{
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = descriptorSets[i],
+      .dstBinding = 0,
+      .dstArrayElement = 0,
+      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .descriptorCount = 1,
+      .pBufferInfo = &bufferInfo
+    };
 
     vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
   }
 }
 
+void RenderResourcesImpl::createDescriptorSets()
+{
+  DBG_TRACE(m_logger);
+
+  createDescriptorSets(MAX_FRAMES_IN_FLIGHT, m_matricesUboDescriptorSetLayout,
+    m_matricesUboDescriptorSets, m_matricesUboBuffers);
+
+  createDescriptorSets(MAX_FRAMES_IN_FLIGHT, m_lightingUboDescriptorSetLayout,
+    m_lightingUboDescriptorSets, m_lightingUboBuffers);
+}
+
 VkCommandBuffer RenderResourcesImpl::beginSingleTimeCommands()
 {
-  VkCommandBufferAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandPool = m_commandPool; // TODO: Separate pool for temp buffers?
-  allocInfo.commandBufferCount = 1;
+  VkCommandBufferAllocateInfo allocInfo{
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+    .commandPool = m_commandPool, // TODO: Separate pool for temp buffers?
+    .commandBufferCount = 1
+  };
   
   VkCommandBuffer commandBuffer;
   vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer);
 
-  VkCommandBufferBeginInfo beginInfo{};
-  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+  VkCommandBufferBeginInfo beginInfo{
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+    .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+  };
 
   vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
@@ -668,10 +831,11 @@ void RenderResourcesImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
 {
   vkEndCommandBuffer(commandBuffer);
   
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffer;
+  VkSubmitInfo submitInfo{
+    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+    .commandBufferCount = 1,
+    .pCommandBuffers = &commandBuffer
+  };
   
   vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
   vkQueueWaitIdle(m_graphicsQueue); // TODO: Submit commands asynchronously (see p201)
@@ -682,20 +846,23 @@ void RenderResourcesImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
 void RenderResourcesImpl::transitionImageLayout(VkImage image, VkImageLayout oldLayout,
   VkImageLayout newLayout, uint32_t layerCount)
 {
+  DBG_TRACE(m_logger);
+
   VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
-  VkImageMemoryBarrier barrier{};
-  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  barrier.oldLayout = oldLayout;
-  barrier.newLayout = newLayout;
-  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  barrier.image = image;
-  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  barrier.subresourceRange.baseMipLevel = 0;
-  barrier.subresourceRange.levelCount = 1;
-  barrier.subresourceRange.baseArrayLayer = 0;
-  barrier.subresourceRange.layerCount = layerCount;
+  VkImageMemoryBarrier barrier{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .oldLayout = oldLayout,
+    .newLayout = newLayout,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .image = image,
+    .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .subresourceRange.baseMipLevel = 0,
+    .subresourceRange.levelCount = 1,
+    .subresourceRange.baseArrayLayer = 0,
+    .subresourceRange.layerCount = layerCount
+  };
 
   VkPipelineStageFlags sourceStage;
   VkPipelineStageFlags destinationStage;
@@ -726,45 +893,89 @@ void RenderResourcesImpl::transitionImageLayout(VkImage image, VkImageLayout old
 
 void RenderResourcesImpl::createUboDescriptorSetLayout()
 {
-  VkDescriptorSetLayoutBinding uboLayoutBinding{};
-  uboLayoutBinding.binding = 0;
-  uboLayoutBinding.descriptorCount = 1;
-  uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-  uboLayoutBinding.pImmutableSamplers = nullptr;
+  DBG_TRACE(m_logger);
 
-  std::array<VkDescriptorSetLayoutBinding, 1> bindings = {
+  VkDescriptorSetLayoutBinding uboLayoutBinding{
+    .binding = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
+  std::vector<VkDescriptorSetLayoutBinding> bindings{
     uboLayoutBinding
     // ...
   };
 
-  VkDescriptorSetLayoutCreateInfo layoutInfo{};
-  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  layoutInfo.bindingCount = bindings.size();
-  layoutInfo.pBindings = bindings.data();
+  VkDescriptorSetLayoutCreateInfo layoutInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = static_cast<uint32_t>(bindings.size()),
+    .pBindings = bindings.data()
+  };
+
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
+    &m_matricesUboDescriptorSetLayout), "Failed to create descriptor set layout");
+}
+
+void RenderResourcesImpl::createLightingDescriptorSetLayout()
+{
+  DBG_TRACE(m_logger);
+
+  VkDescriptorSetLayoutBinding lightingLayoutBinding{
+    .binding = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
+  std::vector<VkDescriptorSetLayoutBinding> bindings{
+    lightingLayoutBinding
+    // ...
+  };
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = static_cast<uint32_t>(bindings.size()),
+    .pBindings = bindings.data()
+  };
   
-  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, &m_uboDescriptorSetLayout),
-    "Failed to create descriptor set layout");
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
+    &m_lightingUboDescriptorSetLayout), "Failed to create descriptor set layout");
 }
 
 void RenderResourcesImpl::createMaterialDescriptorSetLayout()
 {
-  VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-  samplerLayoutBinding.binding = 0;
-  samplerLayoutBinding.descriptorCount = 1;
-  samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-  samplerLayoutBinding.pImmutableSamplers = nullptr;
+  DBG_TRACE(m_logger);
 
-  std::array<VkDescriptorSetLayoutBinding, 1> bindings = {
-    samplerLayoutBinding
+  VkDescriptorSetLayoutBinding samplerLayoutBinding{
+    .binding = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
+  VkDescriptorSetLayoutBinding materialLayoutBinding{
+    .binding = 1,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
+  std::vector<VkDescriptorSetLayoutBinding> bindings{
+    samplerLayoutBinding,
+    materialLayoutBinding
     // ...
   };
 
-  VkDescriptorSetLayoutCreateInfo layoutInfo{};
-  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  layoutInfo.bindingCount = bindings.size();
-  layoutInfo.pBindings = bindings.data();
+  VkDescriptorSetLayoutCreateInfo layoutInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = static_cast<uint32_t>(bindings.size()),
+    .pBindings = bindings.data()
+  };
 
   VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
     &m_materialDescriptorSetLayout), "Failed to create descriptor set layout");
@@ -772,32 +983,38 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
 
 void RenderResourcesImpl::createDescriptorSetLayouts()
 {
+  DBG_TRACE(m_logger);
+
   createUboDescriptorSetLayout();
+  createLightingDescriptorSetLayout();
   createMaterialDescriptorSetLayout();
 }
 
 void RenderResourcesImpl::createTextureSampler()
 {
+  DBG_TRACE(m_logger);
+
   VkPhysicalDeviceProperties properties{};
   vkGetPhysicalDeviceProperties(m_physicalDevice, &properties);
 
-  VkSamplerCreateInfo samplerInfo{};
-  samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  samplerInfo.magFilter = VK_FILTER_LINEAR;
-  samplerInfo.minFilter = VK_FILTER_LINEAR;
-  samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  samplerInfo.anisotropyEnable = VK_TRUE;
-  samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-  samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-  samplerInfo.unnormalizedCoordinates = VK_FALSE;
-  samplerInfo.compareEnable = VK_FALSE;
-  samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-  samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  samplerInfo.mipLodBias = 0.f;
-  samplerInfo.minLod = 0.f;
-  samplerInfo.maxLod = 0.f;
+  VkSamplerCreateInfo samplerInfo{
+    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .magFilter = VK_FILTER_LINEAR,
+    .minFilter = VK_FILTER_LINEAR,
+    .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .anisotropyEnable = VK_TRUE,
+    .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
+    .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+    .unnormalizedCoordinates = VK_FALSE,
+    .compareEnable = VK_FALSE,
+    .compareOp = VK_COMPARE_OP_ALWAYS,
+    .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+    .mipLodBias = 0.f,
+    .minLod = 0.f,
+    .maxLod = 0.f
+  };
 
   VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_textureSampler),
     "Failed to create texture sampler");
@@ -805,15 +1022,17 @@ void RenderResourcesImpl::createTextureSampler()
 
 void RenderResourcesImpl::createNullMaterial()
 {
+  DBG_TRACE(m_logger);
+
   TexturePtr texture = std::make_unique<Texture>();
   texture->channels = 3;
   texture->width = 1;
   texture->height = 1;
   texture->data = { 0, 0, 0, 0 };
-  auto textureId = addTexture(std::move(texture));
+  m_nullTextureId = addTexture(std::move(texture));
 
   MaterialPtr material = std::make_unique<Material>();
-  material->texture = textureId;
+  material->texture = NULL_ID;
   material->normalMap = NULL_ID;
 
   m_nullMaterialId = addMaterial(std::move(material));
@@ -822,16 +1041,25 @@ void RenderResourcesImpl::createNullMaterial()
 RenderResourcesImpl::~RenderResourcesImpl()
 {
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-    vkDestroyBuffer(m_device, m_uniformBuffers[i], nullptr);
-    vkFreeMemory(m_device, m_uniformBuffersMemory[i], nullptr);
+    vkDestroyBuffer(m_device, m_matricesUboBuffers[i], nullptr);
+    vkFreeMemory(m_device, m_matricesUboMemory[i], nullptr);
+
+    vkDestroyBuffer(m_device, m_lightingUboBuffers[i], nullptr);
+    vkFreeMemory(m_device, m_lightingUboMemory[i], nullptr);
   }
+
   vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
-  vkDestroyDescriptorSetLayout(m_device, m_uboDescriptorSetLayout, nullptr);
+  vkDestroyDescriptorSetLayout(m_device, m_matricesUboDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_materialDescriptorSetLayout, nullptr);
+  vkDestroyDescriptorSetLayout(m_device, m_lightingUboDescriptorSetLayout, nullptr);
+
   while (!m_meshes.empty()) {
     removeMesh(m_meshes.begin()->first);
   }
   vkDestroySampler(m_device, m_textureSampler, nullptr);
+  while (!m_materials.empty()) {
+    removeMaterial(m_materials.begin()->first);
+  }
   while (!m_textures.empty()) {
     removeTexture(m_textures.begin()->first);
   }
@@ -843,7 +1071,8 @@ RenderResourcesImpl::~RenderResourcesImpl()
 } // namespace
 
 RenderResourcesPtr createRenderResources(VkPhysicalDevice physicalDevice, VkDevice device,
-  VkQueue graphicsQueue, VkCommandPool commandPool)
+  VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger)
 {
-  return std::make_unique<RenderResourcesImpl>(physicalDevice, device, graphicsQueue, commandPool);
+  return std::make_unique<RenderResourcesImpl>(physicalDevice, device, graphicsQueue, commandPool,
+    logger);
 }

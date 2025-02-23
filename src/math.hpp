@@ -2,7 +2,6 @@
 
 #include "exception.hpp"
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <sstream>
 #include <vector>
@@ -54,7 +53,7 @@ class Vector
     Vector(const std::initializer_list<T>& data)
     {
       ASSERT(data.size() == N, "Vector initialised with incorrect number of values");
-      std::copy(data.begin(), data.end(), m_data.begin());
+      std::copy(data.begin(), data.end(), std::begin(m_data));
     }
 
     template<size_t M>
@@ -65,17 +64,17 @@ class Vector
         m_data[i] = rhs[i];
       }
       ASSERT(rest.size() == N - M, "Vector initialised with incorrect number of values");
-      std::copy(rest.begin(), rest.end(), m_data.begin() + M);
+      std::copy(rest.begin(), rest.end(), std::begin(m_data) + M);
     }
 
     const T* data() const
     {
-      return m_data.data();
+      return m_data;
     }
 
     T* data()
     {
-      return m_data.data();
+      return m_data;
     }
 
     const T& operator[](size_t i) const
@@ -239,7 +238,7 @@ class Vector
     }
 
   private:
-    std::array<T, N> m_data;
+    T m_data[N];
 };
 
 template<typename T, size_t N>
@@ -274,35 +273,24 @@ class Matrix
     }
 
     Matrix(const Matrix<T, ROWS, COLS>& cp)
-      : m_data(cp.m_data)
     {
-    }
-    
-    Matrix(Matrix<T, ROWS, COLS>&& mv)
-      : m_data(std::move(mv.m_data))
-    {
+      std::copy(std::begin(cp.m_data), std::end(cp.m_data), std::begin(m_data));
     }
 
     Matrix<T, ROWS, COLS>& operator=(const Matrix<T, ROWS, COLS>& rhs)
     {
-      m_data = rhs.m_data;
-      return *this;
-    }
-
-    Matrix<T, ROWS, COLS>& operator=(Matrix<T, ROWS, COLS>&& rhs)
-    {
-      m_data = std::move(rhs.m_data);
+      std::copy(std::begin(rhs.m_data), std::end(rhs.m_data), std::begin(m_data));
       return *this;
     }
 
     const T* data() const
     {
-      return m_data.data();
+      return m_data;
     }
 
     T* data()
     {
-      return m_data.data();
+      return m_data;
     }
 
     const T& at(size_t row, size_t col) const
@@ -400,7 +388,7 @@ class Matrix
     }
 
   private:
-    std::array<T, ROWS * COLS> m_data;
+    T m_data[ROWS * COLS];
 };
 
 template<typename T, size_t ROWS, size_t COLS>

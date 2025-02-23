@@ -1,10 +1,10 @@
 #version 450
 
-layout(set = 0, binding = 0) uniform UniformBufferObject
+layout(std140, set = 0, binding = 0) uniform MatricesUbo
 {
   mat4 viewMatrix;
   mat4 projMatrix;
-} ubo;
+} matrices;
 
 layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec3 inNormal;
@@ -25,7 +25,7 @@ void main()
 {
   mat4 modelMatrix = mat4(inModelMatrix0, inModelMatrix1, inModelMatrix2, inModelMatrix3);
   vec4 worldPos = modelMatrix * vec4(inPos, 1.0);
-  gl_Position = ubo.projMatrix * ubo.viewMatrix * worldPos;
+  gl_Position = matrices.projMatrix * matrices.viewMatrix * worldPos;
 
   outColour = inColour;
   outTexCoord = inTexCoord;

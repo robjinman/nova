@@ -1,8 +1,6 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-#define MAX_LIGHTS 8;
-
 struct Light
 {
   vec3 worldPos;
@@ -13,16 +11,16 @@ struct Light
 layout(set = 1, binding = 0) uniform sampler2D texSampler;
 //layout(set = 1, binding = 0) uniform sampler2D normalMapSampler;
 
-layout(set = 1, binding = 1) uniform MaterialData
+layout(std140, set = 1, binding = 1) uniform MaterialUbo
 {
   vec3 colour;
   bool hasTexture;
   //bool hasNormalMap;
 } material;
 
-layout(set = 2, binding = 0) uniform LightData
+layout(std140, set = 2, binding = 0) uniform LightingUbo
 {
-  Light[MAX_LIGHTS] lights;
+  Light lights[8];
   int numLights;
 } lighting;
 
@@ -40,11 +38,12 @@ vec3 computeLight()
 
   // TODO: Normal map
 
+  vec3 light = vec3(0, 0, 0);
   for (int i = 0; i < lighting.numLights; ++i) {
     vec3 lightDir = normalize(lighting.lights[i].worldPos - inWorldPos);
     float cosTheta = min(max(dot(normal, lightDir), 0.0), 1.0 - lighting.lights[i].ambient);
     float intensity = lighting.lights[i].ambient + cosTheta;
-    light = light + intensity * lighting.lights[i].colour;
+    light += intensity * lighting.lights[i].colour;
   }
 
   return light / lighting.numLights;
@@ -55,7 +54,7 @@ vec3 computeTexel()
   vec3 texel = material.colour;
 
   if (material.hasTexture) {
-    texel = texel * texture(material.texSampler, inTexCoord).rgb;
+    texel = texel * texture(texSampler, inTexCoord).rgb;
   }
 
   return texel;

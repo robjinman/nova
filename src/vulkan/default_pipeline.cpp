@@ -15,17 +15,19 @@ DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
   VkShaderModule vertShaderModule = createShaderModule(m_device, vertShaderCode);
   VkShaderModule fragShaderModule = createShaderModule(m_device, fragShaderCode);
 
-  VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-  vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-  vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-  vertShaderStageInfo.module = vertShaderModule;
-  vertShaderStageInfo.pName = "main";
+  VkPipelineShaderStageCreateInfo vertShaderStageInfo{
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+    .stage = VK_SHADER_STAGE_VERTEX_BIT,
+    .module = vertShaderModule,
+    .pName = "main"
+  };
 
-  VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-  fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-  fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-  fragShaderStageInfo.module = fragShaderModule;
-  fragShaderStageInfo.pName = "main";
+  VkPipelineShaderStageCreateInfo fragShaderStageInfo{
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .module = fragShaderModule,
+    .pName = "main"
+  };
 
   auto vertexBindingDescription = defaultVertexBindingDescription();
   auto attributeDescriptions = defaultAttributeDescriptions();
@@ -34,12 +36,13 @@ DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
     vertexBindingDescription
   };
 
-  VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-  vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-  vertexInputInfo.vertexBindingDescriptionCount = bindingDescriptions.size();
-  vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
-  vertexInputInfo.vertexAttributeDescriptionCount = attributeDescriptions.size();
-  vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+  VkPipelineVertexInputStateCreateInfo vertexInputInfo{
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+    .vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size()),
+    .pVertexBindingDescriptions = bindingDescriptions.data(),
+    .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
+    .pVertexAttributeDescriptions = attributeDescriptions.data()
+  };
 
   auto inputAssembly = defaultInputAssemblyState();
   VkViewport viewport;
@@ -50,26 +53,30 @@ DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
   VkPipelineColorBlendAttachmentState colourBlendAttachment;
   auto colourBlending = defaultColourBlendState(colourBlendAttachment);
 
-  VkPushConstantRange vertexPushConstants;
-  vertexPushConstants.offset = 0;
-  vertexPushConstants.size = sizeof(Mat4x4f);
-  vertexPushConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  VkPushConstantRange vertexPushConstants{
+    .offset = 0,
+    .size = sizeof(Mat4x4f),
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+  };
 
-  std::array<VkPushConstantRange, 1> pushConstantRanges{
+  std::vector<VkPushConstantRange> pushConstantRanges{
     vertexPushConstants
   };
 
-  std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts{
-    m_renderResources.getUboDescriptorSetLayout(),
-    m_renderResources.getMaterialDescriptorSetLayout()
+  std::vector<VkDescriptorSetLayout> descriptorSetLayouts{
+    m_renderResources.getMatricesDescriptorSetLayout(),
+    m_renderResources.getMaterialDescriptorSetLayout(),
+    m_renderResources.getLightingDescriptorSetLayout()
   };
 
-  VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();
-  pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
-  pipelineLayoutInfo.pushConstantRangeCount = pushConstantRanges.size();
-  pipelineLayoutInfo.pPushConstantRanges = pushConstantRanges.data();
+  VkPipelineLayoutCreateInfo pipelineLayoutInfo{
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
+    .pSetLayouts = descriptorSetLayouts.data(),
+    .pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size()),
+    .pPushConstantRanges = pushConstantRanges.data()
+  };
+
   VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_layout),
     "Failed to create default pipeline layout");
 
@@ -77,23 +84,24 @@ DefaultPipeline::DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent,
 
   auto depthStencil = defaultDepthStencilState();
 
-  VkGraphicsPipelineCreateInfo pipelineInfo{};
-  pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineInfo.stageCount = 2;
-  pipelineInfo.pStages = shaderStages;
-  pipelineInfo.pVertexInputState = &vertexInputInfo;
-  pipelineInfo.pInputAssemblyState = &inputAssembly;
-  pipelineInfo.pViewportState = &viewportState;
-  pipelineInfo.pRasterizationState = &rasterizer;
-  pipelineInfo.pMultisampleState = &multisampling;
-  pipelineInfo.pDepthStencilState = &depthStencil;
-  pipelineInfo.pColorBlendState = &colourBlending;
-  pipelineInfo.pDynamicState = nullptr;
-  pipelineInfo.layout = m_layout;
-  pipelineInfo.renderPass = renderPass;
-  pipelineInfo.subpass = 0;
-  pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-  pipelineInfo.basePipelineIndex = -1;
+  VkGraphicsPipelineCreateInfo pipelineInfo{
+    .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+    .stageCount = 2,
+    .pStages = shaderStages,
+    .pVertexInputState = &vertexInputInfo,
+    .pInputAssemblyState = &inputAssembly,
+    .pViewportState = &viewportState,
+    .pRasterizationState = &rasterizer,
+    .pMultisampleState = &multisampling,
+    .pDepthStencilState = &depthStencil,
+    .pColorBlendState = &colourBlending,
+    .pDynamicState = nullptr,
+    .layout = m_layout,
+    .renderPass = renderPass,
+    .subpass = 0,
+    .basePipelineHandle = VK_NULL_HANDLE,
+    .basePipelineIndex = -1
+  };
 
   VK_CHECK(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr,
     &m_pipeline), "Failed to create default pipeline");
@@ -106,10 +114,10 @@ void DefaultPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const R
   size_t currentFrame)
 {
   auto& node = dynamic_cast<const DefaultModelNode&>(node_);
-  VkBool32 bUseMaterial = node.material != NULL_ID;
 
-  auto uboDescriptorSet = m_renderResources.getUboDescriptorSet(currentFrame);
+  auto matricesDescriptorSet = m_renderResources.getMatricesDescriptorSet(currentFrame);
   auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material);
+  auto lightingDescriptorSet = m_renderResources.getLightingDescriptorSet(currentFrame);
   auto buffers = m_renderResources.getMeshBuffers(node.mesh);
 
   // TODO: Only bind things that have changed since last iteration
@@ -119,14 +127,15 @@ void DefaultPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const R
   vkCmdBindVertexBuffers(commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(),
     offsets.data());
   vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+  // TODO: Combine into single call
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0, 1,
-    &uboDescriptorSet, 0, nullptr);
+    &matricesDescriptorSet, 0, nullptr);
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 1, 1,
     &materialDescriptorSet, 0, nullptr);
+  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 2, 1,
+    &lightingDescriptorSet, 0, nullptr);
   vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4x4f),
     &node.modelMatrix);
-  vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(Mat4x4f),
-    sizeof(VkBool32), &bUseMaterial);
   vkCmdDrawIndexed(commandBuffer, buffers.numIndices, 1, 0, 0, 0);
 }
 

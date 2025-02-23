@@ -12,6 +12,7 @@
 #include "time.hpp"
 #include "thread.hpp"
 #include "triple_buffer.hpp"
+#include "trace.hpp"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <array>
@@ -135,7 +136,8 @@ class RendererImpl : public Renderer
     void createCommandBuffers();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void updateResources();
-    void updateUniformBuffer(const Mat4x4f& cameraMatrix);
+    void updateMatricesUbo(const Mat4x4f& cameraMatrix);
+    void updateLightingUbo();
     void finishFrame();
     void createSyncObjects();
     VkFormat findDepthFormat() const;
@@ -196,29 +198,32 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
   : m_window(window)
   , m_logger(logger)
 {
+  DBG_TRACE(m_logger);
+
   m_thread.run<void>([this]() {
     createInstance();
 #ifndef NDEBUG
     setupDebugMessenger();
 #endif
-  }).wait();
+  }).get();
   createSurface();
   m_thread.run<void>([this]() {
     pickPhysicalDevice();
     createLogicalDevice();
-  }).wait();
+  }).get();
   createSwapChain();
   m_thread.run<void>([this]() {
     createImageViews();
     createRenderPass();
     createCommandPool();
-    m_resources = createRenderResources(m_physicalDevice, m_device, m_graphicsQueue, m_commandPool);
+    m_resources = createRenderResources(m_physicalDevice, m_device, m_graphicsQueue, m_commandPool,
+      m_logger);
     createPipelines();
     createDepthResources();
     createFramebuffers();
     createCommandBuffers();
     createSyncObjects();
-  }).wait();
+  }).get();
 
   float_t aspectRatio = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
   m_projectionMatrix = perspective(degreesToRadians(45.f), aspectRatio, 0.1f, DRAW_DISTANCE);
@@ -240,6 +245,8 @@ double RendererImpl::frameRate() const
 void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
   const Mat4x4f& transform)
 {
+  //DBG_TRACE(m_logger);
+  
   RenderGraph& renderGraph = m_renderStates.getWritable().graph;
   RenderGraph::Key key{
     static_cast<RenderGraphKey>(PipelineName::instancedModel),
@@ -263,6 +270,8 @@ void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
 
 void RendererImpl::stageModel(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform)
 {
+  //DBG_TRACE(m_logger);
+
   static RenderGraphKey nextId = 0;
 
   RenderGraph& renderGraph = m_renderStates.getWritable().graph;
@@ -283,6 +292,8 @@ void RendererImpl::stageModel(RenderItemId mesh, RenderItemId material, const Ma
 
 void RendererImpl::stageSkybox(RenderItemId mesh, RenderItemId material)
 {
+  //DBG_TRACE(m_logger);
+
   RenderGraph& renderGraph = m_renderStates.getWritable().graph;
 
   auto node = std::make_unique<SkyboxNode>();
@@ -295,6 +306,8 @@ void RendererImpl::stageSkybox(RenderItemId mesh, RenderItemId material)
 
 void RendererImpl::beginFrame(const Camera& camera)
 {
+  DBG_TRACE(m_logger);
+
   auto& state = m_renderStates.getWritable();
   state.graph.clear();
   state.cameraMatrix = camera.getMatrix();
@@ -322,7 +335,8 @@ void RendererImpl::renderLoop()
 
     vkResetCommandBuffer(m_commandBuffers[m_imageIndex], 0);
 
-    updateUniformBuffer(m_renderStates.getReadable().cameraMatrix);
+    updateMatricesUbo(m_renderStates.getReadable().cameraMatrix);
+    updateLightingUbo();
 
     updateResources();
     recordCommandBuffer(m_commandBuffers[m_imageIndex], m_imageIndex);
@@ -356,6 +370,8 @@ void RendererImpl::updateResources()
 
 void RendererImpl::endFrame()
 {
+  DBG_TRACE(m_logger);
+
   m_renderStates.writeComplete();
 }
 
@@ -403,13 +419,37 @@ void RendererImpl::finishFrame()
   m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void RendererImpl::updateUniformBuffer(const Mat4x4f& cameraMatrix)
+void RendererImpl::updateMatricesUbo(const Mat4x4f& cameraMatrix)
 {
-  UniformBufferObject ubo{};
-  ubo.viewMatrix = cameraMatrix;
-  ubo.projMatrix = m_projectionMatrix;
+  DBG_TRACE(m_logger);
 
-  m_resources->updateUniformBuffer(ubo, m_currentFrame);
+  MatricesUbo ubo{
+    .viewMatrix = cameraMatrix,
+    .projMatrix = m_projectionMatrix
+  };
+
+  m_resources->updateMatricesUbo(ubo, m_currentFrame);
+}
+
+void RendererImpl::updateLightingUbo()
+{
+  DBG_TRACE(m_logger);
+
+  // TODO
+  LightingUbo ubo;
+  ubo.lights[0] = Light{
+    .worldPos = { 0, 1000, 0 },
+    .colour = { 1, 1, 1 },
+    .ambient = 0.4
+  };
+  ubo.lights[1] = Light{
+    .worldPos = { 500, 100, 700 },
+    .colour = { 1, 1, 1 },
+    .ambient = 0.4
+  };
+  ubo.numLights = 2;
+
+  m_resources->updateLightingUbo(ubo, m_currentFrame);
 }
 
 void RendererImpl::removeMesh(RenderItemId id)
@@ -494,6 +534,8 @@ VkSurfaceFormatKHR RendererImpl::chooseSwapChainSurfaceFormat(
 
 void RendererImpl::createSwapChain()
 {
+  DBG_TRACE(m_logger);
+
   auto swapchainSupport = querySwapChainSupport(m_physicalDevice);
   auto surfaceFormat = chooseSwapChainSurfaceFormat(swapchainSupport.formats);
   auto presentMode = chooseSwapChainPresentMode(swapchainSupport.presentModes);
@@ -736,6 +778,8 @@ bool RendererImpl::isPhysicalDeviceSuitable(VkPhysicalDevice device) const
 
 void RendererImpl::createLogicalDevice()
 {
+  DBG_TRACE(m_logger);
+
   auto indices = findQueueFamilies(m_physicalDevice);
   std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
   std::set<uint32_t> uniqueQueueFamilies = {
@@ -782,6 +826,8 @@ void RendererImpl::createLogicalDevice()
 
 void RendererImpl::createImageViews()
 {
+  DBG_TRACE(m_logger);
+
   m_swapchainImageViews.resize(m_swapchainImages.size());
 
   for (size_t i = 0; i < m_swapchainImages.size(); ++i) {
@@ -792,6 +838,8 @@ void RendererImpl::createImageViews()
 
 void RendererImpl::createRenderPass()
 {
+  DBG_TRACE(m_logger);
+
   VkAttachmentDescription colourAttachment{};
   colourAttachment.format = m_swapchainImageFormat;
   colourAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -858,6 +906,8 @@ void RendererImpl::createRenderPass()
 
 void RendererImpl::createFramebuffers()
 {
+  DBG_TRACE(m_logger);
+
   m_swapchainFramebuffers.resize(m_swapchainImageViews.size());
 
   for (size_t i = 0; i < m_swapchainImageViews.size(); ++i) {
@@ -879,6 +929,8 @@ void RendererImpl::createFramebuffers()
 
 void RendererImpl::createCommandPool()
 {
+  DBG_TRACE(m_logger);
+
   QueueFamilyIndices queueFamilyIndices = findQueueFamilies(m_physicalDevice);
   VkCommandPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -936,6 +988,8 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
 
 void RendererImpl::createCommandBuffers()
 {
+  DBG_TRACE(m_logger);
+
   m_commandBuffers.resize(m_swapchainFramebuffers.size());
 
   VkCommandBufferAllocateInfo allocInfo{};
@@ -950,6 +1004,8 @@ void RendererImpl::createCommandBuffers()
 
 RenderItemId RendererImpl::addTexture(TexturePtr texture)
 {
+  DBG_TRACE(m_logger);
+
   ASSERT(!m_running, "Renderer already started"); // TODO
   return m_thread.run<RenderItemId>([&, this]() {
     return m_resources->addTexture(std::move(texture));
@@ -958,6 +1014,8 @@ RenderItemId RendererImpl::addTexture(TexturePtr texture)
 
 RenderItemId RendererImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
 {
+  DBG_TRACE(m_logger);
+
   ASSERT(!m_running, "Renderer already started"); // TODO
   return m_thread.run<RenderItemId>([&, this]() {
     return m_resources->addCubeMap(std::move(textures));
@@ -966,6 +1024,8 @@ RenderItemId RendererImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
 
 RenderItemId RendererImpl::addMaterial(MaterialPtr material)
 {
+  DBG_TRACE(m_logger);
+
   ASSERT(!m_running, "Renderer already started"); // TODO
   return m_thread.run<RenderItemId>([&, this]() {
     return m_resources->addMaterial(std::move(material));
@@ -974,6 +1034,8 @@ RenderItemId RendererImpl::addMaterial(MaterialPtr material)
 
 RenderItemId RendererImpl::addMesh(MeshPtr mesh)
 {
+  DBG_TRACE(m_logger);
+
   ASSERT(!m_running, "Renderer already started"); // TODO
   return m_thread.run<RenderItemId>([&, this]() {
     return m_resources->addMesh(std::move(mesh));
@@ -982,6 +1044,8 @@ RenderItemId RendererImpl::addMesh(MeshPtr mesh)
 
 void RendererImpl::createSyncObjects()
 {
+  DBG_TRACE(m_logger);
+
   m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
   m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
   m_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1034,6 +1098,8 @@ VkFormat RendererImpl::findDepthFormat() const
 
 void RendererImpl::createDepthResources()
 {
+  DBG_TRACE(m_logger);
+
   VkFormat depthFormat = findDepthFormat();
 
   createImage(m_physicalDevice, m_device, m_swapchainExtent.width, m_swapchainExtent.height, depthFormat,
@@ -1046,6 +1112,8 @@ void RendererImpl::createDepthResources()
 
 void RendererImpl::createPipelines()
 {
+  DBG_TRACE(m_logger);
+
   m_pipelines[PipelineName::defaultModel] = std::make_unique<DefaultPipeline>(m_device,
     m_swapchainExtent, m_renderPass, *m_resources);
   m_pipelines[PipelineName::instancedModel] = std::make_unique<InstancedPipeline>(m_device,
@@ -1056,6 +1124,8 @@ void RendererImpl::createPipelines()
 
 void RendererImpl::createSurface()
 {
+  DBG_TRACE(m_logger);
+
   VK_CHECK(glfwCreateWindowSurface(m_instance, &m_window, nullptr, &m_surface),
     "Failed to create window surface");
 }
@@ -1133,6 +1203,8 @@ void RendererImpl::pickPhysicalDevice()
 
 void RendererImpl::createInstance()
 {
+  DBG_TRACE(m_logger);
+
 #ifndef NDEBUG
   checkValidationLayerSupport();
 #endif
