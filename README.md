@@ -1,5 +1,7 @@
-nova
+Nova
 ====
+
+Nova (working title) is game developed in C++ and Vulkan for Windows, Linux, and Mac (and possibly iOS and Android).
 
 Model space
 -----------
