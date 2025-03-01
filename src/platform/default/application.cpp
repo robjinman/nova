@@ -10,12 +10,14 @@
 #include "time.hpp"
 #include "utils.hpp"
 #include "units.hpp"
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include "window_delegate.hpp"
 #include <iostream>
+#include <GLFW/glfw3.h>
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
+
+WindowDelegatePtr createWindowDelegate(GLFWwindow& window);
 
 namespace
 {
@@ -23,12 +25,14 @@ namespace
 class Application
 {
   public:
-    Application(GLFWwindow* window);
+    Application();
 
     void run();
     void onKeyboardInput(int key, int action);
     void onMouseMove(float_t x, float_t y);
     void onMouseClick();
+
+    ~Application();
 
   private:
     static Application* m_instance;
@@ -37,6 +41,7 @@ class Application
     static void onMouseClick(GLFWwindow* window, int, int, int);
 
     GLFWwindow* m_window;
+    WindowDelegatePtr m_windowDelegate;
     LoggerPtr m_logger;
     RendererPtr m_renderer;
     SpatialSystemPtr m_spatialSystem;
@@ -75,13 +80,20 @@ void Application::onMouseClick(GLFWwindow*, int, int, int)
   }
 }
 
-Application::Application(GLFWwindow* window)
-  : m_window(window)
+Application::Application()
 {
+  glfwInit();
+
+  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Don't create OpenGL context
+  glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
   m_instance = this;
 
+  std::string title = versionString();
+  m_window = glfwCreateWindow(WIDTH, HEIGHT, title.c_str(), nullptr, nullptr);
+  m_windowDelegate = createWindowDelegate(*m_window);
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
-  m_renderer = createRenderer(*m_window, *m_logger);
+  m_renderer = createRenderer(*m_windowDelegate, *m_logger);
   m_spatialSystem = createSpatialSystem(*m_logger);
   m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_logger);
   m_collisionSystem = createCollisionSystem(*m_spatialSystem, *m_logger);
@@ -167,29 +179,24 @@ void Application::exitInputCapture()
   glfwSetCursorPosCallback(m_window, nullptr);
 }
 
+Application::~Application()
+{
+  glfwDestroyWindow(m_window);
+  glfwTerminate();
+}
+
 } // namespace
 
 int main()
 {
-  glfwInit();
-
-  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Don't create OpenGL context
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-
-  std::string title = versionString();
-  auto window = glfwCreateWindow(WIDTH, HEIGHT, title.c_str(), nullptr, nullptr);
-
   try {
-    Application app(window);
+    Application app;
     app.run();
   }
   catch(const std::exception& e) {
     std::cerr << e.what();
     return EXIT_FAILURE;
   }
-
-  glfwDestroyWindow(window);
-  glfwTerminate();
 
   return EXIT_SUCCESS;
 }

@@ -68,7 +68,7 @@ Build icon set for OSX
 ```
     brew install imagemagick
 
-    cd ./osx
+    cd ./platform/osx
     ./build_icon_set ./icon.png
 ```
 

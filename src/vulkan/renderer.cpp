@@ -3,6 +3,7 @@
 #include "vulkan/instanced_pipeline.hpp"
 #include "vulkan/skybox_pipeline.hpp"
 #include "vulkan/render_resources.hpp"
+#include "vulkan/vulkan_window_delegate.hpp"
 #include "renderer.hpp"
 #include "exception.hpp"
 #include "version.hpp"
@@ -13,8 +14,6 @@
 #include "thread.hpp"
 #include "triple_buffer.hpp"
 #include "trace.hpp"
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
 #include <array>
 #include <iostream>
 #include <vector>
@@ -70,7 +69,7 @@ struct SwapChainSupportDetails
 class RendererImpl : public Renderer
 {
   public:
-    RendererImpl(GLFWwindow& window, Logger& logger);
+    RendererImpl(VulkanWindowDelegate& window, Logger& logger);
 
     void start() override;
     double frameRate() const override;
@@ -108,7 +107,6 @@ class RendererImpl : public Renderer
       const VkDebugUtilsMessengerCallbackDataEXT* data, void* userData);
 
     void createInstance();
-    void createSurface();
     void pickPhysicalDevice();
     bool isPhysicalDeviceSuitable(VkPhysicalDevice device) const;
     void checkValidationLayerSupport() const;
@@ -144,7 +142,7 @@ class RendererImpl : public Renderer
     void renderLoop();
     void cleanUp();
 
-    GLFWwindow& m_window;
+    VulkanWindowDelegate& m_window;
     Logger& m_logger;
     VkInstance m_instance;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
@@ -194,7 +192,7 @@ class RendererImpl : public Renderer
     std::atomic<bool> m_running;
 };
 
-RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
+RendererImpl::RendererImpl(VulkanWindowDelegate& window, Logger& logger)
   : m_window(window)
   , m_logger(logger)
 {
@@ -206,7 +204,7 @@ RendererImpl::RendererImpl(GLFWwindow& window, Logger& logger)
     setupDebugMessenger();
 #endif
   }).get();
-  createSurface();
+  m_surface = m_window.createSurface(m_instance);
   m_thread.run<void>([this]() {
     pickPhysicalDevice();
     createLogicalDevice();
@@ -486,7 +484,7 @@ VkExtent2D RendererImpl::chooseSwapChainExtent(
   if (capabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
     int width = 0;
     int height = 0;
-    glfwGetFramebufferSize(&m_window, &width, &height);
+    m_window.getFrameBufferSize(width, height);
 
     VkExtent2D extent = {
       static_cast<uint32_t>(width),
@@ -607,11 +605,7 @@ void RendererImpl::recreateSwapChain()
 {
   int width = 0;
   int height = 0;
-  glfwGetFramebufferSize(&m_window, &width, &height);
-  while (width == 0 || height == 0) {
-    glfwGetFramebufferSize(&m_window, &width, &height);
-    glfwWaitEvents();
-  }
+  m_window.getFrameBufferSize(width, height);
 
   VK_CHECK(vkDeviceWaitIdle(m_device), "Error waiting for device to be idle");
 
@@ -695,16 +689,12 @@ std::vector<const char*> RendererImpl::getRequiredExtensions() const
 {
   std::vector<const char*> extensions;
 
-  uint32_t glfwExtensionCount = 0;
-  const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
 #ifdef __APPLE__
   extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 #endif
   extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-  for (uint32_t i = 0; i < glfwExtensionCount; ++i) {
-    extensions.push_back(glfwExtensions[i]);
-  }
+  auto windowExtensions = m_window.getRequiredExtensions();
+  extensions.insert(extensions.end(), windowExtensions.begin(), windowExtensions.end());
 
 #ifndef NDEBUG
   extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -1122,14 +1112,6 @@ void RendererImpl::createPipelines()
     m_swapchainExtent, m_renderPass, *m_resources);
 }
 
-void RendererImpl::createSurface()
-{
-  DBG_TRACE(m_logger);
-
-  VK_CHECK(glfwCreateWindowSurface(m_instance, &m_window, nullptr, &m_surface),
-    "Failed to create window surface");
-}
-
 void RendererImpl::pickPhysicalDevice()
 {
   uint32_t deviceCount = 0;
@@ -1306,8 +1288,7 @@ RendererImpl::~RendererImpl()
 
 } // namespace
 
-RendererPtr createRenderer(GLFWwindow& window, Logger& logger)
+RendererPtr createRenderer(WindowDelegate& window, Logger& logger)
 {
-  return std::make_unique<RendererImpl>(window, logger);
+  return std::make_unique<RendererImpl>(dynamic_cast<VulkanWindowDelegate&>(window), logger);
 }
-

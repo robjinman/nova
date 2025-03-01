@@ -6,6 +6,7 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/linux/debug",
       "cacheVariables": {
+        "VCPKG_MANIFEST_DIR": "${sourceDir}/platform/default/vcpkg",
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALLED_DIR": "${sourceDir}/build/linux/vcpkg_installed",
         "CMAKE_BUILD_TYPE": "Debug"
@@ -32,6 +33,7 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/osx/debug",
       "cacheVariables": {
+        "VCPKG_MANIFEST_DIR": "${sourceDir}/platform/default/vcpkg",
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALLED_DIR": "${sourceDir}/build/osx/vcpkg_installed",
         "CMAKE_BUILD_TYPE": "Debug",
@@ -57,10 +59,40 @@
       }
     },
     {
+      "name": "ios-default",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build/ios/debug",
+      "cacheVariables": {
+        "VCPKG_MANIFEST_DIR": "${sourceDir}/platform/ios/vcpkg",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_SYSTEM_NAME": "iOS",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/build/ios/vcpkg_installed",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/ios/release/package"
+      }
+    },
+    {
+      "name": "ios-debug",
+      "inherits": "ios-default",
+      "binaryDir": "${sourceDir}/build/ios/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "ios-release",
+      "inherits": "ios-default",
+      "binaryDir": "${sourceDir}/build/ios/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
       "name": "windows-default",
       "generator": "Visual Studio 17 2022",
       "binaryDir": "${sourceDir}/build/windows/debug",
       "cacheVariables": {
+        "VCPKG_MANIFEST_DIR": "${sourceDir}/platform/default/vcpkg",
         "X_VCPKG_APPLOCAL_DEPS_INSTALL": "ON",
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALLED_DIR": "${sourceDir}/build/windows/vcpkg_installed",
@@ -100,6 +132,14 @@
     {
       "name": "osx-release",
       "configurePreset": "osx-release"
+    },
+    {
+      "name": "ios-debug",
+      "configurePreset": "ios-debug"
+    },
+    {
+      "name": "ios-release",
+      "configurePreset": "ios-release"
     },
     {
       "name": "windows-debug",
@@ -182,6 +222,34 @@
         {
           "type": "build",
           "name": "osx-release"
+        }
+      ]
+    },
+    {
+      "description": "iOS debug build",
+      "name": "ios-debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ios-debug"
+        },
+        {
+          "type": "build",
+          "name": "ios-debug"
+        }
+      ]
+    },
+    {
+      "description": "iOS release build",
+      "name": "ios-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ios-release"
+        },
+        {
+          "type": "build",
+          "name": "ios-release"
         }
       ]
     },

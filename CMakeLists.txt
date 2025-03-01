@@ -8,7 +8,7 @@ project(${PROJECT_NAME})
 
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}")
 
-if (NOT CMAKE_BUILD_TYPE)
+if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Debug")
 endif()
 
@@ -18,21 +18,19 @@ message("Building ${CMAKE_BUILD_TYPE} configuration...")
 set(EXE_TARGET "nova")
 set(LIB_TARGET "libnova")
 
-if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+if(CMAKE_SYSTEM_NAME MATCHES "Linux")
   set(PLATFORM_LINUX 1)
-elseif (CMAKE_SYSTEM_NAME MATCHES "Windows")
+elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
   set(PLATFORM_WINDOWS 1)
-elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set(PLATFORM_OSX 1)
+elseif(CMAKE_SYSTEM_NAME MATCHES "iOS")
+  set(PLATFORM_IOS 1)
 endif()
-
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Vulkan REQUIRED)
-find_package(glfw3 REQUIRED)
 find_package(tinyxml2 REQUIRED)
 find_package(Stb REQUIRED)
 
@@ -46,26 +44,47 @@ file(GLOB
   "${PROJECT_SOURCE_DIR}/src/*.cpp"
   "${PROJECT_SOURCE_DIR}/src/vulkan/*.cpp"
 )
-list(REMOVE_ITEM CPP_SOURCES "${CMAKE_SOURCE_DIR}/src/application.cpp")
+
+add_library(${LIB_TARGET} ${CPP_SOURCES})
 
 if(PLATFORM_LINUX)
+  find_package(Vulkan REQUIRED)
+  find_package(glfw3 REQUIRED)
   set(COMPILE_FLAGS -Wextra -Wall)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
-  add_library(${LIB_TARGET} ${CPP_SOURCES})
-  add_executable(${EXE_TARGET} "${PROJECT_SOURCE_DIR}/src/application.cpp")
+  add_executable(${EXE_TARGET}
+    "${PROJECT_SOURCE_DIR}/src/platform/default/application.cpp"
+    "${PROJECT_SOURCE_DIR}/src/vulkan/platform/default/vulkan_window_delegate.cpp"
+  )
+  target_link_libraries(${EXE_TARGET}
+    PRIVATE
+      glfw
+  )
 elseif(PLATFORM_WINDOWS)
+  find_package(Vulkan REQUIRED)
+  find_package(glfw3 REQUIRED)
   set(COMPILE_FLAGS /W4)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS})
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} /O2)
-  add_library(${LIB_TARGET} ${CPP_SOURCES})
-  add_executable(${EXE_TARGET} "${PROJECT_SOURCE_DIR}/src/application.cpp")
+  add_executable(${EXE_TARGET}
+    "${PROJECT_SOURCE_DIR}/src/platform/default/application.cpp"
+    "${PROJECT_SOURCE_DIR}/src/vulkan/platform/default/vulkan_window_delegate.cpp"
+  )
+  target_link_libraries(${EXE_TARGET}
+    PRIVATE
+      glfw
+  )
 elseif(PLATFORM_OSX)
+  find_package(Vulkan REQUIRED)
+  find_package(glfw3 REQUIRED)
   set(COMPILE_FLAGS -Wextra -Wall)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
-  add_library(${LIB_TARGET} ${CPP_SOURCES})
-  add_executable(${EXE_TARGET} "${PROJECT_SOURCE_DIR}/src/application.cpp")
+  add_executable(${EXE_TARGET}
+    "${PROJECT_SOURCE_DIR}/src/platform/default/application.cpp"
+    "${PROJECT_SOURCE_DIR}/src/vulkan/platform/default/vulkan_window_delegate.cpp"
+  )
   set_target_properties(${EXE_TARGET} PROPERTIES
     MACOSX_BUNDLE TRUE
     MACOSX_BUNDLE_GUI_IDENTIFIER "nova"
@@ -73,6 +92,61 @@ elseif(PLATFORM_OSX)
     MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
     MACOSX_BUNDLE_ICON_FILE "nova.icns"
+  )
+  target_link_libraries(${EXE_TARGET}
+    PRIVATE
+      glfw
+  )
+elseif(PLATFORM_IOS)
+  list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/platform/ios/cmake")
+  find_package(Vulkan REQUIRED COMPONENTS MoltenVK)
+  find_library(UIKIT_LIB UiKit)
+  find_library(COREMEDIA_LIB CoreMedia)
+  find_library(METAL_LIB Metal)
+  set(MACOSX_BUNDLE_BUNDLE_NAME "Nova")
+  set(MACOSX_BUNDLE_BUNDLE_VERSION "0.1")
+  set(MACOSX_BUNDLE_GUI_IDENTIFIER "io.deadbeef.nova")
+  set(MACOSX_BUNDLE_LONG_VERSION_STRING "0.1")
+  set(MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1")
+  add_executable(${EXE_TARGET} MACOSX_BUNDLE
+    "${PROJECT_SOURCE_DIR}/src/platform/ios/application.mm"
+    "${PROJECT_SOURCE_DIR}/src/vulkan/platform/ios/vulkan_window_delegate.cpp"
+    "${PROJECT_SOURCE_DIR}/src/platform/ios/hello.cpp"
+    "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
+  )
+  set_source_files_properties(
+    $ENV{VULKAN_SDK}/../iOS/share/vulkan
+    PROPERTIES
+      MACOSX_PACKAGE_LOCATION Resources
+  )
+  target_link_libraries(${EXE_TARGET}
+    PRIVATE
+      ${UIKIT_LIB}
+      ${COREMEDIA_LIB}
+      ${METAL_LIB}
+  )
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "17")
+  set(CMAKE_XCODE_GENERATE_SCHEME "TRUE")
+  set(CMAKE_XCODE_SCHEME_ENABLE_GPU_API_VALIDATION "FALSE")
+  set(CMAKE_XCODE_SCHEME_ENABLE_GPU_FRAME_CAPTURE_MODE "DISABLED")
+  set_target_properties(${EXE_TARGET} PROPERTIES
+    BUNDLE_IDENTIFIER "io.deadbeef.nova"
+    XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "io.deadbeef.nova"
+    XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "YES"
+    XCODE_ATTRIBUTE_CLANG_ENABLE_MODULES "YES"
+    XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@executable_path/Frameworks"
+    XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
+    XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH "NO"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
+    MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
+    XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "LW57Q4U5U7"
+    XCODE_EMBED_FRAMEWORKS "${Vulkan_MoltenVK_LIBRARY};${Vulkan_LIBRARIES};${Vulkan_Layer_VALIDATION}" # TODO: ${Vulkan_Layer_VALIDATION}
+    XCODE_EMBED_FRAMEWORKS_CODE_SIGN_ON_COPY "YES"
+    XCODE_EMBED_FRAMEWORKS_REMOVE_HEADERS_ON_COPY "YES"
+    XCODE_ATTRIBUTE_SKIP_INSTALL "NO"
+    XCODE_ATTRIBUTE_INSTALL_PATH "$(LOCAL_APPS_DIR)"
+    XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
+    XCODE_ATTRIBUTE_DEAD_CODE_STRIPPING "NO"
   )
 endif()
 
@@ -91,7 +165,6 @@ target_link_libraries(${LIB_TARGET}
 target_link_libraries(${EXE_TARGET}
   PRIVATE
     ${LIB_TARGET}
-    glfw
 )
 
 target_compile_options(${LIB_TARGET} PUBLIC "$<$<CONFIG:DEBUG>:${DEBUG_COMPILE_FLAGS}>")
@@ -103,7 +176,7 @@ file(GLOB VERT_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/shaders/vertex/*.glsl")
 find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
 
 function(compile_shaders targetName shaderSources shaderStage shaderBinaryDir)
-  if (CMAKE_BUILD_TYPE STREQUAL Debug)
+  if(CMAKE_BUILD_TYPE STREQUAL Debug)
     set(compile_flags -fshader-stage=${shaderStage} -g)
   else()
     set(compile_flags -fshader-stage=${shaderStage} -O)
@@ -140,7 +213,7 @@ add_custom_target(
 set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ".")
 include(InstallRequiredSystemLibraries)
 
-if (PLATFORM_OSX)
+if(PLATFORM_OSX)
   install(TARGETS ${EXE_TARGET}
     BUNDLE DESTINATION .
     RUNTIME DESTINATION .
@@ -149,11 +222,11 @@ if (PLATFORM_OSX)
     DESTINATION "${EXE_TARGET}.app/Contents/Resources")
   install(DIRECTORY "${PROJECT_BINARY_DIR}/shaders"
     DESTINATION "${EXE_TARGET}.app/Contents/Resources")
-  install(FILES "${PROJECT_SOURCE_DIR}/osx/nova.icns"
+  install(FILES "${PROJECT_SOURCE_DIR}/platform/osx/nova.icns"
     DESTINATION "${EXE_TARGET}.app/Contents/Resources")
   install(FILES "/usr/local/lib/libMoltenVK.dylib"
     DESTINATION "${EXE_TARGET}.app/Contents/Frameworks")
-  install(FILES "${PROJECT_SOURCE_DIR}/osx/MoltenVK_icd.json"
+  install(FILES "${PROJECT_SOURCE_DIR}/platform/osx/MoltenVK_icd.json"
     DESTINATION "${EXE_TARGET}.app/Contents/Resources/vulkan/icd.d")
 
   install(CODE "
@@ -172,4 +245,6 @@ set(CPACK_PACKAGE_VENDOR "Rob Jinman")
 set(CPACK_PACKAGE_CONTACT "jinmanr@gmail.com")
 include(CPack)
 
-add_subdirectory("test")
+if(PLATOFRM_LINUX OR PLATFORM_OSX OR PLATFORM_WINDOWS)
+  add_subdirectory("test")
+endif()
