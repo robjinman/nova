@@ -100,18 +100,15 @@ elseif(PLATFORM_OSX)
 elseif(PLATFORM_IOS)
   list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/platform/ios/cmake")
   find_package(Vulkan REQUIRED COMPONENTS MoltenVK)
-  find_library(UIKIT_LIB UiKit)
-  find_library(COREMEDIA_LIB CoreMedia)
-  find_library(METAL_LIB Metal)
   set(MACOSX_BUNDLE_BUNDLE_NAME "Nova")
   set(MACOSX_BUNDLE_BUNDLE_VERSION "0.1")
   set(MACOSX_BUNDLE_GUI_IDENTIFIER "io.deadbeef.nova")
   set(MACOSX_BUNDLE_LONG_VERSION_STRING "0.1")
   set(MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1")
   add_executable(${EXE_TARGET} MACOSX_BUNDLE
-    "${PROJECT_SOURCE_DIR}/src/platform/ios/application.mm"
-    "${PROJECT_SOURCE_DIR}/src/vulkan/platform/ios/vulkan_window_delegate.cpp"
-    "${PROJECT_SOURCE_DIR}/src/platform/ios/hello.cpp"
+    "${PROJECT_SOURCE_DIR}/src/platform/ios/wrapper.mm"
+    "${PROJECT_SOURCE_DIR}/src/platform/ios/application.cpp"
+    "${PROJECT_SOURCE_DIR}/src/vulkan/platform/ios/vulkan_window_delegate.mm"
     "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
   )
   set_source_files_properties(
@@ -121,9 +118,13 @@ elseif(PLATFORM_IOS)
   )
   target_link_libraries(${EXE_TARGET}
     PRIVATE
-      ${UIKIT_LIB}
-      ${COREMEDIA_LIB}
-      ${METAL_LIB}
+    "-framework UIKit"
+    "-framework Foundation"
+    "-framework CoreGraphics"
+    "-framework Metal"
+    "-framework QuartzCore"
+    "-framework IOKit"
+    "-framework IOSurface"
   )
   set(CMAKE_OSX_DEPLOYMENT_TARGET "17")
   set(CMAKE_XCODE_GENERATE_SCHEME "TRUE")
