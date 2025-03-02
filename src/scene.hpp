@@ -8,8 +8,9 @@ class SpatialSystem;
 class RenderSystem;
 class CollisionSystem;
 class MapParser;
+class PlatformPaths;
 class Logger;
 
 PlayerPtr createScene(EntityFactory& entityFactory, SpatialSystem& spatialSystem,
   RenderSystem& renderSystem, CollisionSystem& collisionSystem, MapParser& mapParser,
-  Logger& logger);
+  const PlatformPaths& platformPaths, Logger& logger);

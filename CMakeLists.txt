@@ -39,13 +39,47 @@ configure_file(
   "${PROJECT_BINARY_DIR}/include/version.hpp"
 )
 
-file(GLOB
-  CPP_SOURCES
+file(GLOB CPP_SOURCES
   "${PROJECT_SOURCE_DIR}/src/*.cpp"
   "${PROJECT_SOURCE_DIR}/src/vulkan/*.cpp"
 )
 
 add_library(${LIB_TARGET} ${CPP_SOURCES})
+
+file(GLOB FRAG_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/src/vulkan/shaders/fragment/*.glsl")
+file(GLOB VERT_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/src/vulkan/shaders/vertex/*.glsl")
+
+find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
+
+function(compile_shaders targetName shaderSources shaderStage shaderBinaryDir)
+  if(CMAKE_BUILD_TYPE STREQUAL Debug)
+    set(compile_flags -fshader-stage=${shaderStage} -g)
+  else()
+    set(compile_flags -fshader-stage=${shaderStage} -O)
+  endif()
+
+  set(shaderBinaries "")
+  foreach(shaderSource ${shaderSources})
+    get_filename_component(shaderFilename ${shaderSource} NAME)
+    string(REGEX REPLACE "[.]glsl$" ".spv" shaderBinaryName ${shaderFilename})
+    set(shaderBinary "${shaderBinaryDir}/${shaderStage}/${shaderBinaryName}")
+    list(APPEND shaderBinaries ${shaderBinary})
+    add_custom_command(
+      OUTPUT ${shaderBinary}
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${shaderBinaryDir}/${shaderStage}"
+      COMMAND ${glslc_executable} ${compile_flags} ${shaderSource} -o ${shaderBinary}
+      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+      MAIN_DEPENDENCY ${shaderSource}
+    )
+  endforeach()
+  add_custom_target(${targetName} DEPENDS ${shaderBinaries})
+endfunction()
+
+compile_shaders(frag_shaders "${FRAG_SHADER_SOURCES}" fragment "${PROJECT_BINARY_DIR}/shaders")
+compile_shaders(vert_shaders "${VERT_SHADER_SOURCES}" vertex "${PROJECT_BINARY_DIR}/shaders")
+
+add_dependencies(${LIB_TARGET} frag_shaders)
+add_dependencies(${LIB_TARGET} vert_shaders)
 
 if(PLATFORM_LINUX)
   find_package(Vulkan REQUIRED)
@@ -98,6 +132,7 @@ elseif(PLATFORM_OSX)
       glfw
   )
 elseif(PLATFORM_IOS)
+  set(RESOURCES_DIR "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}-iphoneos/nova.app/Resources")
   list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/platform/ios/cmake")
   find_package(Vulkan REQUIRED COMPONENTS MoltenVK)
   set(MACOSX_BUNDLE_BUNDLE_NAME "Nova")
@@ -109,10 +144,23 @@ elseif(PLATFORM_IOS)
     "${PROJECT_SOURCE_DIR}/src/platform/ios/wrapper.mm"
     "${PROJECT_SOURCE_DIR}/src/platform/ios/application.cpp"
     "${PROJECT_SOURCE_DIR}/src/vulkan/platform/ios/vulkan_window_delegate.mm"
+    "${PROJECT_SOURCE_DIR}/data"
+    "${PROJECT_BINARY_DIR}/shaders"
     "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
   )
   set_source_files_properties(
-    $ENV{VULKAN_SDK}/../iOS/share/vulkan
+    "${PROJECT_SOURCE_DIR}/data"
+    PROPERTIES
+      MACOSX_PACKAGE_LOCATION Resources
+  )
+  set_source_files_properties(
+    "${PROJECT_BINARY_DIR}/shaders"
+    PROPERTIES
+      MACOSX_PACKAGE_LOCATION Resources
+      GENERATED TRUE
+  )
+  set_source_files_properties(
+    "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
     PROPERTIES
       MACOSX_PACKAGE_LOCATION Resources
   )
@@ -170,41 +218,6 @@ target_link_libraries(${EXE_TARGET}
 
 target_compile_options(${LIB_TARGET} PUBLIC "$<$<CONFIG:DEBUG>:${DEBUG_COMPILE_FLAGS}>")
 target_compile_options(${LIB_TARGET} PUBLIC "$<$<CONFIG:RELEASE>:${RELEASE_COMPILE_FLAGS}>")
-
-file(GLOB FRAG_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/src/vulkan/shaders/fragment/*.glsl")
-file(GLOB VERT_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/src/vulkan/shaders/vertex/*.glsl")
-
-find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
-
-function(compile_shaders targetName shaderSources shaderStage shaderBinaryDir)
-  if(CMAKE_BUILD_TYPE STREQUAL Debug)
-    set(compile_flags -fshader-stage=${shaderStage} -g)
-  else()
-    set(compile_flags -fshader-stage=${shaderStage} -O)
-  endif()
-
-  set(shaderBinaries "")
-  foreach(shaderSource ${shaderSources})
-    get_filename_component(shaderFilename ${shaderSource} NAME)
-    string(REGEX REPLACE "[.]glsl$" ".spv" shaderBinaryName ${shaderFilename})
-    set(shaderBinary "${shaderBinaryDir}/${shaderStage}/${shaderBinaryName}")
-    list(APPEND shaderBinaries ${shaderBinary})
-    add_custom_command(
-      OUTPUT ${shaderBinary}
-      COMMAND ${CMAKE_COMMAND} -E make_directory "${shaderBinaryDir}/${shaderStage}"
-      COMMAND ${glslc_executable} ${compile_flags} ${shaderSource} -o ${shaderBinary}
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-      MAIN_DEPENDENCY ${shaderSource}
-    )
-  endforeach()
-  add_custom_target(${targetName} DEPENDS ${shaderBinaries})
-endfunction()
-
-compile_shaders(frag_shaders "${FRAG_SHADER_SOURCES}" fragment "${PROJECT_BINARY_DIR}/shaders")
-compile_shaders(vert_shaders "${VERT_SHADER_SOURCES}" vertex "${PROJECT_BINARY_DIR}/shaders")
-
-add_dependencies(${LIB_TARGET} frag_shaders)
-add_dependencies(${LIB_TARGET} vert_shaders)
 
 add_custom_target(
   link_data ALL

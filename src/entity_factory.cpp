@@ -7,6 +7,7 @@
 #include "spatial_system.hpp"
 #include "render_system.hpp"
 #include "collision_system.hpp"
+#include "platform_paths.hpp"
 #include <filesystem>
 #include <map>
 
@@ -17,12 +18,13 @@ class EntityFactoryImpl : public EntityFactory
 {
   public:
     EntityFactoryImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
-      CollisionSystem& CollisionSystem, Logger& logger);
+      CollisionSystem& CollisionSystem, const PlatformPaths& platformPaths, Logger& logger);
 
     EntityId constructEntity(const std::string& name, const Mat4x4f& transform) const override;
 
   private:
     Logger& m_logger;
+    const PlatformPaths& m_platformPaths;
     SpatialSystem& m_spatialSystem;
     RenderSystem& m_renderSystem;
     CollisionSystem& m_collisionSystem;
@@ -46,8 +48,9 @@ class EntityFactoryImpl : public EntityFactory
 };
 
 EntityFactoryImpl::EntityFactoryImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
-  CollisionSystem& collisionSystem, Logger& logger)
+  CollisionSystem& collisionSystem, const PlatformPaths& platformPaths, Logger& logger)
   : m_logger(logger)
+  , m_platformPaths(platformPaths)
   , m_spatialSystem(spatialSystem)
   , m_renderSystem(renderSystem)
   , m_collisionSystem(collisionSystem)
@@ -58,7 +61,7 @@ EntityFactoryImpl::EntityFactoryImpl(SpatialSystem& spatialSystem, RenderSystem&
 
 void EntityFactoryImpl::loadResources()
 {
-  XmlNodePtr root = openXmlFile("./data/resources/manifest.xml");
+  XmlNodePtr root = openXmlFile(m_platformPaths.get("data", "resources/manifest.xml"));
   ASSERT(root->name() == "resources", "Expected root node 'resources'");
 
   for (auto& node : *root) {
@@ -80,7 +83,7 @@ void EntityFactoryImpl::loadTextures(const XmlNode& root)
   for (auto& node : root) {
     ASSERT(node.name() == "texture", "Expected 'texture' node");
     m_textures[node.attribute("name")] =
-      m_renderSystem.addTexture(loadTexture(node.attribute("file")));
+      m_renderSystem.addTexture(loadTexture(m_platformPaths.get("data", node.attribute("file"))));
   }
 }
 
@@ -88,7 +91,7 @@ void EntityFactoryImpl::loadMeshes(const XmlNode& root)
 {
   for (auto& node : root) {
     ASSERT(node.name() == "mesh", "Expected 'mesh' node");
-    auto mesh = loadMesh(node.attribute("file"));
+    auto mesh = loadMesh(m_platformPaths.get("data", node.attribute("file")));
     mesh->isInstanced = node.attribute("instanced") == "true";
     if (mesh->isInstanced) {
       mesh->maxInstances = std::stoi(node.attribute("max-instances"));
@@ -113,7 +116,7 @@ void EntityFactoryImpl::loadMaterials(const XmlNode& root)
 
 void EntityFactoryImpl::loadEntities()
 {
-  const std::string entitiesDirectory = "./data/entities";
+  const std::string entitiesDirectory = m_platformPaths.get("data", "entities");
   for (auto& entry : std::filesystem::directory_iterator{entitiesDirectory}) {
     if (entry.is_regular_file()) {
       parseEntityFile(entry.path());
@@ -231,7 +234,8 @@ void EntityFactoryImpl::constructCollisionComponent(EntityId entityId, const Xml
 }
 
 EntityFactoryPtr createEntityFactory(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
-  CollisionSystem& collisionSystem, Logger& logger)
+  CollisionSystem& collisionSystem, const PlatformPaths& platformPaths, Logger& logger)
 {
-  return std::make_unique<EntityFactoryImpl>(spatialSystem, renderSystem, collisionSystem, logger);
+  return std::make_unique<EntityFactoryImpl>(spatialSystem, renderSystem, collisionSystem,
+    platformPaths, logger);
 }
