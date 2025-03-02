@@ -191,6 +191,7 @@ void Application::exitInputCapture()
 
 Application::~Application()
 {
+  m_renderer.reset();
   glfwDestroyWindow(m_window);
   glfwTerminate();
 }
