@@ -171,8 +171,8 @@ target_link_libraries(${EXE_TARGET}
 target_compile_options(${LIB_TARGET} PUBLIC "$<$<CONFIG:DEBUG>:${DEBUG_COMPILE_FLAGS}>")
 target_compile_options(${LIB_TARGET} PUBLIC "$<$<CONFIG:RELEASE>:${RELEASE_COMPILE_FLAGS}>")
 
-file(GLOB FRAG_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/shaders/fragment/*.glsl")
-file(GLOB VERT_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/shaders/vertex/*.glsl")
+file(GLOB FRAG_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/src/vulkan/shaders/fragment/*.glsl")
+file(GLOB VERT_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/src/vulkan/shaders/vertex/*.glsl")
 
 find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
 
