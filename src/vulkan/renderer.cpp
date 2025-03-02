@@ -69,7 +69,7 @@ struct SwapChainSupportDetails
 class RendererImpl : public Renderer
 {
   public:
-    RendererImpl(VulkanWindowDelegate& window, Logger& logger);
+    RendererImpl(const PlatformPaths& platformPaths, VulkanWindowDelegate& window, Logger& logger);
 
     void start() override;
     double frameRate() const override;
@@ -142,6 +142,7 @@ class RendererImpl : public Renderer
     void renderLoop();
     void cleanUp();
 
+    const PlatformPaths& m_platformPaths;
     VulkanWindowDelegate& m_window;
     Logger& m_logger;
     VkInstance m_instance;
@@ -192,8 +193,10 @@ class RendererImpl : public Renderer
     std::atomic<bool> m_running;
 };
 
-RendererImpl::RendererImpl(VulkanWindowDelegate& window, Logger& logger)
-  : m_window(window)
+RendererImpl::RendererImpl(const PlatformPaths& platformPaths, VulkanWindowDelegate& window,
+  Logger& logger)
+  : m_platformPaths(platformPaths)
+  , m_window(window)
   , m_logger(logger)
 {
   DBG_TRACE(m_logger);
@@ -948,7 +951,7 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
   renderPassInfo.renderArea.offset = { 0, 0 };
   renderPassInfo.renderArea.extent = m_swapchainExtent;
   std::array<VkClearValue, 2> clearValues{};
-  clearValues[0].color = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
+  clearValues[0].color = {{ 0.0f, 0.0f, 1.0f, 1.0f }};
   clearValues[1].depthStencil = { 1.0f, 0 };
   renderPassInfo.clearValueCount = clearValues.size();
   renderPassInfo.pClearValues = clearValues.data();
@@ -1104,11 +1107,11 @@ void RendererImpl::createPipelines()
 {
   DBG_TRACE(m_logger);
 
-  m_pipelines[PipelineName::defaultModel] = std::make_unique<DefaultPipeline>(m_device,
-    m_swapchainExtent, m_renderPass, *m_resources);
-  m_pipelines[PipelineName::instancedModel] = std::make_unique<InstancedPipeline>(m_device,
-    m_swapchainExtent, m_renderPass, *m_resources);
-  m_pipelines[PipelineName::skybox] = std::make_unique<SkyboxPipeline>(m_device,
+  m_pipelines[PipelineName::defaultModel] = std::make_unique<DefaultPipeline>(m_platformPaths,
+    m_device, m_swapchainExtent, m_renderPass, *m_resources);
+  m_pipelines[PipelineName::instancedModel] = std::make_unique<InstancedPipeline>(m_platformPaths,
+    m_device, m_swapchainExtent, m_renderPass, *m_resources);
+  m_pipelines[PipelineName::skybox] = std::make_unique<SkyboxPipeline>(m_platformPaths, m_device,
     m_swapchainExtent, m_renderPass, *m_resources);
 }
 
@@ -1288,7 +1291,9 @@ RendererImpl::~RendererImpl()
 
 } // namespace
 
-RendererPtr createRenderer(WindowDelegate& window, Logger& logger)
+RendererPtr createRenderer(const PlatformPaths& platformPaths, WindowDelegate& window,
+  Logger& logger)
 {
-  return std::make_unique<RendererImpl>(dynamic_cast<VulkanWindowDelegate&>(window), logger);
+  return std::make_unique<RendererImpl>(platformPaths, dynamic_cast<VulkanWindowDelegate&>(window),
+    logger);
 }

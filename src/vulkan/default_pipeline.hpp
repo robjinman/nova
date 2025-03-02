@@ -13,11 +13,13 @@ struct DefaultModelNode : public RenderNode
   Mat4x4f modelMatrix;
 };
 
+class PlatformPaths;
+
 class DefaultPipeline : public Pipeline
 {
   public:
-    DefaultPipeline(VkDevice device, VkExtent2D swapchainExtent, VkRenderPass renderPass,
-      const RenderResources& renderResources);
+    DefaultPipeline(const PlatformPaths& platformPaths, VkDevice device, VkExtent2D swapchainExtent,
+      VkRenderPass renderPass, const RenderResources& renderResources);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
       size_t currentFrame) override;

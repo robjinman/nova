@@ -15,10 +15,11 @@ class EntityFactory
 
 using EntityFactoryPtr = std::unique_ptr<EntityFactory>;
 
-class Logger;
 class SpatialSystem;
 class RenderSystem;
 class CollisionSystem;
+class PlatformPaths;
+class Logger;
 
 EntityFactoryPtr createEntityFactory(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
-  CollisionSystem& collisionSystem, Logger& logger);
+  CollisionSystem& collisionSystem, const PlatformPaths& platformPaths, Logger& logger);

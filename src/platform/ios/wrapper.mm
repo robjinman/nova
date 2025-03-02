@@ -40,7 +40,12 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
 - (void)viewDidLoad {
   [super viewDidLoad];
 
-  _application = createApplication(createWindowDelegate((CAMetalLayer*)self.view.layer));
+  NSString* bundlePath = [[NSBundle mainBundle] bundlePath];
+  const char* bundlePathCStr = [bundlePath UTF8String];
+
+  _application = createApplication(bundlePathCStr,
+    createWindowDelegate((CAMetalLayer*)self.view.layer));
+
   self.displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(updateLoop:)];
   [self.displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSDefaultRunLoopMode];
 }

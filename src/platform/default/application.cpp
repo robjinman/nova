@@ -11,6 +11,7 @@
 #include "utils.hpp"
 #include "units.hpp"
 #include "window_delegate.hpp"
+#include "platform_paths.hpp"
 #include <iostream>
 #include <GLFW/glfw3.h>
 
@@ -41,6 +42,7 @@ class Application
     static void onMouseClick(GLFWwindow* window, int, int, int);
 
     GLFWwindow* m_window;
+    PlatformPathsPtr m_platformPaths;
     WindowDelegatePtr m_windowDelegate;
     LoggerPtr m_logger;
     RendererPtr m_renderer;
@@ -89,20 +91,28 @@ Application::Application()
 
   m_instance = this;
 
+  std::filesystem::path root = std::filesystem::current_path();
+
+  DirectoryMap directories;
+  directories["data"] = root / "data";
+  directories["shaders"] = root / "shaders";
+
+  m_platformPaths = std::make_unique<PlatformPaths>(directories);
+
   std::string title = versionString();
   m_window = glfwCreateWindow(WIDTH, HEIGHT, title.c_str(), nullptr, nullptr);
   m_windowDelegate = createWindowDelegate(*m_window);
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
-  m_renderer = createRenderer(*m_windowDelegate, *m_logger);
+  m_renderer = createRenderer(*m_platformPaths, *m_windowDelegate, *m_logger);
   m_spatialSystem = createSpatialSystem(*m_logger);
   m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_logger);
   m_collisionSystem = createCollisionSystem(*m_spatialSystem, *m_logger);
   m_mapParser = createMapParser(*m_logger);
   m_entityFactory = createEntityFactory(*m_spatialSystem, *m_renderSystem, *m_collisionSystem,
-    *m_logger);
+    *m_platformPaths, *m_logger);
 
   auto player = createScene(*m_entityFactory, *m_spatialSystem, *m_renderSystem, *m_collisionSystem,
-    *m_mapParser, *m_logger);
+    *m_mapParser, *m_platformPaths, *m_logger);
 
   m_renderSystem->start();
   m_game = createGame(std::move(player), *m_collisionSystem, *m_logger);

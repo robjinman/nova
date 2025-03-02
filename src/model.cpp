@@ -117,7 +117,7 @@ TexturePtr loadTexture(const std::string& filePath)
   stbi_uc* pixels = stbi_load(filePath.c_str(), &width, &height, &channels, STBI_rgb_alpha);
 
   if (!pixels) {
-    EXCEPTION("Failed to load texture image");
+    EXCEPTION("Failed to load texture image " << filePath);
   }
 
   TexturePtr texture = std::make_unique<Texture>();

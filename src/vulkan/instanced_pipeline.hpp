@@ -13,11 +13,13 @@ struct InstancedModelNode : public RenderNode
   std::vector<MeshInstance> instances;
 };
 
+class PlatformPaths;
+
 class InstancedPipeline : public Pipeline
 {
   public:
-    InstancedPipeline(VkDevice device, VkExtent2D swapchainExtent, VkRenderPass renderPass,
-      const RenderResources& renderResources);
+    InstancedPipeline(const PlatformPaths& platformPaths, VkDevice device,
+      VkExtent2D swapchainExtent, VkRenderPass renderPass, const RenderResources& renderResources);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
       size_t currentFrame) override;

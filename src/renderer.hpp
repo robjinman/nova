@@ -43,7 +43,9 @@ class Renderer
 
 using RendererPtr = std::unique_ptr<Renderer>;
 
+class PlatformPaths;
 class WindowDelegate;
 class Logger;
 
-RendererPtr createRenderer(WindowDelegate& window, Logger& logger);
+RendererPtr createRenderer(const PlatformPaths& platformPaths, WindowDelegate& window,
+  Logger& logger);

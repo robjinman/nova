@@ -12,11 +12,13 @@ struct SkyboxNode : public RenderNode
   RenderItemId material;
 };
 
+class PlatformPaths;
+
 class SkyboxPipeline : public Pipeline
 {
   public:
-    SkyboxPipeline(VkDevice device, VkExtent2D swapchainExtent, VkRenderPass renderPass,
-      const RenderResources& renderResources);
+    SkyboxPipeline(const PlatformPaths& platformPaths, VkDevice device, VkExtent2D swapchainExtent,
+      VkRenderPass renderPass, const RenderResources& renderResources);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
       size_t currentFrame) override;
