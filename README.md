@@ -13,13 +13,13 @@ Building from source
 
 ### Prerequisites
 
-#### linux
+#### Linux
 
 * cmake
 * vcpkg
 * Vulkan SDK
 
-#### OS X
+#### OS X and iOS
 
 * XCode
 * cmake
@@ -35,6 +35,13 @@ Building from source
 * Vulkan SDK
 
 Make sure everything you need is on your PATH, including objdump.exe, which should be installed with Visual Studio. You can find the location of objdump by opening a Native Tools command prompt and typing `where objdump`.
+
+#### Android
+
+Linux host with the same prerequisites as above, plus
+
+* Android Studio
+* Android NDK (can be installed through Android Studio)
 
 ### Build
 
