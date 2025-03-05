@@ -1,123 +1,37 @@
 cmake_minimum_required(VERSION 3.27)
 
-set(VERSION_MAJOR 0)
-set(VERSION_MINOR 1)
 set(PROJECT_NAME Nova)
-
 project(${PROJECT_NAME})
-
-set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}")
-
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "Debug")
-endif()
-
-message("System name is ${CMAKE_SYSTEM_NAME}")
-message("Building ${CMAKE_BUILD_TYPE} configuration...")
-
-set(EXE_TARGET "nova")
-set(LIB_TARGET "libnova")
-
-if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  set(PLATFORM_LINUX 1)
-elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
-  set(PLATFORM_WINDOWS 1)
-elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set(PLATFORM_OSX 1)
-elseif(CMAKE_SYSTEM_NAME MATCHES "iOS")
-  set(PLATFORM_IOS 1)
-endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(tinyxml2 REQUIRED)
-find_package(Stb REQUIRED)
+add_subdirectory("nova" "libnova")
 
-configure_file(
-  "${PROJECT_SOURCE_DIR}/src/version_in.hpp"
-  "${PROJECT_BINARY_DIR}/include/version.hpp"
-)
-
-file(GLOB CPP_SOURCES
-  "${PROJECT_SOURCE_DIR}/src/*.cpp"
-  "${PROJECT_SOURCE_DIR}/src/vulkan/*.cpp"
-)
-
-add_library(${LIB_TARGET} ${CPP_SOURCES})
-
-file(GLOB FRAG_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/src/vulkan/shaders/fragment/*.glsl")
-file(GLOB VERT_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/src/vulkan/shaders/vertex/*.glsl")
-
-find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
-
-function(compile_shaders targetName shaderSources shaderStage shaderBinaryDir)
-  if(CMAKE_BUILD_TYPE STREQUAL Debug)
-    set(compile_flags -fshader-stage=${shaderStage} -g)
-  else()
-    set(compile_flags -fshader-stage=${shaderStage} -O)
-  endif()
-
-  set(shaderBinaries "")
-  foreach(shaderSource ${shaderSources})
-    get_filename_component(shaderFilename ${shaderSource} NAME)
-    string(REGEX REPLACE "[.]glsl$" ".spv" shaderBinaryName ${shaderFilename})
-    set(shaderBinary "${shaderBinaryDir}/${shaderStage}/${shaderBinaryName}")
-    list(APPEND shaderBinaries ${shaderBinary})
-    add_custom_command(
-      OUTPUT ${shaderBinary}
-      COMMAND ${CMAKE_COMMAND} -E make_directory "${shaderBinaryDir}/${shaderStage}"
-      COMMAND ${glslc_executable} ${compile_flags} ${shaderSource} -o ${shaderBinary}
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-      MAIN_DEPENDENCY ${shaderSource}
-    )
-  endforeach()
-  add_custom_target(${targetName} DEPENDS ${shaderBinaries})
-endfunction()
-
-compile_shaders(frag_shaders "${FRAG_SHADER_SOURCES}" fragment "${PROJECT_BINARY_DIR}/shaders")
-compile_shaders(vert_shaders "${VERT_SHADER_SOURCES}" vertex "${PROJECT_BINARY_DIR}/shaders")
-
-add_dependencies(${LIB_TARGET} frag_shaders)
-add_dependencies(${LIB_TARGET} vert_shaders)
+set(EXE_TARGET "nova")
 
 if(PLATFORM_LINUX)
-  find_package(Vulkan REQUIRED)
-  find_package(glfw3 REQUIRED)
-  set(COMPILE_FLAGS -Wextra -Wall)
-  set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
-  set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
   add_executable(${EXE_TARGET}
-    "${PROJECT_SOURCE_DIR}/src/platform/default/application.cpp"
-    "${PROJECT_SOURCE_DIR}/src/vulkan/platform/default/vulkan_window_delegate.cpp"
+    "${PROJECT_SOURCE_DIR}/nova/src/platform/default/application.cpp"
+    "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/default/vulkan_window_delegate.cpp"
   )
   target_link_libraries(${EXE_TARGET}
     PRIVATE
       glfw
   )
 elseif(PLATFORM_WINDOWS)
-  find_package(Vulkan REQUIRED)
-  find_package(glfw3 REQUIRED)
-  set(COMPILE_FLAGS /W4)
-  set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS})
-  set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} /O2)
   add_executable(${EXE_TARGET}
-    "${PROJECT_SOURCE_DIR}/src/platform/default/application.cpp"
-    "${PROJECT_SOURCE_DIR}/src/vulkan/platform/default/vulkan_window_delegate.cpp"
+    "${PROJECT_SOURCE_DIR}/nova//src/platform/default/application.cpp"
+    "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/default/vulkan_window_delegate.cpp"
   )
   target_link_libraries(${EXE_TARGET}
     PRIVATE
       glfw
   )
 elseif(PLATFORM_OSX)
-  find_package(Vulkan REQUIRED)
-  find_package(glfw3 REQUIRED)
-  set(COMPILE_FLAGS -Wextra -Wall)
-  set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
-  set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
   add_executable(${EXE_TARGET}
-    "${PROJECT_SOURCE_DIR}/src/platform/default/application.cpp"
-    "${PROJECT_SOURCE_DIR}/src/vulkan/platform/default/vulkan_window_delegate.cpp"
+    "${PROJECT_SOURCE_DIR}/nova/src/platform/default/application.cpp"
+    "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/default/vulkan_window_delegate.cpp"
   )
   set_target_properties(${EXE_TARGET} PROPERTIES
     MACOSX_BUNDLE TRUE
@@ -132,18 +46,17 @@ elseif(PLATFORM_OSX)
       glfw
   )
 elseif(PLATFORM_IOS)
-  set(RESOURCES_DIR "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}-iphoneos/nova.app/Resources")
+  set(RESOURCES_DIR "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}-iphoneos/nova.app/Resources")  # TODO: Remove?
   list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/platform/ios/cmake")
-  find_package(Vulkan REQUIRED COMPONENTS MoltenVK)
   set(MACOSX_BUNDLE_BUNDLE_NAME "Nova")
   set(MACOSX_BUNDLE_BUNDLE_VERSION "0.1")
   set(MACOSX_BUNDLE_GUI_IDENTIFIER "io.deadbeef.nova")
   set(MACOSX_BUNDLE_LONG_VERSION_STRING "0.1")
   set(MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1")
   add_executable(${EXE_TARGET} MACOSX_BUNDLE
-    "${PROJECT_SOURCE_DIR}/src/platform/ios/wrapper.mm"
-    "${PROJECT_SOURCE_DIR}/src/platform/ios/application.cpp"
-    "${PROJECT_SOURCE_DIR}/src/vulkan/platform/ios/vulkan_window_delegate.mm"
+    "${PROJECT_SOURCE_DIR}/nova/src/platform/ios/wrapper.mm"
+    "${PROJECT_SOURCE_DIR}/nova/src/platform/ios/application.cpp"
+    "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/ios/vulkan_window_delegate.mm"
     "${PROJECT_SOURCE_DIR}/data"
     "${PROJECT_BINARY_DIR}/shaders"
     "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
@@ -199,25 +112,10 @@ elseif(PLATFORM_IOS)
   )
 endif()
 
-target_include_directories(${LIB_TARGET}
-  PUBLIC
-    "${PROJECT_BINARY_DIR}/include" # Location of version.hpp
-    "${PROJECT_SOURCE_DIR}/src"
-)
-
-target_link_libraries(${LIB_TARGET}
-  PUBLIC
-    Vulkan::Vulkan
-    tinyxml2::tinyxml2
-)
-
 target_link_libraries(${EXE_TARGET}
   PRIVATE
     ${LIB_TARGET}
 )
-
-target_compile_options(${LIB_TARGET} PUBLIC "$<$<CONFIG:DEBUG>:${DEBUG_COMPILE_FLAGS}>")
-target_compile_options(${LIB_TARGET} PUBLIC "$<$<CONFIG:RELEASE>:${RELEASE_COMPILE_FLAGS}>")
 
 add_custom_target(
   link_data ALL
