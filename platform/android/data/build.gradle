@@ -1,0 +1,12 @@
+plugins {
+    id 'com.android.asset-pack'
+}
+
+layout.buildDirectory.set(file("$rootDir/../../build/android/assetpack_build"))
+
+assetPack {
+    packName = "data"
+    dynamicDelivery {
+        deliveryType = "install-time"
+    }
+}

@@ -29,6 +29,31 @@
       }
     },
     {
+      "name": "android-default",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/android/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ANDROID_BUILD": "TRUE"
+      }
+    },
+    {
+      "name": "android-debug",
+      "inherits": "android-default",
+      "binaryDir": "${sourceDir}/build/android/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "android-release",
+      "inherits": "android-default",
+      "binaryDir": "${sourceDir}/build/android/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
       "name": "osx-default",
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/osx/debug",
@@ -126,6 +151,14 @@
       "configurePreset": "linux-release"
     },
     {
+      "name": "android-debug",
+      "configurePreset": "android-debug"
+    },
+    {
+      "name": "android-release",
+      "configurePreset": "android-release"
+    },
+    {
       "name": "osx-debug",
       "configurePreset": "osx-debug"
     },
@@ -194,6 +227,34 @@
         {
           "type": "package",
           "name": "linux-zip"
+        }
+      ]
+    },
+    {
+      "description": "Android debug build",
+      "name": "android-debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-debug"
+        },
+        {
+          "type": "build",
+          "name": "android-debug"
+        }
+      ]
+    },
+    {
+      "description": "Android release build",
+      "name": "android-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-release"
+        },
+        {
+          "type": "build",
+          "name": "android-release"
         }
       ]
     },
