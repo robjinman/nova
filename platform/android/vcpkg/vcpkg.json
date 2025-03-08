@@ -1,0 +1,16 @@
+{
+  "dependencies": [
+    "tinyxml2",
+    "stb"
+  ],
+  "overrides": [
+    {
+      "name": "tinyxml2",
+      "version": "9.0.0"
+    },
+    {
+      "name": "stb",
+      "version": "2023-04-11"
+    }
+  ]
+}

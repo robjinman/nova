@@ -19,7 +19,10 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "NativeExample"
+rootProject.name = "nova"
 
 include ':app'
-project(':app').projectDir = new File('../../src/platform/android')
+project(':app').projectDir = new File('../../nova/src/platform/android')
+
+include ':data'
+project(':data').projectDir = new File('./data')
