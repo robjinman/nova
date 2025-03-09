@@ -1,17 +1,17 @@
 #include "vulkan/default_pipeline.hpp"
 #include "vulkan/vulkan_utils.hpp"
 #include "vulkan/render_resources.hpp"
-#include "platform_paths.hpp"
+#include "file_system.hpp"
 #include "utils.hpp"
 #include "model.hpp"
 
-DefaultPipeline::DefaultPipeline(const PlatformPaths& platformPaths, VkDevice device,
+DefaultPipeline::DefaultPipeline(const FileSystem& fileSystem, VkDevice device,
   VkExtent2D swapchainExtent, VkRenderPass renderPass, const RenderResources& renderResources)
   : m_device(device)
   , m_renderResources(renderResources)
 {
-  auto vertShaderCode = readBinaryFile(platformPaths.get("shaders", "vertex/default.spv"));
-  auto fragShaderCode = readBinaryFile(platformPaths.get("shaders", "fragment/default.spv"));
+  auto vertShaderCode = fileSystem.readFile("shaders/vertex/default.spv");
+  auto fragShaderCode = fileSystem.readFile("shaders/fragment/default.spv");
 
   VkShaderModule vertShaderModule = createShaderModule(m_device, vertShaderCode);
   VkShaderModule fragShaderModule = createShaderModule(m_device, fragShaderCode);

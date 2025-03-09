@@ -13,12 +13,12 @@ struct DefaultModelNode : public RenderNode
   Mat4x4f modelMatrix;
 };
 
-class PlatformPaths;
+class FileSystem;
 
 class DefaultPipeline : public Pipeline
 {
   public:
-    DefaultPipeline(const PlatformPaths& platformPaths, VkDevice device, VkExtent2D swapchainExtent,
+    DefaultPipeline(const FileSystem& fileSystem, VkDevice device, VkExtent2D swapchainExtent,
       VkRenderPass renderPass, const RenderResources& renderResources);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,

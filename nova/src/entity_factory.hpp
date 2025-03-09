@@ -18,8 +18,8 @@ using EntityFactoryPtr = std::unique_ptr<EntityFactory>;
 class SpatialSystem;
 class RenderSystem;
 class CollisionSystem;
-class PlatformPaths;
+class FileSystem;
 class Logger;
 
 EntityFactoryPtr createEntityFactory(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
-  CollisionSystem& collisionSystem, const PlatformPaths& platformPaths, Logger& logger);
+  CollisionSystem& collisionSystem, const FileSystem& fileSystem, Logger& logger);

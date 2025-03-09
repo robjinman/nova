@@ -1,16 +1,16 @@
 #include "vulkan/skybox_pipeline.hpp"
 #include "vulkan/vulkan_utils.hpp"
-#include "platform_paths.hpp"
+#include "file_system.hpp"
 #include "utils.hpp"
 #include "model.hpp"
 
-SkyboxPipeline::SkyboxPipeline(const PlatformPaths& platformPaths, VkDevice device,
+SkyboxPipeline::SkyboxPipeline(const FileSystem& fileSystem, VkDevice device,
   VkExtent2D swapchainExtent, VkRenderPass renderPass, const RenderResources& renderResources)
   : m_device(device)
   , m_renderResources(renderResources)
 {
-  auto vertShaderCode = readBinaryFile(platformPaths.get("shaders", "vertex/skybox.spv"));
-  auto fragShaderCode = readBinaryFile(platformPaths.get("shaders", "fragment/skybox.spv"));
+  auto vertShaderCode = fileSystem.readFile("shaders/vertex/skybox.spv");
+  auto fragShaderCode = fileSystem.readFile("shaders/fragment/skybox.spv");
 
   VkShaderModule vertShaderModule = createShaderModule(m_device, vertShaderCode);
   VkShaderModule fragShaderModule = createShaderModule(m_device, fragShaderCode);

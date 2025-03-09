@@ -69,7 +69,7 @@ struct SwapChainSupportDetails
 class RendererImpl : public Renderer
 {
   public:
-    RendererImpl(const PlatformPaths& platformPaths, VulkanWindowDelegate& window, Logger& logger);
+    RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger);
 
     void start() override;
     double frameRate() const override;
@@ -142,7 +142,7 @@ class RendererImpl : public Renderer
     void renderLoop();
     void cleanUp();
 
-    const PlatformPaths& m_platformPaths;
+    const FileSystem& m_fileSystem;
     VulkanWindowDelegate& m_window;
     Logger& m_logger;
     VkInstance m_instance;
@@ -193,9 +193,9 @@ class RendererImpl : public Renderer
     std::atomic<bool> m_running;
 };
 
-RendererImpl::RendererImpl(const PlatformPaths& platformPaths, VulkanWindowDelegate& window,
+RendererImpl::RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& window,
   Logger& logger)
-  : m_platformPaths(platformPaths)
+  : m_fileSystem(fileSystem)
   , m_window(window)
   , m_logger(logger)
 {
@@ -1107,11 +1107,11 @@ void RendererImpl::createPipelines()
 {
   DBG_TRACE(m_logger);
 
-  m_pipelines[PipelineName::defaultModel] = std::make_unique<DefaultPipeline>(m_platformPaths,
+  m_pipelines[PipelineName::defaultModel] = std::make_unique<DefaultPipeline>(m_fileSystem,
     m_device, m_swapchainExtent, m_renderPass, *m_resources);
-  m_pipelines[PipelineName::instancedModel] = std::make_unique<InstancedPipeline>(m_platformPaths,
+  m_pipelines[PipelineName::instancedModel] = std::make_unique<InstancedPipeline>(m_fileSystem,
     m_device, m_swapchainExtent, m_renderPass, *m_resources);
-  m_pipelines[PipelineName::skybox] = std::make_unique<SkyboxPipeline>(m_platformPaths, m_device,
+  m_pipelines[PipelineName::skybox] = std::make_unique<SkyboxPipeline>(m_fileSystem, m_device,
     m_swapchainExtent, m_renderPass, *m_resources);
 }
 
@@ -1291,9 +1291,9 @@ RendererImpl::~RendererImpl()
 
 } // namespace
 
-RendererPtr createRenderer(const PlatformPaths& platformPaths, WindowDelegate& window,
+RendererPtr createRenderer(const FileSystem& fileSystem, WindowDelegate& window,
   Logger& logger)
 {
-  return std::make_unique<RendererImpl>(platformPaths, dynamic_cast<VulkanWindowDelegate&>(window),
+  return std::make_unique<RendererImpl>(fileSystem, dynamic_cast<VulkanWindowDelegate&>(window),
     logger);
 }

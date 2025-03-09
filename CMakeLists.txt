@@ -72,6 +72,7 @@ else()
   if(PLATFORM_LINUX)
     add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/nova/src/platform/default/application.cpp"
+      "${PROJECT_SOURCE_DIR}/nova/src/platform/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/default/vulkan_window_delegate.cpp"
     )
     target_link_libraries(${EXE_TARGET} PRIVATE
@@ -80,6 +81,7 @@ else()
   elseif(PLATFORM_WINDOWS)
     add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/nova//src/platform/default/application.cpp"
+      "${PROJECT_SOURCE_DIR}/nova/src/platform/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/default/vulkan_window_delegate.cpp"
     )
     target_link_libraries(${EXE_TARGET} PRIVATE
@@ -88,6 +90,7 @@ else()
   elseif(PLATFORM_OSX)
     add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/nova/src/platform/default/application.cpp"
+      "${PROJECT_SOURCE_DIR}/nova/src/platform/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/default/vulkan_window_delegate.cpp"
     )
     set_target_properties(${EXE_TARGET} PROPERTIES
@@ -111,6 +114,7 @@ else()
     set(MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1")
     add_executable(${EXE_TARGET} MACOSX_BUNDLE
       "${PROJECT_SOURCE_DIR}/nova/src/platform/ios/wrapper.mm"
+      "${PROJECT_SOURCE_DIR}/nova/src/platform/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/nova/src/platform/ios/application.cpp"
       "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/ios/vulkan_window_delegate.mm"
       "${PROJECT_SOURCE_DIR}/data"
