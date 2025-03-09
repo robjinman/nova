@@ -35,4 +35,4 @@ class XmlNode
 
 using XmlNodePtr = std::unique_ptr<XmlNode>;
 
-XmlNodePtr openXmlFile(const std::string& filePath);
+XmlNodePtr parseXml(const std::vector<char>& data);

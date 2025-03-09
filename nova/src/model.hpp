@@ -48,7 +48,7 @@ struct Mesh
 
 using MeshPtr = std::unique_ptr<Mesh>;
 
-MeshPtr loadMesh(const std::string& objFilePath);
-TexturePtr loadTexture(const std::string& filePath);
+MeshPtr loadMesh(const std::vector<char>& data);
+TexturePtr loadTexture(const std::vector<char>& data);
 
 MeshPtr cuboid(float_t w, float_t h, float_t d, const Vec3f& colour, const Vec2f& textureSize);

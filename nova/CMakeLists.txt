@@ -87,8 +87,9 @@ elseif(PLATFORM_ANDROID)
     "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
   add_library(${LIB_TARGET} SHARED
     ${CPP_SOURCES}
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/android/src/main/cpp/app.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/android/src/main/cpp/application.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/android/src/main/cpp/file_system.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan/platform/android/vulkan_window_delegate.cpp"
   )
   add_library(app-glue STATIC
     "$ENV{ANDROID_NDK_HOME}/sources/android/native_app_glue/android_native_app_glue.c"

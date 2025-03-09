@@ -9,7 +9,7 @@ namespace
 class AndroidIteratorImpl : public Directory::IteratorImpl
 {
   public:
-    AndroidIteratorImpl(AAssetDir* assetDir);
+    AndroidIteratorImpl(const std::filesystem::path& root, AAssetDir* assetDir);
 
     std::filesystem::path get() const override;
     void next() override;
@@ -19,11 +19,13 @@ class AndroidIteratorImpl : public Directory::IteratorImpl
 
   private:
     AAssetDir* m_assetDir;
+    std::filesystem::path m_root;
     std::filesystem::path m_path;
 };
 
-AndroidIteratorImpl::AndroidIteratorImpl(AAssetDir* assetDir)
+AndroidIteratorImpl::AndroidIteratorImpl(const std::filesystem::path& root, AAssetDir* assetDir)
   : m_assetDir(assetDir)
+  , m_root(root)
 {
   if (assetDir != nullptr) {
     next();
@@ -41,7 +43,7 @@ void AndroidIteratorImpl::next()
 
   const char* path = AAssetDir_getNextFileName(m_assetDir);
   if (path != nullptr) {
-    m_path = path;
+    m_path = m_root / path;
   }
   else if (m_assetDir != nullptr) {
     AAssetDir_close(m_assetDir);
@@ -85,12 +87,12 @@ AndroidDirectoryImpl::AndroidDirectoryImpl(AAssetManager& assetManager,
 Directory::Iterator AndroidDirectoryImpl::begin() const
 {
   auto assetDir = AAssetManager_openDir(&m_assetManager, m_path.c_str());
-  return Directory::Iterator{std::make_unique<AndroidIteratorImpl>(assetDir)};
+  return Directory::Iterator{std::make_unique<AndroidIteratorImpl>(m_path, assetDir)};
 }
 
 Directory::Iterator AndroidDirectoryImpl::end() const
 {
-  return Directory::Iterator{std::make_unique<AndroidIteratorImpl>(nullptr)};
+  return Directory::Iterator{std::make_unique<AndroidIteratorImpl>(m_path, nullptr)};
 }
 
 class AndroidFileSystem : public FileSystem
@@ -113,6 +115,8 @@ AndroidFileSystem::AndroidFileSystem(AAssetManager& assetManager)
 std::vector<char> AndroidFileSystem::readFile(const std::filesystem::path& path) const
 {
   AAsset* asset = AAssetManager_open(&m_assetManager, path.c_str(), AASSET_MODE_BUFFER);
+  ASSERT(asset != nullptr, "Error opening asset '" << path << "'");
+
   size_t assetLength = AAsset_getLength(asset);
   std::vector<char> data(assetLength);
 

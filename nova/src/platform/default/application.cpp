@@ -101,7 +101,7 @@ Application::Application()
   m_spatialSystem = createSpatialSystem(*m_logger);
   m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_logger);
   m_collisionSystem = createCollisionSystem(*m_spatialSystem, *m_logger);
-  m_mapParser = createMapParser(*m_logger);
+  m_mapParser = createMapParser(*m_fileSystem, *m_logger);
   m_entityFactory = createEntityFactory(*m_spatialSystem, *m_renderSystem, *m_collisionSystem,
     *m_fileSystem, *m_logger);
 
@@ -116,7 +116,7 @@ Application::Application()
 
 void Application::run()
 {
-  FrameRateLimiter frameRateLimiter(TARGET_FRAME_RATE);
+  FrameRateLimiter frameRateLimiter{TARGET_FRAME_RATE};
 
   while(!glfwWindowShouldClose(m_window)) {
     glfwPollEvents();
@@ -199,7 +199,7 @@ int main()
     app.run();
   }
   catch(const std::exception& e) {
-    std::cerr << e.what();
+    std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;
   }
 
