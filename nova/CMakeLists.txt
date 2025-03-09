@@ -72,38 +72,6 @@ file(GLOB CPP_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan/*.cpp"
 )
 
-file(GLOB FRAG_SHADER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan/shaders/fragment/*.glsl")
-file(GLOB VERT_SHADER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan/shaders/vertex/*.glsl")
-
-find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
-
-function(compile_shaders targetName shaderSources shaderStage shaderBinaryDir)
-  if(CMAKE_BUILD_TYPE STREQUAL Debug)
-    set(compile_flags -fshader-stage=${shaderStage} -g)
-  else()
-    set(compile_flags -fshader-stage=${shaderStage} -O)
-  endif()
-
-  set(shaderBinaries "")
-  foreach(shaderSource ${shaderSources})
-    get_filename_component(shaderFilename ${shaderSource} NAME)
-    string(REGEX REPLACE "[.]glsl$" ".spv" shaderBinaryName ${shaderFilename})
-    set(shaderBinary "${shaderBinaryDir}/${shaderStage}/${shaderBinaryName}")
-    list(APPEND shaderBinaries ${shaderBinary})
-    add_custom_command(
-      OUTPUT ${shaderBinary}
-      COMMAND ${CMAKE_COMMAND} -E make_directory "${shaderBinaryDir}/${shaderStage}"
-      COMMAND ${glslc_executable} ${compile_flags} ${shaderSource} -o ${shaderBinary}
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-      MAIN_DEPENDENCY ${shaderSource}
-    )
-  endforeach()
-  add_custom_target(${targetName} DEPENDS ${shaderBinaries})
-endfunction()
-
-compile_shaders(frag_shaders "${FRAG_SHADER_SOURCES}" fragment "${PROJECT_BINARY_DIR}/shaders")
-compile_shaders(vert_shaders "${VERT_SHADER_SOURCES}" vertex "${PROJECT_BINARY_DIR}/shaders")
-
 if(PLATFORM_LINUX)
   find_package(Vulkan REQUIRED)
   find_package(glfw3 REQUIRED)
@@ -150,9 +118,6 @@ elseif(PLATFORM_IOS)
   find_package(Vulkan REQUIRED COMPONENTS MoltenVK)
   add_library(${LIB_TARGET} SHARED ${CPP_SOURCES})
 endif()
-
-add_dependencies(${LIB_TARGET} frag_shaders)
-add_dependencies(${LIB_TARGET} vert_shaders)
 
 target_include_directories(${LIB_TARGET} PUBLIC
   "${PROJECT_BINARY_DIR}/include" # Location of version.hpp

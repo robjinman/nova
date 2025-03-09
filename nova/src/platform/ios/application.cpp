@@ -43,7 +43,7 @@ ApplicationImpl::ApplicationImpl(const char* bundlePath, WindowDelegatePtr windo
 
   DirectoryMap directories;
   directories["data"] = root / "data";
-  directories["shaders"] = root / "shaders";
+  directories["shaders"] = root / "data/shaders";
 
   m_platformPaths = std::make_unique<PlatformPaths>(directories);
 
