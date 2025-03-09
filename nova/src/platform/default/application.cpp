@@ -95,7 +95,7 @@ Application::Application()
 
   DirectoryMap directories;
   directories["data"] = root / "data";
-  directories["shaders"] = root / "shaders";
+  directories["shaders"] = root / "data/shaders";
 
   m_platformPaths = std::make_unique<PlatformPaths>(directories);
 
