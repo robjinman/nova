@@ -12,12 +12,12 @@ struct SkyboxNode : public RenderNode
   RenderItemId material;
 };
 
-class PlatformPaths;
+class FileSystem;
 
 class SkyboxPipeline : public Pipeline
 {
   public:
-    SkyboxPipeline(const PlatformPaths& platformPaths, VkDevice device, VkExtent2D swapchainExtent,
+    SkyboxPipeline(const FileSystem& fileSystem, VkDevice device, VkExtent2D swapchainExtent,
       VkRenderPass renderPass, const RenderResources& renderResources);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,

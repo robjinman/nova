@@ -88,6 +88,7 @@ elseif(PLATFORM_ANDROID)
   add_library(${LIB_TARGET} SHARED
     ${CPP_SOURCES}
     "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/android/src/main/cpp/app.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/android/src/main/cpp/file_system.cpp"
   )
   add_library(app-glue STATIC
     "$ENV{ANDROID_NDK_HOME}/sources/android/native_app_glue/android_native_app_glue.c"
