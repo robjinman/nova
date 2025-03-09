@@ -43,6 +43,8 @@ Linux host with the same prerequisites as above, plus
 * Android Studio
 * Android NDK (can be installed through Android Studio)
 
+Make sure environment variables ANDROID_HOME and ANDROID_NDK_HOME are set.
+
 ### Build
 
 To build, just run the relevant workflow from the project root.
@@ -64,6 +66,22 @@ You can also run the configure/build steps separately
 ```
     cmake --preset=linux-debug
     cmake --build --preset=linux-debug
+```
+
+#### Android
+
+On Android, the build output is an AAB bundle located under build/android/gradle_output/outputs/bundle, which can be installed using the [bundle tool](https://github.com/google/bundletool/releases).
+
+Convert the bundle to APKs
+
+```
+    java -jar ~/Downloads/bundletool-all-1.18.1.jar build-apks --bundle=./app-debug.aab --output=output.apks --local-testing
+```
+
+Install the APKs
+
+```
+    java -jar ~/Downloads/bundletool-all-1.18.1.jar install-apks --apks=output.apks
 ```
 
 ### Creating deployables

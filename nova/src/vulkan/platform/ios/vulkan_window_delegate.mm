@@ -34,14 +34,14 @@ const std::vector<const char*>& IosWindowDelegateImpl::getRequiredExtensions() c
 
 VkSurfaceKHR IosWindowDelegateImpl::createSurface(VkInstance instance)
 {
-	VkSurfaceKHR surface{};
+  VkSurfaceKHR surface{};
 
-	VkMetalSurfaceCreateInfoEXT info{VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT};
-	info.pLayer = m_metalLayer;
+  VkMetalSurfaceCreateInfoEXT info{VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT};
+  info.pLayer = m_metalLayer;
 
-	VK_CHECK(vkCreateMetalSurfaceEXT(instance, &info, nullptr, &surface), "Failed to create surface");
+  VK_CHECK(vkCreateMetalSurfaceEXT(instance, &info, nullptr, &surface), "Failed to create surface");
 
-	return surface;
+  return surface;
 }
 
 void IosWindowDelegateImpl::getFrameBufferSize(int& width, int& height) const
