@@ -94,7 +94,7 @@ SceneBuilder::SceneBuilder(EntityFactory& entityFactory, SpatialSystem& spatialS
 
 PlayerPtr SceneBuilder::createScene()
 {
-  auto objectData = m_mapParser.parseMapFile("data/map.svg");
+  auto objectData = m_mapParser.parseMapFile("map.svg");
 
   auto bounds = computeBounds(objectData);
   m_logger.info(STR("Map boundary: (" << bounds.first << ") to (" << bounds.second << ")"));
@@ -115,12 +115,12 @@ PlayerPtr SceneBuilder::createScene()
 
 void SceneBuilder::createTerrainMaterials()
 {
-  auto groundTexture = loadTexture("data/resources/textures/ground.png");
+  auto groundTexture = loadTexture(m_fileSystem.readFile("resources/textures/ground.png"));
   auto groundMaterial = std::make_unique<Material>();
   groundMaterial->texture = m_renderSystem.addTexture(std::move(groundTexture));
   m_groundMaterial = m_renderSystem.addMaterial(std::move(groundMaterial));
 
-  auto wallTexture = loadTexture("data/resources/textures/bricks.png");
+  auto wallTexture = loadTexture(m_fileSystem.readFile("resources/textures/bricks.png"));
   auto wallMaterial = std::make_unique<Material>();
   wallMaterial->texture = m_renderSystem.addTexture(std::move(wallTexture));
   m_wallMaterial = m_renderSystem.addMaterial(std::move(wallMaterial));
@@ -134,12 +134,12 @@ void SceneBuilder::constructSky()
   auto mesh = cuboid(10000, 10000, 10000, { 1, 1, 1 }, Vec2f{ 1, 1 });
   std::reverse(mesh->indices.begin(), mesh->indices.end());
   std::array<TexturePtr, 6> textures{
-    loadTexture("data/resources/textures/skybox/right.png"),
-    loadTexture("data/resources/textures/skybox/left.png"),
-    loadTexture("data/resources/textures/skybox/top.png"),
-    loadTexture("data/resources/textures/skybox/bottom.png"),
-    loadTexture("data/resources/textures/skybox/front.png"),
-    loadTexture("data/resources/textures/skybox/back.png")
+    loadTexture(m_fileSystem.readFile("resources/textures/skybox/right.png")),
+    loadTexture(m_fileSystem.readFile("resources/textures/skybox/left.png")),
+    loadTexture(m_fileSystem.readFile("resources/textures/skybox/top.png")),
+    loadTexture(m_fileSystem.readFile("resources/textures/skybox/bottom.png")),
+    loadTexture(m_fileSystem.readFile("resources/textures/skybox/front.png")),
+    loadTexture(m_fileSystem.readFile("resources/textures/skybox/back.png"))
   };
   auto material = std::make_unique<Material>();
   material->cubeMap = m_renderSystem.addCubeMap(std::move(textures));

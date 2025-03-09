@@ -126,11 +126,11 @@ XmlNode::Iterator XmlNodeImpl::end() const
 
 } // namespace
 
-XmlNodePtr openXmlFile(const std::string& filePath)
+XmlNodePtr parseXml(const std::vector<char>& data)
 {
   XMLDocument doc;
-  if (doc.LoadFile(filePath.c_str()) != XMLError::XML_SUCCESS) {
-    EXCEPTION(STR("Error loading file " << filePath));
+  if (doc.Parse(data.data(), data.size()) != XMLError::XML_SUCCESS) {
+    EXCEPTION("Error parsing XML");
   }
 
   return std::make_unique<XmlNodeImpl>(*doc.RootElement());

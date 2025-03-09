@@ -1,5 +1,6 @@
 #include "map_parser.hpp"
 #include "logger.hpp"
+#include "file_system.hpp"
 #include "exception.hpp"
 #include "utils.hpp"
 #include "xml.hpp"
@@ -14,12 +15,13 @@ bool isTriangle(const Path& path)
 class MapParserImpl : public MapParser
 {
   public:
-    MapParserImpl(Logger& logger);
+    MapParserImpl(FileSystem& fileSystem, Logger& logger);
 
     ObjectData parseMapFile(const std::string& path) const override;
 
   private:
     Logger& m_logger;
+    FileSystem& m_fileSystem;
 
     ObjectData constructObjectData(const XmlNode& node, float_t scale) const;
     Path constructPath(const XmlNode& node, float_t scale) const;
@@ -31,14 +33,16 @@ class MapParserImpl : public MapParser
     KeyValueMap parseKeyValuePairs(const XmlNode& node) const;
 };
 
-MapParserImpl::MapParserImpl(Logger& logger)
+MapParserImpl::MapParserImpl(FileSystem& fileSystem, Logger& logger)
   : m_logger(logger)
+  , m_fileSystem(fileSystem)
 {
 }
 
 ObjectData MapParserImpl::parseMapFile(const std::string& path) const
 {
-  XmlNodePtr root = openXmlFile(path);
+  auto data = m_fileSystem.readFile(path);
+  XmlNodePtr root = parseXml(data);
 
   ASSERT(root->name() == "svg", "Expected root node 'svg'");
 
@@ -316,7 +320,7 @@ Mat4x4f transformFromTriangle(const Path& path)
   return transform(Vec3f{ centre[0], 0, centre[2] }, Vec3f{ 0, a, 0 });
 }
 
-MapParserPtr createMapParser(Logger& logger)
+MapParserPtr createMapParser(FileSystem& fileSystem, Logger& logger)
 {
-  return std::make_unique<MapParserImpl>(logger);
+  return std::make_unique<MapParserImpl>(fileSystem, logger);
 }

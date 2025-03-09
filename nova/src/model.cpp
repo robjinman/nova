@@ -13,9 +13,13 @@ bool startsWith(const std::string& str, const std::string& prefix)
   return str.size() >= prefix.size() && strncmp(str.c_str(), prefix.c_str(), prefix.size()) == 0;
 }
 
-MeshPtr loadMesh(const std::string& objFilePath)
+// TODO: This is very slow
+MeshPtr loadMesh(const std::vector<char>& data)
 {
-  std::ifstream stream(objFilePath);
+  std::stringstream stream;
+  stream.write(data.data(), data.size());
+  stream.seekg(0, std::ios::beg);
+
   std::string line;
 
   std::vector<Vec3f> vertices;
@@ -109,15 +113,16 @@ MeshPtr loadMesh(const std::string& objFilePath)
   return mesh;
 }
 
-TexturePtr loadTexture(const std::string& filePath)
+TexturePtr loadTexture(const std::vector<char>& data)
 {
   int width = 0;
   int height = 0;
   int channels = 0;
-  stbi_uc* pixels = stbi_load(filePath.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+  stbi_uc* pixels = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(data.data()),
+    data.size(), &width, &height, &channels, STBI_rgb_alpha);
 
   if (!pixels) {
-    EXCEPTION("Failed to load texture image " << filePath);
+    EXCEPTION("Failed to load texture image");
   }
 
   TexturePtr texture = std::make_unique<Texture>();

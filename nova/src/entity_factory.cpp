@@ -60,7 +60,9 @@ EntityFactoryImpl::EntityFactoryImpl(SpatialSystem& spatialSystem, RenderSystem&
 
 void EntityFactoryImpl::loadResources()
 {
-  XmlNodePtr root = openXmlFile("data/resources/manifest.xml");
+  auto data = m_fileSystem.readFile("resources/manifest.xml");
+  XmlNodePtr root = parseXml(data);
+
   ASSERT(root->name() == "resources", "Expected root node 'resources'");
 
   for (auto& node : *root) {
@@ -81,8 +83,8 @@ void EntityFactoryImpl::loadTextures(const XmlNode& root)
 {
   for (auto& node : root) {
     ASSERT(node.name() == "texture", "Expected 'texture' node");
-    m_textures[node.attribute("name")] =
-      m_renderSystem.addTexture(loadTexture(std::string("data/") + node.attribute("file")));
+    auto texture = loadTexture(m_fileSystem.readFile(node.attribute("file")));
+    m_textures[node.attribute("name")] = m_renderSystem.addTexture(std::move(texture));
   }
 }
 
@@ -90,7 +92,7 @@ void EntityFactoryImpl::loadMeshes(const XmlNode& root)
 {
   for (auto& node : root) {
     ASSERT(node.name() == "mesh", "Expected 'mesh' node");
-    auto mesh = loadMesh(std::string("data/") + node.attribute("file"));
+    auto mesh = loadMesh(m_fileSystem.readFile(node.attribute("file")));
     mesh->isInstanced = node.attribute("instanced") == "true";
     if (mesh->isInstanced) {
       mesh->maxInstances = std::stoi(node.attribute("max-instances"));
@@ -123,7 +125,9 @@ void EntityFactoryImpl::loadEntities()
 
 void EntityFactoryImpl::parseEntityFile(const std::filesystem::path& path)
 {
-  XmlNodePtr root = openXmlFile(path.string());
+  auto data = m_fileSystem.readFile(path);
+  XmlNodePtr root = parseXml(data);
+
   ASSERT(root->name() == "entity", "Expected root node 'entity'");
 
   std::string entityName = root->attribute("name");

@@ -35,6 +35,7 @@ class MapParser
 
 using MapParserPtr = std::unique_ptr<MapParser>;
 
+class FileSystem;
 class Logger;
 
-MapParserPtr createMapParser(Logger& logger);
+MapParserPtr createMapParser(FileSystem& fileSystem, Logger& logger);

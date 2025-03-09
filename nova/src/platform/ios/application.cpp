@@ -47,7 +47,7 @@ ApplicationImpl::ApplicationImpl(const char* bundlePath, WindowDelegatePtr windo
   m_spatialSystem = createSpatialSystem(*m_logger);
   m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_logger);
   m_collisionSystem = createCollisionSystem(*m_spatialSystem, *m_logger);
-  m_mapParser = createMapParser(*m_logger);
+  m_mapParser = createMapParser(*m_fileSystem, *m_logger);
   m_entityFactory = createEntityFactory(*m_spatialSystem, *m_renderSystem, *m_collisionSystem,
     *m_fileSystem, *m_logger);
 

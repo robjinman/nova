@@ -23,9 +23,6 @@ class IosWindowDelegateImpl : public VulkanWindowDelegate
 IosWindowDelegateImpl::IosWindowDelegateImpl(CAMetalLayer* metalLayer)
   : m_metalLayer(metalLayer)
 {
-  m_extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-  m_extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-  m_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
   m_extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
   m_extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
 }

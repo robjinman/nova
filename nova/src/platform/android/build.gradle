@@ -18,6 +18,7 @@ android {
 
     buildTypes {
         debug {
+            debuggable true
             externalNativeBuild {
                 cmake {
                     arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Debug", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON"
