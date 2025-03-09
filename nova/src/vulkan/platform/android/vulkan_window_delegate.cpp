@@ -34,15 +34,15 @@ const std::vector<const char*>& AndroidWindowDelegateImpl::getRequiredExtensions
 
 VkSurfaceKHR AndroidWindowDelegateImpl::createSurface(VkInstance instance)
 {
-	VkSurfaceKHR surface{};
+  VkSurfaceKHR surface{};
 
-	VkAndroidSurfaceCreateInfoKHR info{VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR};
-	info.window = &m_window;
+  VkAndroidSurfaceCreateInfoKHR info{VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR};
+  info.window = &m_window;
 
-	VK_CHECK(vkCreateAndroidSurfaceKHR(instance, &info, nullptr, &surface),
+  VK_CHECK(vkCreateAndroidSurfaceKHR(instance, &info, nullptr, &surface),
     "Failed to create surface");
 
-	return surface;
+  return surface;
 }
 
 void AndroidWindowDelegateImpl::getFrameBufferSize(int& width, int& height) const
