@@ -51,7 +51,7 @@ ObjectData MapParserImpl::parseMapFile(const std::string& path) const
   try {
     auto& text = *g.child("text");
     auto& tspan = *text.child("tspan");
-    float_t scale = std::stod(tspan.contents());
+    float_t scale = std::stof(tspan.contents());
 
     for (auto& child : g) {
       if (child.name() == "g") {
@@ -170,15 +170,15 @@ Path parseSvgPathString(const std::string& svgPath)
 
       if (component == -1) {
         char comma = '_';
-        std::stringstream stream(token);
-        stream >> p[0];
-        stream >> comma;
+        std::stringstream ss(token);
+        ss >> p[0];
+        ss >> comma;
         ASSERT(comma == ',', "Expected a comma");
-        stream >> p[2];
+        ss >> p[2];
       }
       else {
-        std::stringstream stream(token);
-        stream >> p[component];
+        std::stringstream ss(token);
+        ss >> p[component];
       }
 
       path.points.push_back(relative ? (p + pathEnd) : p);
@@ -315,7 +315,8 @@ Mat4x4f transformFromTriangle(const Path& path)
   }
 
   Vec4f v = mostDistantPoint - centre;
-  float_t a = (3.f * PI / 2.f) - atan2(v[2], v[0]);  // Angle from vertical (negative z)
+  // Angle from vertical (negative z)
+  float_t a = (3.f * static_cast<float_t>(PI) / 2.f) - atan2(v[2], v[0]);
 
   return transform(Vec3f{ centre[0], 0, centre[2] }, Vec3f{ 0, a, 0 });
 }

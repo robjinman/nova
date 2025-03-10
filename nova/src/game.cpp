@@ -35,7 +35,7 @@ class GameImpl : public Game
     Vec2f m_mouseDelta;
     Timer m_timer;
     size_t m_frame = 0;
-    float_t m_measuredFrameRate = 0;
+    double m_measuredFrameRate = 0;
     float_t m_playerVerticalVelocity = 0;  // World units per frame
     bool m_freeflyMode = false;
 
@@ -55,7 +55,7 @@ GameImpl::GameImpl(PlayerPtr player, CollisionSystem& collisionSystem, Logger& l
 
 float_t GameImpl::g() const
 {
-  return GRAVITY_STRENGTH * metresToWorldUnits(9.8) / (TARGET_FRAME_RATE * TARGET_FRAME_RATE);
+  return GRAVITY_STRENGTH * metresToWorldUnits(9.8f) / (TARGET_FRAME_RATE * TARGET_FRAME_RATE);
 }
 
 void GameImpl::onKeyDown(KeyboardKey key)
@@ -117,7 +117,7 @@ void GameImpl::processKeyboardInput()
   }
   if (m_keysPressed.count(KeyboardKey::E)) {
     if (m_collisionSystem.altitude(m_player->getPosition()) == 0) {
-      m_playerVerticalVelocity = sqrt(m_player->getJumpHeight() * 2.0 * g());
+      m_playerVerticalVelocity = sqrt(m_player->getJumpHeight() * 2.f * g());
     }
   }
 

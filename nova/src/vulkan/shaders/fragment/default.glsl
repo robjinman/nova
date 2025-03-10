@@ -11,7 +11,7 @@ layout(std140, set = 1, binding = 1) uniform MaterialUbo
   //bool hasNormalMap;
 } material;
 
-layout(std140) struct Light
+struct Light
 {
   vec3 worldPos;
   vec3 colour;

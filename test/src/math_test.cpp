@@ -159,7 +159,7 @@ TEST_F(MathTest, triangulate_simple_convex_poly)
     { 0, 0, 0, 1 },
     { 1, 0, 0, 1 },
     { 1, 0, 1, 1 },
-    { 0.8, 0, 1.2, 1 },
+    { 0.8f, 0, 1.2f, 1 },
     { 0, 0, 1, 1 }
   };
 
@@ -175,7 +175,7 @@ TEST_F(MathTest, triangulate_nonconvex_poly)
     { 0, 0, 0, 1 },
     { 1, 0, 0, 1 },
     { 1, 0, 1, 1 },
-    { 0.8, 0, 0.5, 1 },
+    { 0.8f, 0, 0.5f, 1 },
     { 0, 0, 1, 1 }
   };
 

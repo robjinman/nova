@@ -227,7 +227,7 @@ void SceneBuilder::constructPlayer(const ObjectData& obj, const Mat4x4f& parentT
   //    0,        1,        0,        0,
   //    -sin(a),  0,        cos(a),   tz
   //    0,        0,        0,        1
-  float_t yaw = 2.f * PI - atan2(m.at(2, 0), m.at(0, 0));
+  float_t yaw = 2.f * static_cast<float>(PI) - atan2(m.at(2, 0), m.at(0, 0));
 
   float_t x = m.at(0, 3);
   float_t y = m.at(1, 3);
@@ -245,7 +245,7 @@ MeshPtr mergeMeshes(const Mesh& A, const Mesh& B)
   mesh->vertices.insert(mesh->vertices.end(), A.vertices.begin(), A.vertices.end());
   mesh->vertices.insert(mesh->vertices.end(), B.vertices.begin(), B.vertices.end());
   mesh->indices.insert(mesh->indices.end(), A.indices.begin(), A.indices.end());
-  size_t n = A.vertices.size();
+  uint16_t n = static_cast<uint16_t>(A.vertices.size());
   std::transform(B.indices.begin(), B.indices.end(), std::back_inserter(mesh->indices),
     [n](uint16_t i) { return i + n; });
 
@@ -322,7 +322,7 @@ void createSideFaces(Mesh& mesh)
 
     distance += edgeLength;
 
-    uint16_t idx = mesh.vertices.size();
+    uint16_t idx = static_cast<uint16_t>(mesh.vertices.size());
     mesh.vertices.insert(mesh.vertices.end(), { A, B, C, D });
 
     mesh.indices.push_back(idx);      // A
@@ -373,7 +373,7 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
   spatial->setTransform(transform);
   m_spatialSystem.addComponent(std::move(spatial));
 
-  Vec3f colour{ 0.15, 0.1, 0.08 };
+  Vec3f colour{ 0.15f, 0.1f, 0.08f };
 
   auto bottomFace = createBottomFace(obj.path.points, colour);
   auto topFace = createTopFace(obj.path.points, colour, height);

@@ -20,7 +20,7 @@ struct MeshData
   VkDeviceMemory indexBufferMemory = VK_NULL_HANDLE;
   VkBuffer instanceBuffer = VK_NULL_HANDLE;
   VkDeviceMemory instanceBufferMemory = VK_NULL_HANDLE;
-  size_t numInstances = 0;
+  uint32_t numInstances = 0;
 };
 
 using MeshDataPtr = std::unique_ptr<MeshData>;
@@ -257,7 +257,7 @@ RenderItemId RenderResourcesImpl::addCubeMap(std::array<TexturePtr, 6> textures)
   transitionImageLayout(cubeMapData->image, VK_IMAGE_LAYOUT_UNDEFINED,
     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 6);
 
-  for (size_t i = 0; i < 6; ++i) {
+  for (uint32_t i = 0; i < 6; ++i) {
     VkDeviceSize offset = i * imageSize;
     copyBufferToImage(stagingBuffer, cubeMapData->image, width, height, offset, i);
   }
@@ -354,7 +354,7 @@ MeshBuffers RenderResourcesImpl::getMeshBuffers(RenderItemId id) const
     .vertexBuffer = mesh->vertexBuffer,
     .indexBuffer = mesh->indexBuffer,
     .instanceBuffer = mesh->instanceBuffer,
-    .numIndices = mesh->mesh->indices.size(),
+    .numIndices = static_cast<uint32_t>(mesh->mesh->indices.size()),
     .numInstances = mesh->numInstances
   };
 }
@@ -368,7 +368,7 @@ void RenderResourcesImpl::updateMeshInstances(RenderItemId id,
   ASSERT(mesh->mesh->isInstanced, "Can't instance a non-instanced mesh");
   ASSERT(instances.size() <= mesh->mesh->maxInstances, "Max instances exceeded for this mesh");
 
-  mesh->numInstances = instances.size();
+  mesh->numInstances = static_cast<uint32_t>(instances.size());
   updateInstanceBuffer(instances, mesh->instanceBuffer);
 }
 
@@ -535,7 +535,7 @@ void RenderResourcesImpl::createDescriptorPool()
   VkDescriptorPoolCreateInfo poolInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
     .maxSets = 100, // TODO
-    .poolSizeCount = poolSizes.size(),
+    .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
     .pPoolSizes = poolSizes.data()
   };
 

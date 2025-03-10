@@ -151,8 +151,8 @@ void InstancedPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const
   vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
   std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer, buffers.instanceBuffer };
   std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
-  vkCmdBindVertexBuffers(commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(),
-    offsets.data());
+  vkCmdBindVertexBuffers(commandBuffer, 0, static_cast<uint32_t>(vertexBuffers.size()),
+    vertexBuffers.data(), offsets.data());
   vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
   // TODO: Combine into single call
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0, 1,

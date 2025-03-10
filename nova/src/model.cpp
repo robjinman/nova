@@ -94,7 +94,7 @@ MeshPtr loadMesh(const std::vector<char>& data)
         vertex.texCoord = uvCoords[uvCoordIdx];
 
         mesh->vertices.push_back(vertex);
-        mesh->indices.push_back(mesh->vertices.size() - 1);
+        mesh->indices.push_back(static_cast<uint16_t>(mesh->vertices.size()) - 1);
       };
 
       makeVertex(1, 2, 3);
@@ -119,7 +119,7 @@ TexturePtr loadTexture(const std::vector<char>& data)
   int height = 0;
   int channels = 0;
   stbi_uc* pixels = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(data.data()),
-    data.size(), &width, &height, &channels, STBI_rgb_alpha);
+    static_cast<int>(data.size()), &width, &height, &channels, STBI_rgb_alpha);
 
   if (!pixels) {
     EXCEPTION("Failed to load texture image");
