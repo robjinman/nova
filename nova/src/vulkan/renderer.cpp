@@ -439,16 +439,14 @@ void RendererImpl::updateLightingUbo()
   // TODO
   LightingUbo ubo{};
   ubo.numLights = 2;
-  ubo.lights[0] = Light{
-    .worldPos = { 123, 1000, 0 },
-    .colour = { 1, 1, 1 },
-    .ambient = 0.4f
-  };
-  ubo.lights[1] = Light{
-    .worldPos = { 500, 100, 700 },
-    .colour = { 1, 1, 1 },
-    .ambient = 0.4f
-  };
+
+  ubo.lights[0].worldPos = { 123, 1000, 0 };
+  ubo.lights[0].colour = { 1, 1, 1 };
+  ubo.lights[0].ambient = 0.4f;
+
+  ubo.lights[1].worldPos = { 500, 100, 700 };
+  ubo.lights[1].colour = { 1, 1, 1 };
+  ubo.lights[1].ambient = 0.4f;
 
   m_resources->updateLightingUbo(ubo, m_currentFrame);
 }
