@@ -5,6 +5,8 @@ VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code
 {
   VkShaderModuleCreateInfo createInfo{
     .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .codeSize = code.size(),
     .pCode = reinterpret_cast<const uint32_t*>(code.data())
   };
@@ -64,6 +66,8 @@ VkPipelineInputAssemblyStateCreateInfo defaultInputAssemblyState()
 {
   return VkPipelineInputAssemblyStateCreateInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
     .primitiveRestartEnable = VK_FALSE
   };
@@ -88,6 +92,8 @@ VkPipelineViewportStateCreateInfo defaultViewportState(VkViewport& viewport, VkR
 
   return VkPipelineViewportStateCreateInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .viewportCount = 1,
     .pViewports = &viewport,
     .scissorCount = 1,
@@ -99,6 +105,8 @@ VkPipelineRasterizationStateCreateInfo defaultRasterizationState()
 {
   return VkPipelineRasterizationStateCreateInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .depthClampEnable = VK_FALSE,
     .rasterizerDiscardEnable = VK_FALSE,
     .polygonMode = VK_POLYGON_MODE_FILL,
@@ -116,6 +124,8 @@ VkPipelineMultisampleStateCreateInfo defaultMultisamplingState()
 {
   return VkPipelineMultisampleStateCreateInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
     .sampleShadingEnable = VK_FALSE,
     .minSampleShading = 1.0f,
@@ -144,6 +154,8 @@ defaultColourBlendState(VkPipelineColorBlendAttachmentState& colourBlendAttachme
 
   return VkPipelineColorBlendStateCreateInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .logicOpEnable = VK_FALSE,
     .logicOp = VK_LOGIC_OP_COPY,
     .attachmentCount = 1,
@@ -156,6 +168,8 @@ VkPipelineDepthStencilStateCreateInfo defaultDepthStencilState()
 {
   return VkPipelineDepthStencilStateCreateInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .depthTestEnable = VK_TRUE,
     .depthWriteEnable = VK_TRUE,
     .depthCompareOp = VK_COMPARE_OP_LESS,

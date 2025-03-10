@@ -405,6 +405,7 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
 
   VkDescriptorSetAllocateInfo allocInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .pNext = nullptr,
     .descriptorPool = m_descriptorPool,
     .descriptorSetCount = 1,
     .pSetLayouts = &m_materialDescriptorSetLayout
@@ -421,12 +422,15 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
 
   VkWriteDescriptorSet samplerDescriptorWrite{
     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .pNext = nullptr,
     .dstSet = materialData->descriptorSet,
     .dstBinding = 0,
     .dstArrayElement = 0,
     .descriptorCount = 1,
     .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-    .pImageInfo = &imageInfo
+    .pImageInfo = &imageInfo,
+    .pBufferInfo = nullptr,
+    .pTexelBufferView = nullptr
   };
 
   createUbo(sizeof(MaterialUbo), materialData->uboBuffer, materialData->uboMemory,
@@ -442,12 +446,15 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
 
   VkWriteDescriptorSet uboDescriptorWrite{
     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .pNext = nullptr,
     .dstSet = materialData->descriptorSet,
     .dstBinding = 1,
     .dstArrayElement = 0,
     .descriptorCount = 1,
     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .pBufferInfo = &bufferInfo
+    .pImageInfo = nullptr,
+    .pBufferInfo = &bufferInfo,
+    .pTexelBufferView = nullptr
   };
 
   vkUpdateDescriptorSets(m_device, 1, &uboDescriptorWrite, 0, nullptr);
@@ -534,6 +541,8 @@ void RenderResourcesImpl::createDescriptorPool()
 
   VkDescriptorPoolCreateInfo poolInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .maxSets = 100, // TODO
     .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
     .pPoolSizes = poolSizes.data()
@@ -594,10 +603,13 @@ void RenderResourcesImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usa
 
   VkBufferCreateInfo bufferInfo{
     .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+    .pNext = nullptr,
     .flags = 0,
     .size = size,
     .usage = usage,
-    .sharingMode = VK_SHARING_MODE_EXCLUSIVE
+    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    .queueFamilyIndexCount = 0,
+    .pQueueFamilyIndices = nullptr
   };
 
   VK_CHECK(vkCreateBuffer(m_device, &bufferInfo, nullptr, &buffer), "Failed to create buffer");
@@ -607,6 +619,7 @@ void RenderResourcesImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usa
 
   VkMemoryAllocateInfo allocInfo{
     .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+    .pNext = nullptr,
     .allocationSize = memRequirements.size,
     .memoryTypeIndex = findMemoryType(m_physicalDevice, memRequirements.memoryTypeBits, properties)
   };
@@ -765,6 +778,7 @@ void RenderResourcesImpl::createDescriptorSets(size_t n, VkDescriptorSetLayout l
 
   VkDescriptorSetAllocateInfo allocInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .pNext = nullptr,
     .descriptorPool = m_descriptorPool,
     .descriptorSetCount = static_cast<uint32_t>(n),
     .pSetLayouts = layouts.data()
@@ -783,12 +797,15 @@ void RenderResourcesImpl::createDescriptorSets(size_t n, VkDescriptorSetLayout l
 
     VkWriteDescriptorSet descriptorWrite{
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .pNext = nullptr,
       .dstSet = descriptorSets[i],
       .dstBinding = 0,
       .dstArrayElement = 0,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      .pBufferInfo = &bufferInfo
+      .pImageInfo = nullptr,
+      .pBufferInfo = &bufferInfo,
+      .pTexelBufferView = nullptr
     };
 
     vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
@@ -810,6 +827,7 @@ VkCommandBuffer RenderResourcesImpl::beginSingleTimeCommands()
 {
   VkCommandBufferAllocateInfo allocInfo{
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+    .pNext = nullptr,
     .commandPool = m_commandPool, // TODO: Separate pool for temp buffers?
     .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
     .commandBufferCount = 1
@@ -820,7 +838,9 @@ VkCommandBuffer RenderResourcesImpl::beginSingleTimeCommands()
 
   VkCommandBufferBeginInfo beginInfo{
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-    .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    .pNext = nullptr,
+    .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    .pInheritanceInfo = nullptr
   };
 
   vkBeginCommandBuffer(commandBuffer, &beginInfo);
@@ -831,11 +851,17 @@ VkCommandBuffer RenderResourcesImpl::beginSingleTimeCommands()
 void RenderResourcesImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
 {
   vkEndCommandBuffer(commandBuffer);
-  
+
   VkSubmitInfo submitInfo{
     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+    .pNext = nullptr,
+    .waitSemaphoreCount = 0,
+    .pWaitSemaphores = nullptr,
+    .pWaitDstStageMask = nullptr,
     .commandBufferCount = 1,
-    .pCommandBuffers = &commandBuffer
+    .pCommandBuffers = &commandBuffer,
+    .signalSemaphoreCount = 0,
+    .pSignalSemaphores = nullptr
   };
   
   vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
@@ -853,6 +879,9 @@ void RenderResourcesImpl::transitionImageLayout(VkImage image, VkImageLayout old
 
   VkImageMemoryBarrier barrier{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .pNext = nullptr,
+    .srcAccessMask = 0,
+    .dstAccessMask = 0,
     .oldLayout = oldLayout,
     .newLayout = newLayout,
     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -913,6 +942,8 @@ void RenderResourcesImpl::createUboDescriptorSetLayout()
 
   VkDescriptorSetLayoutCreateInfo layoutInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .bindingCount = static_cast<uint32_t>(bindings.size()),
     .pBindings = bindings.data()
   };
@@ -940,6 +971,8 @@ void RenderResourcesImpl::createLightingDescriptorSetLayout()
 
   VkDescriptorSetLayoutCreateInfo layoutInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .bindingCount = static_cast<uint32_t>(bindings.size()),
     .pBindings = bindings.data()
   };
@@ -976,6 +1009,8 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
 
   VkDescriptorSetLayoutCreateInfo layoutInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .bindingCount = static_cast<uint32_t>(bindings.size()),
     .pBindings = bindings.data()
   };
@@ -1002,6 +1037,8 @@ void RenderResourcesImpl::createTextureSampler()
 
   VkSamplerCreateInfo samplerInfo{
     .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .magFilter = VK_FILTER_LINEAR,
     .minFilter = VK_FILTER_LINEAR,
     .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,

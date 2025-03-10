@@ -52,16 +52,22 @@ InstancedPipeline::InstancedPipeline(const FileSystem& fileSystem, VkDevice devi
 
   VkPipelineShaderStageCreateInfo vertShaderStageInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .stage = VK_SHADER_STAGE_VERTEX_BIT,
     .module = vertShaderModule,
-    .pName = "main"
+    .pName = "main",
+    .pSpecializationInfo = nullptr
   };
 
   VkPipelineShaderStageCreateInfo fragShaderStageInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
     .module = fragShaderModule,
-    .pName = "main"
+    .pName = "main",
+    .pSpecializationInfo = nullptr
   };
 
   auto vertexBindingDescription = defaultVertexBindingDescription();
@@ -75,6 +81,8 @@ InstancedPipeline::InstancedPipeline(const FileSystem& fileSystem, VkDevice devi
 
   VkPipelineVertexInputStateCreateInfo vertexInputInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size()),
     .pVertexBindingDescriptions = bindingDescriptions.data(),
     .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
@@ -98,6 +106,8 @@ InstancedPipeline::InstancedPipeline(const FileSystem& fileSystem, VkDevice devi
 
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
     .pSetLayouts = descriptorSetLayouts.data(),
     .pushConstantRangeCount = 0,
@@ -113,10 +123,13 @@ InstancedPipeline::InstancedPipeline(const FileSystem& fileSystem, VkDevice devi
 
   VkGraphicsPipelineCreateInfo pipelineInfo{
     .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .stageCount = 2,
     .pStages = shaderStages,
     .pVertexInputState = &vertexInputInfo,
     .pInputAssemblyState = &inputAssembly,
+    .pTessellationState = nullptr,
     .pViewportState = &viewportState,
     .pRasterizationState = &rasterizer,
     .pMultisampleState = &multisampling,
