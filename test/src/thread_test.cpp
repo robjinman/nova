@@ -45,7 +45,10 @@ TEST_F(ThreadTest, exception_on_get)
     for (int i = 0; i < 100; ++i) {
       result += i;
     }
-    throw std::runtime_error("Error!");
+    if (result > 1234) {
+      throw std::runtime_error("Error!");
+    }
+    return result;
   });
 
   EXPECT_THROW({
