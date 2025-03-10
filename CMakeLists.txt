@@ -70,6 +70,7 @@ else()
   set(EXE_TARGET "nova_exe")
 
   if(PLATFORM_LINUX)
+    find_package(glfw3 REQUIRED)
     add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/nova/src/platform/default/application.cpp"
       "${PROJECT_SOURCE_DIR}/nova/src/platform/default/file_system.cpp"
@@ -79,6 +80,7 @@ else()
       glfw
     )
   elseif(PLATFORM_WINDOWS)
+    find_package(glfw3 REQUIRED)
     add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/nova//src/platform/default/application.cpp"
       "${PROJECT_SOURCE_DIR}/nova/src/platform/default/file_system.cpp"
@@ -88,6 +90,7 @@ else()
       glfw
     )
   elseif(PLATFORM_OSX)
+    find_package(glfw3 REQUIRED)
     add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/nova/src/platform/default/application.cpp"
       "${PROJECT_SOURCE_DIR}/nova/src/platform/default/file_system.cpp"

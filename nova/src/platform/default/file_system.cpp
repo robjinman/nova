@@ -87,7 +87,7 @@ DefaultFileSystem::DefaultFileSystem(const std::filesystem::path& dataRootDir)
 
 std::vector<char> DefaultFileSystem::readFile(const std::filesystem::path& path) const
 {
-  return readBinaryFile(m_dataRootDir / path);
+  return readBinaryFile((m_dataRootDir / path).string());
 }
 
 DirectoryPtr DefaultFileSystem::directory(const std::filesystem::path& path) const
