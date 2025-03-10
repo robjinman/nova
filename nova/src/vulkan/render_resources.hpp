@@ -42,8 +42,8 @@ struct MeshBuffers
   VkBuffer vertexBuffer;
   VkBuffer indexBuffer;
   VkBuffer instanceBuffer;
-  size_t numIndices;
-  size_t numInstances;
+  uint32_t numIndices;
+  uint32_t numInstances;
 };
 
 class RenderResources

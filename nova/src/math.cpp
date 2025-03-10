@@ -47,21 +47,21 @@ bool lineSegmentCircleIntersect(const LineSegment& lseg, const Vec2f& centre, fl
 {
   Vec2f D = lseg.B - lseg.A;
   float_t alpha = D[0] * D[0] + D[1] * D[1];
-  float_t beta = 2.0 * (D[0] * (lseg.A[0] - centre[0]) + D[1] * (lseg.A[1] - centre[1]));
-  float_t gamma = pow(lseg.A[0] - centre[0], 2) + pow(lseg.A[1] - centre[1], 2) - radius * radius;
+  float_t beta = 2.f * (D[0] * (lseg.A[0] - centre[0]) + D[1] * (lseg.A[1] - centre[1]));
+  float_t gamma = square(lseg.A[0] - centre[0]) + square(lseg.A[1] - centre[1]) - radius * radius;
 
-  float_t discriminant = beta * beta - 4.0 * alpha * gamma;
+  float_t discriminant = beta * beta - 4.f * alpha * gamma;
   if (discriminant < 0) {
     return false;
   }
 
-  float_t t = (-beta + sqrt(discriminant)) / (2.0 * alpha);
-  if (t >= 0 && t <= 1.0) {
+  float_t t = (-beta + sqrt(discriminant)) / (2.f * alpha);
+  if (t >= 0 && t <= 1.f) {
     return true;
   }
 
-  t = (-beta - sqrt(discriminant)) / (2.0 * alpha);
-  if (t >= 0 && t <= 1.0) {
+  t = (-beta - sqrt(discriminant)) / (2.f * alpha);
+  if (t >= 0 && t <= 1.f) {
     return true;
   }
 
@@ -133,9 +133,9 @@ std::vector<uint16_t> triangulatePoly(const std::vector<Vec4f>& vertices)
 
   while (poly.size() > 3) {
     for (size_t i = 1; i < poly.size(); ++i) {
-      size_t idxA = poly[i - 1];
-      size_t idxB = poly[i];
-      size_t idxC = poly[(i + 1) % poly.size()];
+      uint16_t idxA = poly[i - 1];
+      uint16_t idxB = poly[i];
+      uint16_t idxC = poly[(i + 1) % poly.size()];
       const Vec4f& A = vertices[idxA];
       const Vec4f& B = vertices[idxB];
       const Vec4f& C = vertices[idxC];
@@ -184,19 +184,19 @@ Mat4x4f perspective(float_t fovY, float_t aspect, float_t near, float_t far)
 {
   Mat4x4f m;
   const float_t fovX = aspect * fovY;
-  const float_t t = -near * tan(fovY * 0.5);
+  const float_t t = -near * tan(fovY * 0.5f);
   const float_t b = -t;
-  const float_t r = near * tan(fovX * 0.5);
+  const float_t r = near * tan(fovX * 0.5f);
   const float_t l = -r;
 
-  m.set(0, 0, 2.0 * near / (r - l));
+  m.set(0, 0, 2.f * near / (r - l));
   m.set(0, 2, (r + l) / (r - l));
-  m.set(1, 1, -2.0 * near / (b - t));
+  m.set(1, 1, -2.f * near / (b - t));
   m.set(1, 2, (b + t) / (b - t));
   m.set(2, 2, -far / (far - near));
   m.set(2, 3, -far * near / (far - near));
-  m.set(3, 2, -1.0);
-  m.set(3, 3, 0.0);
+  m.set(3, 2, -1.f);
+  m.set(3, 3, 0.f);
 
   return m;
 }

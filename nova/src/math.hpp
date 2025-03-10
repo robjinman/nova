@@ -25,6 +25,12 @@ T radiansToDegrees(T radians)
 }
 
 template<typename T>
+T square(T x)
+{
+  return x * x;
+}
+
+template<typename T>
 T clip(T value, T min, T max)
 {
   return std::max(min, std::min(max, value));

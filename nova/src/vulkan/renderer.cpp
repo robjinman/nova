@@ -442,39 +442,39 @@ void RendererImpl::updateLightingUbo()
   ubo.lights[0] = Light{
     .worldPos = { 123, 1000, 0 },
     .colour = { 1, 1, 1 },
-    .ambient = 0.4
+    .ambient = 0.4f
   };
   ubo.lights[1] = Light{
     .worldPos = { 500, 100, 700 },
     .colour = { 1, 1, 1 },
-    .ambient = 0.4
+    .ambient = 0.4f
   };
 
   m_resources->updateLightingUbo(ubo, m_currentFrame);
 }
 
-void RendererImpl::removeMesh(RenderItemId id)
+void RendererImpl::removeMesh(RenderItemId)
 {
   // TODO
   EXCEPTION("Not implemented");
   //m_resources->removeMesh(id);
 }
 
-void RendererImpl::removeTexture(RenderItemId id)
+void RendererImpl::removeTexture(RenderItemId)
 {
   // TODO
   EXCEPTION("Not implemented");
   //m_resources->removeTexture(id);
 }
 
-void RendererImpl::removeCubeMap(RenderItemId id)
+void RendererImpl::removeCubeMap(RenderItemId)
 {
   // TODO
   EXCEPTION("Not implemented");
   //m_resources->removeCubeMap(id);
 }
 
-void RendererImpl::removeMaterial(RenderItemId id)
+void RendererImpl::removeMaterial(RenderItemId)
 {
   // TODO
   EXCEPTION("Not implemented");
@@ -797,16 +797,16 @@ void RendererImpl::createLogicalDevice()
 
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  createInfo.queueCreateInfoCount = queueCreateInfos.size();
+  createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
   createInfo.pQueueCreateInfos = queueCreateInfos.data();
   createInfo.pEnabledFeatures = &deviceFeatures;
-  createInfo.enabledExtensionCount = DeviceExtensions.size();
+  createInfo.enabledExtensionCount = static_cast<uint32_t>(DeviceExtensions.size());
   createInfo.ppEnabledExtensionNames = DeviceExtensions.data();
 
 #ifdef NDEBUG
   createInfo.enabledLayerCount = 0;
 #else
-  createInfo.enabledLayerCount = ValidationLayers.size();
+  createInfo.enabledLayerCount = static_cast<uint32_t>(ValidationLayers.size());
   createInfo.ppEnabledLayerNames = ValidationLayers.data();
 #endif
 
@@ -874,7 +874,7 @@ void RendererImpl::createRenderPass()
 
   VkRenderPassCreateInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-  renderPassInfo.attachmentCount = attachments.size();
+  renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
   renderPassInfo.pAttachments = attachments.data();
   renderPassInfo.subpassCount = 1;
   renderPassInfo.pSubpasses = &subpass;
@@ -909,7 +909,7 @@ void RendererImpl::createFramebuffers()
     VkFramebufferCreateInfo framebufferInfo{};
     framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     framebufferInfo.renderPass = m_renderPass;
-    framebufferInfo.attachmentCount = attachments.size();
+    framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
     framebufferInfo.pAttachments = attachments.data();
     framebufferInfo.width = m_swapchainExtent.width;
     framebufferInfo.height = m_swapchainExtent.height;
@@ -953,7 +953,7 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
   std::array<VkClearValue, 2> clearValues{};
   clearValues[0].color = {{ 0.0f, 0.0f, 1.0f, 1.0f }};
   clearValues[1].depthStencil = { 1.0f, 0 };
-  renderPassInfo.clearValueCount = clearValues.size();
+  renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
   renderPassInfo.pClearValues = clearValues.data();
 
   vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -989,7 +989,7 @@ void RendererImpl::createCommandBuffers()
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocInfo.commandPool = m_commandPool;
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandBufferCount = m_commandBuffers.size();
+  allocInfo.commandBufferCount = static_cast<uint32_t>(m_commandBuffers.size());
 
   VK_CHECK(vkAllocateCommandBuffers(m_device, &allocInfo, m_commandBuffers.data()),
     "Failed to allocate command buffers");
@@ -1170,7 +1170,7 @@ void RendererImpl::pickPhysicalDevice()
   int index = -1;
   for (auto& dev : sortedDevices) {
     if (isPhysicalDeviceSuitable(devices[dev.second])) {
-      index = dev.second;
+      index = static_cast<int>(dev.second);
       break;
     }
   }
@@ -1212,7 +1212,7 @@ void RendererImpl::createInstance()
   createInfo.enabledLayerCount = 0;
   createInfo.pNext = nullptr;
 #else
-  createInfo.enabledLayerCount = ValidationLayers.size();
+  createInfo.enabledLayerCount = static_cast<uint32_t>(ValidationLayers.size());
   createInfo.ppEnabledLayerNames = ValidationLayers.data();
 
   auto debugMessengerInfo = getDebugMessengerCreateInfo();
@@ -1221,7 +1221,7 @@ void RendererImpl::createInstance()
 
   auto extensions = getRequiredExtensions();
 
-  createInfo.enabledExtensionCount = extensions.size();
+  createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
   createInfo.ppEnabledExtensionNames = extensions.data();
 
   VK_CHECK(vkCreateInstance(&createInfo, nullptr, &m_instance), "Failed to create instance");
