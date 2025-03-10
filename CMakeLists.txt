@@ -5,16 +5,12 @@ if(ANDROID_BUILD)
   set(PLATFORM_ANDROID 1)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
   set(PLATFORM_LINUX 1)
-  set(PLATFORM_LINUX "${PLATFORM_LINUX}" PARENT_SCOPE)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
   set(PLATFORM_WINDOWS 1)
-  set(PLATFORM_WINDOWS "${PLATFORM_WINDOWS}" PARENT_SCOPE)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set(PLATFORM_OSX 1)
-  set(PLATFORM_OSX "${PLATFORM_OSX}" PARENT_SCOPE)
 elseif(CMAKE_SYSTEM_NAME MATCHES "iOS")
   set(PLATFORM_IOS 1)
-  set(PLATFORM_IOS "${PLATFORM_IOS}" PARENT_SCOPE)
 endif()
 
 set(CMAKE_CXX_STANDARD 20)
@@ -108,7 +104,6 @@ else()
       glfw
     )
   elseif(PLATFORM_IOS)
-    set(RESOURCES_DIR "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}-iphoneos/nova.app/Resources")  # TODO: Remove?
     list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/platform/ios/cmake")
     set(MACOSX_BUNDLE_BUNDLE_NAME "Nova")
     set(MACOSX_BUNDLE_BUNDLE_VERSION "0.1")
@@ -121,19 +116,12 @@ else()
       "${PROJECT_SOURCE_DIR}/nova/src/platform/ios/application.cpp"
       "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/ios/vulkan_window_delegate.mm"
       "${PROJECT_SOURCE_DIR}/data"
-      "${PROJECT_BINARY_DIR}/shaders"
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
     )
     set_source_files_properties(
       "${PROJECT_SOURCE_DIR}/data"
       PROPERTIES
         MACOSX_PACKAGE_LOCATION Resources
-    )
-    set_source_files_properties(
-      "${PROJECT_BINARY_DIR}/shaders"
-      PROPERTIES
-        MACOSX_PACKAGE_LOCATION Resources
-        GENERATED TRUE
     )
     set_source_files_properties(
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
@@ -164,7 +152,7 @@ else()
       MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
       MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
       XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "LW57Q4U5U7"
-      XCODE_EMBED_FRAMEWORKS "${Vulkan_MoltenVK_LIBRARY};${Vulkan_LIBRARIES};${Vulkan_Layer_VALIDATION}" # TODO: ${Vulkan_Layer_VALIDATION}
+      XCODE_EMBED_FRAMEWORKS "${Vulkan_MoltenVK_LIBRARY};${Vulkan_LIBRARY};${Vulkan_Layer_VALIDATION}" # TODO: ${Vulkan_Layer_VALIDATION}
       XCODE_EMBED_FRAMEWORKS_CODE_SIGN_ON_COPY "YES"
       XCODE_EMBED_FRAMEWORKS_REMOVE_HEADERS_ON_COPY "YES"
       XCODE_ATTRIBUTE_SKIP_INSTALL "NO"
@@ -214,7 +202,6 @@ else()
   else()
     install(TARGETS ${EXE_TARGET} DESTINATION ".")
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/data" DESTINATION ".")
-    install(DIRECTORY "${PROJECT_BINARY_DIR}/shaders" DESTINATION ".")
   endif()
 
   set(CPACK_PACKAGE_VENDOR "Rob Jinman")

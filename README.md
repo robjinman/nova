@@ -84,6 +84,20 @@ Install the APKs
     java -jar ~/Downloads/bundletool-all-1.18.1.jar install-apks --apks=output.apks
 ```
 
+#### iOS
+
+To install on the device
+
+```
+    xcrun devicectl device install app --device <id> ./build/ios/debug/Debug-iphoneos/nova_exe.app
+```
+
+You can obtain the device ID with
+
+```
+    xcrun devicectl list devices
+```
+
 ### Creating deployables
 
 #### OS X
