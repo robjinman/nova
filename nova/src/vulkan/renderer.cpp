@@ -489,26 +489,21 @@ void RendererImpl::removeMaterial(RenderItemId)
 VkExtent2D RendererImpl::chooseSwapChainExtent(
   const VkSurfaceCapabilitiesKHR& capabilities) const
 {
-  if (capabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
-    int width = 0;
-    int height = 0;
-    m_window.getFrameBufferSize(width, height);
+  int width = 0;
+  int height = 0;
+  m_window.getFrameBufferSize(width, height);
 
-    VkExtent2D extent = {
-      static_cast<uint32_t>(width),
-      static_cast<uint32_t>(height)
-    };
+  VkExtent2D extent = {
+    static_cast<uint32_t>(width),
+    static_cast<uint32_t>(height)
+  };
 
-    extent.width = std::max(capabilities.minImageExtent.width,
-      std::min(capabilities.maxImageExtent.width, static_cast<uint32_t>(width)));
-    extent.height = std::max(capabilities.minImageExtent.height,
-      std::min(capabilities.maxImageExtent.height, static_cast<uint32_t>(height)));
+  extent.width = std::max(capabilities.minImageExtent.width,
+    std::min(capabilities.maxImageExtent.width, static_cast<uint32_t>(width)));
+  extent.height = std::max(capabilities.minImageExtent.height,
+    std::min(capabilities.maxImageExtent.height, static_cast<uint32_t>(height)));
 
-    return extent;
-  }
-  else {
-    return capabilities.currentExtent;
-  }
+  return extent;
 }
 
 VkPresentModeKHR RendererImpl::chooseSwapChainPresentMode(
@@ -620,8 +615,12 @@ void RendererImpl::recreateSwapChain()
   cleanupSwapChain();
   createSwapChain();
   createImageViews();
+  createPipelines();
   createDepthResources();
   createFramebuffers();
+
+  float_t aspectRatio = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
+  m_projectionMatrix = perspective(degreesToRadians(45.f), aspectRatio, 0.1f, DRAW_DISTANCE);
 
   // TODO: Might need to recreate renderpass if the swap chain image format has changed if, for
   // example, the window has moved from a standard to a high dynamic range monitor.
@@ -1100,8 +1099,8 @@ void RendererImpl::createDepthResources()
 
   VkFormat depthFormat = findDepthFormat();
 
-  createImage(m_physicalDevice, m_device, m_swapchainExtent.width, m_swapchainExtent.height, depthFormat,
-    VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+  createImage(m_physicalDevice, m_device, m_swapchainExtent.width, m_swapchainExtent.height,
+    depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_depthImage, m_depthImageMemory);
 
   m_depthImageView = createImageView(m_device, m_depthImage, depthFormat,

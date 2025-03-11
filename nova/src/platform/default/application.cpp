@@ -15,8 +15,10 @@
 #include <iostream>
 #include <GLFW/glfw3.h>
 
-const int RESOLUTION_W = 1920;
-const int RESOLUTION_H = 1080;
+const int WINDOWED_RESOLUTION_W = 800;
+const int WINDOWED_RESOLUTION_H = 600;
+const int FULLSCREEN_RESOLUTION_W = 1920;
+const int FULLSCREEN_RESOLUTION_H = 1080;
 
 WindowDelegatePtr createWindowDelegate(GLFWwindow& window);
 FileSystemPtr createDefaultFileSystem(const std::filesystem::path& dataRootDir);
@@ -100,12 +102,13 @@ Application::Application()
   glfwInit();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Don't create OpenGL context
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
   m_instance = this;
 
   std::string title = versionString();
-  m_window = glfwCreateWindow(RESOLUTION_W, RESOLUTION_H, title.c_str(), nullptr, nullptr);
+  m_window = glfwCreateWindow(WINDOWED_RESOLUTION_W, WINDOWED_RESOLUTION_H, title.c_str(),
+    nullptr, nullptr);
   glfwGetWindowPos(m_window, &m_initialWindowState.posX, &m_initialWindowState.posY);
   glfwGetWindowSize(m_window, &m_initialWindowState.width, &m_initialWindowState.height);
 
@@ -166,7 +169,11 @@ void Application::onKeyboardInput(int code, int action)
       case KeyboardKey::F:
         m_logger->info(STR("Renderer frame rate: " << m_renderer->frameRate()));
         break;
+#ifdef __APPLE__
+      case KeyboardKey::F12:
+#else
       case KeyboardKey::F11:
+#endif
         toggleFullScreen();
         break;
       default: break;
@@ -193,7 +200,8 @@ void Application::toggleFullScreen()
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
-    glfwSetWindowMonitor(m_window, monitor, 0, 0, RESOLUTION_W, RESOLUTION_H, mode->refreshRate);
+    glfwSetWindowMonitor(m_window, monitor, 0, 0, FULLSCREEN_RESOLUTION_W, FULLSCREEN_RESOLUTION_H,
+      mode->refreshRate);
 
     m_renderer->onResize();
     m_fullscreen = true;
