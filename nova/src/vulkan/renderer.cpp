@@ -487,21 +487,26 @@ void RendererImpl::removeMaterial(RenderItemId)
 VkExtent2D RendererImpl::chooseSwapChainExtent(
   const VkSurfaceCapabilitiesKHR& capabilities) const
 {
-  int width = 0;
-  int height = 0;
-  m_window.getFrameBufferSize(width, height);
+  if (capabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
+    int width = 0;
+    int height = 0;
+    m_window.getFrameBufferSize(width, height);
 
-  VkExtent2D extent = {
-    static_cast<uint32_t>(width),
-    static_cast<uint32_t>(height)
-  };
+    VkExtent2D extent = {
+      static_cast<uint32_t>(width),
+      static_cast<uint32_t>(height)
+    };
 
-  extent.width = std::max(capabilities.minImageExtent.width,
-    std::min(capabilities.maxImageExtent.width, static_cast<uint32_t>(width)));
-  extent.height = std::max(capabilities.minImageExtent.height,
-    std::min(capabilities.maxImageExtent.height, static_cast<uint32_t>(height)));
+    extent.width = std::max(capabilities.minImageExtent.width,
+      std::min(capabilities.maxImageExtent.width, static_cast<uint32_t>(width)));
+    extent.height = std::max(capabilities.minImageExtent.height,
+      std::min(capabilities.maxImageExtent.height, static_cast<uint32_t>(height)));
 
-  return extent;
+    return extent;
+  }
+  else {
+    return capabilities.currentExtent;
+  }
 }
 
 VkPresentModeKHR RendererImpl::chooseSwapChainPresentMode(
