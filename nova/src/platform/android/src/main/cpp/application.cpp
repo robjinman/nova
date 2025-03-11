@@ -20,6 +20,7 @@
 
 const char* LOG_TAG = "eggplant";
 
+LoggerPtr createAndroidLogger();
 WindowDelegatePtr createWindowDelegate(ANativeWindow& window);
 FileSystemPtr createAndroidFileSystem(AAssetManager& assetManager);
 
@@ -32,6 +33,7 @@ class Application
     Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSystem);
 
     void update();
+    void onConfigChange();
 
   private:
     WindowDelegatePtr m_windowDelegate;
@@ -52,7 +54,7 @@ Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSys
   : m_windowDelegate(std::move(windowDelegate))
   , m_fileSystem(std::move(fileSystem))
 {
-  m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
+  m_logger = createAndroidLogger();
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
   m_spatialSystem = createSpatialSystem(*m_logger);
   m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_logger);
@@ -74,6 +76,12 @@ void Application::update()
   m_spatialSystem->update();
   m_renderSystem->update();
   m_collisionSystem->update();
+}
+
+void Application::onConfigChange()
+{
+  __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Resizing window");
+  m_renderer->onResize();
 }
 
 ApplicationPtr createApplication(android_app& state)
@@ -107,11 +115,22 @@ bool waitForWindow(android_app& state)
   return false;
 }
 
+enum class StateChange : size_t
+{
+  windowInitialised = 1,
+  configChanged
+};
+
 void handleCommand(android_app* state, int32_t command)
 {
   switch (command) {
     case APP_CMD_INIT_WINDOW:
-      state->userData = reinterpret_cast<void*>(0xdeadbeef);
+      state->userData = reinterpret_cast<void*>(StateChange::windowInitialised);
+      __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Got event! Window initialised");
+      break;
+    case APP_CMD_CONFIG_CHANGED:
+      state->userData = reinterpret_cast<void*>(StateChange::configChanged);
+      __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Got event! Config changed");
       break;
     default: break;
   }
@@ -142,6 +161,9 @@ void android_main(android_app* state)
       source->process(state, source);
     }
 
+    if (reinterpret_cast<size_t>(state->userData) == static_cast<size_t>(StateChange::configChanged)) {
+      application->onConfigChange();
+    }
     application->update();
 
     frameRateLimiter.wait();

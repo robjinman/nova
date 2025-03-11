@@ -126,6 +126,7 @@ class RendererImpl : public Renderer
     VkExtent2D chooseSwapChainExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
     void createSwapChain();
     void recreateSwapChain();
+    void setProjectionMatrix(float_t rotation);
     void cleanupSwapChain();
     void createImageViews();
     void createRenderPass();
@@ -227,9 +228,6 @@ RendererImpl::RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& w
     createCommandBuffers();
     createSyncObjects();
   }).get();
-
-  float_t aspectRatio = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
-  m_projectionMatrix = perspective(degreesToRadians(45.f), aspectRatio, 0.1f, DRAW_DISTANCE);
 }
 
 void RendererImpl::start()
@@ -587,6 +585,19 @@ void RendererImpl::createSwapChain()
 
   m_swapchainImageFormat = surfaceFormat.format;
   m_swapchainExtent = extent;
+
+  float_t rotation = 0;
+  if (swapchainSupport.capabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR) {
+    rotation = degreesToRadians(90.f);
+  }
+  setProjectionMatrix(rotation);
+}
+
+void RendererImpl::setProjectionMatrix(float_t rotation)
+{
+  Mat4x4f rot = rotationMatrix4x4<float_t>({ 0.f, 0.f, rotation });
+  float_t aspect = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
+  m_projectionMatrix = rot * perspective(degreesToRadians(45.f), aspect, 0.1f, DRAW_DISTANCE);
 }
 
 void RendererImpl::cleanupSwapChain()
@@ -618,9 +629,6 @@ void RendererImpl::recreateSwapChain()
   createPipelines();
   createDepthResources();
   createFramebuffers();
-
-  float_t aspectRatio = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
-  m_projectionMatrix = perspective(degreesToRadians(45.f), aspectRatio, 0.1f, DRAW_DISTANCE);
 
   // TODO: Might need to recreate renderpass if the swap chain image format has changed if, for
   // example, the window has moved from a standard to a high dynamic range monitor.
