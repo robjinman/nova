@@ -10,6 +10,7 @@ class Renderer
   public:
     virtual void start() = 0;
     virtual double frameRate() const = 0;
+    virtual void onResize() = 0;
 
     // Resources
     //
