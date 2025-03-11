@@ -15,14 +15,22 @@
 #include <iostream>
 #include <GLFW/glfw3.h>
 
-const uint32_t WIDTH = 800;
-const uint32_t HEIGHT = 600;
+const int RESOLUTION_W = 1920;
+const int RESOLUTION_H = 1080;
 
 WindowDelegatePtr createWindowDelegate(GLFWwindow& window);
 FileSystemPtr createDefaultFileSystem(const std::filesystem::path& dataRootDir);
 
 namespace
 {
+
+struct WindowState
+{
+  int posX = 0;
+  int posY = 0;
+  int width = 0;
+  int height = 0;
+};
 
 class Application
 {
@@ -54,10 +62,14 @@ class Application
     EntityFactoryPtr m_entityFactory;
     GamePtr m_game;
 
+    bool m_fullscreen = false;
+    WindowState m_initialWindowState;
     Vec2f m_lastMousePos;
 
     void enterInputCapture();
     void exitInputCapture();
+    void toggleFullScreen();
+    Vec2i windowSize() const;
 };
 
 Application* Application::m_instance = nullptr;
@@ -93,8 +105,11 @@ Application::Application()
   m_instance = this;
 
   std::string title = versionString();
+  m_window = glfwCreateWindow(RESOLUTION_W, RESOLUTION_H, title.c_str(), nullptr, nullptr);
+  glfwGetWindowPos(m_window, &m_initialWindowState.posX, &m_initialWindowState.posY);
+  glfwGetWindowSize(m_window, &m_initialWindowState.width, &m_initialWindowState.height);
+
   m_fileSystem = createDefaultFileSystem(std::filesystem::current_path() / "data");
-  m_window = glfwCreateWindow(WIDTH, HEIGHT, title.c_str(), nullptr, nullptr);
   m_windowDelegate = createWindowDelegate(*m_window);
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
@@ -130,6 +145,13 @@ void Application::run()
   }
 }
 
+Vec2i Application::windowSize() const
+{
+  Vec2i size;
+  glfwGetWindowSize(m_window, &size[0], &size[1]);
+  return size;
+}
+
 void Application::onKeyboardInput(int code, int action)
 {
   auto key = static_cast<KeyboardKey>(code);
@@ -144,6 +166,9 @@ void Application::onKeyboardInput(int code, int action)
       case KeyboardKey::F:
         m_logger->info(STR("Renderer frame rate: " << m_renderer->frameRate()));
         break;
+      case KeyboardKey::F11:
+        toggleFullScreen();
+        break;
       default: break;
     }
   }
@@ -152,9 +177,32 @@ void Application::onKeyboardInput(int code, int action)
   }
 }
 
+void Application::toggleFullScreen()
+{
+  if (m_fullscreen) {
+    glfwSetWindowMonitor(m_window, NULL, m_initialWindowState.posX, m_initialWindowState.posY,
+      m_initialWindowState.width, m_initialWindowState.height, 0);
+
+    m_renderer->onResize();
+    m_fullscreen = false;
+  }
+  else {
+    glfwGetWindowPos(m_window, &m_initialWindowState.posX, &m_initialWindowState.posY);
+    glfwGetWindowSize(m_window, &m_initialWindowState.width, &m_initialWindowState.height);
+
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+    glfwSetWindowMonitor(m_window, monitor, 0, 0, RESOLUTION_W, RESOLUTION_H, mode->refreshRate);
+
+    m_renderer->onResize();
+    m_fullscreen = true;
+  }
+}
+
 void Application::onMouseMove(float_t x, float_t y)
 {
-  Vec2f delta = (Vec2f{x, y} - m_lastMousePos) / Vec2f{WIDTH , HEIGHT};
+  Vec2f delta = (Vec2f{x, y} - m_lastMousePos) / static_cast<Vec2f>(windowSize());
   m_game->onMouseMove(delta);
   m_lastMousePos = { x, y };
 }

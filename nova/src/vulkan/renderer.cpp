@@ -21,6 +21,7 @@
 #include <cstring>
 #include <optional>
 #include <fstream>
+#include <atomic>
 #include <set>
 #include <map>
 #include <cassert>
@@ -72,6 +73,7 @@ class RendererImpl : public Renderer
     RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger);
 
     void start() override;
+    void onResize() override;
     double frameRate() const override;
 
     // Resources
@@ -168,7 +170,7 @@ class RendererImpl : public Renderer
     VkCommandPool m_commandPool;
 
     size_t m_currentFrame = 0;
-    bool m_framebufferResized = false;  // TODO
+    std::atomic<bool> m_framebufferResized = false;
     Mat4x4f m_projectionMatrix;
 
     std::vector<VkSemaphore> m_imageAvailableSemaphores;
@@ -241,6 +243,11 @@ void RendererImpl::start()
 double RendererImpl::frameRate() const
 {
   return m_frameRate;
+}
+
+void RendererImpl::onResize()
+{
+  m_framebufferResized = true;
 }
 
 void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
