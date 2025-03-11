@@ -9,11 +9,13 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
 @end
 
 @implementation MetalView
-+ (Class)layerClass {
++ (Class)layerClass
+{
   return [CAMetalLayer class];
 }
 
-- (instancetype)initWithFrame:(CGRect)frame {
+- (instancetype)initWithFrame:(CGRect)frame
+{
   self = [super initWithFrame:frame];
   if (self) {
     CAMetalLayer* metalLayer = (CAMetalLayer*)self.layer;
@@ -29,15 +31,18 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
 @property (strong, nonatomic) CADisplayLink* displayLink;
 @end
 
-@implementation ViewController {
+@implementation ViewController
+{
   ApplicationPtr _application;
 }
 
-- (void)loadView {
+- (void)loadView
+{
   self.view = [[MetalView alloc] initWithFrame:[UIScreen mainScreen].bounds];
 }
 
-- (void)viewDidLoad {
+- (void)viewDidLoad
+{
   [super viewDidLoad];
 
   NSString* bundlePath = [[NSBundle mainBundle] bundlePath];
@@ -50,11 +55,23 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   [self.displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSDefaultRunLoopMode];
 }
 
-- (void)updateLoop:(CADisplayLink*)sender {
+- (BOOL)shouldAutorotate
+{
+  return YES;
+}
+
+- (NSUInteger)supportedInterfaceOrientations
+{
+  return UIInterfaceOrientationMaskLandscape;
+}
+
+- (void)updateLoop:(CADisplayLink*)sender
+{
   _application->update();
 }
 
-- (void)dealloc {
+- (void)dealloc
+{
   [self.displayLink invalidate];
   [super dealloc];
 }
@@ -65,7 +82,8 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
 @end
 
 @implementation AppDelegate
-- (BOOL)application:(UIApplication*)application didFinishLaunchingWithOptions:(NSDictionary*)launchOptions {
+- (BOOL)application:(UIApplication*)application didFinishLaunchingWithOptions:(NSDictionary*)launchOptions
+{
   self.window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
   self.window.rootViewController = [[ViewController alloc] init];
   [self.window makeKeyAndVisible];
@@ -73,7 +91,8 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
 }
 @end
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
   @autoreleasepool {
     return UIApplicationMain(argc, argv, nil, NSStringFromClass([AppDelegate class]));
   }
