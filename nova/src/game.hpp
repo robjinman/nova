@@ -19,7 +19,8 @@ enum class KeyboardKey
   F8 = 297,
   F9 = 298,
   F10 = 299,
-  F11 = 300
+  F11 = 300,
+  F12 = 301
 };
 
 class Game
