@@ -24,8 +24,8 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="2.4673516"
-     inkscape:cx="227.77459"
-     inkscape:cy="401.84788"
+     inkscape:cx="222.50578"
+     inkscape:cy="214.60257"
      inkscape:window-width="1920"
      inkscape:window-height="990"
      inkscape:window-x="0"
@@ -55,7 +55,7 @@
        style="text-align:start;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect1);display:inline;fill:#000000"><tspan
          x="357.96094"
          y="880.23047"
-         id="tspan4436">8</tspan></text>
+         id="tspan1313">8</tspan></text>
     <g
        id="g5">
       <text
@@ -141,6 +141,66 @@
              y="26.306543">type=monkey</tspan></text>
       </g>
       <g
+         id="g4-5-3"
+         transform="translate(21.5403,19.958375)">
+        <path
+           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
+           d="m 27.325056,24.562198 -0.02074,-1.220512 -1.719575,0.645574 z"
+           id="path2-1-6"
+           sodipodi:nodetypes="cccc" />
+        <text
+           xml:space="preserve"
+           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
+           x="23.180428"
+           y="26.306543"
+           id="text3-3-7"><tspan
+             sodipodi:role="line"
+             id="tspan3-9-53"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
+             x="23.180428"
+             y="26.306543">type=monkey</tspan></text>
+      </g>
+      <g
+         id="g4-5-3-1"
+         transform="translate(1.489317,12.117645)">
+        <path
+           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
+           d="m 26.290954,22.775502 -1.011302,0.683629 1.479583,1.088366 z"
+           id="path2-1-6-2"
+           sodipodi:nodetypes="cccc" />
+        <text
+           xml:space="preserve"
+           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
+           x="23.180428"
+           y="26.306543"
+           id="text3-3-7-7"><tspan
+             sodipodi:role="line"
+             id="tspan3-9-53-0"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
+             x="23.180428"
+             y="26.306543">type=monkey</tspan></text>
+      </g>
+      <g
+         id="g4-5-8-6-5"
+         transform="translate(30.099996,18.496401)">
+        <path
+           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
+           d="m 28.118741,23.714053 -0.694804,-1.003656 -1.071888,1.491562 z"
+           id="path2-1-7-7-6"
+           sodipodi:nodetypes="cccc" />
+        <text
+           xml:space="preserve"
+           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
+           x="23.180428"
+           y="26.306543"
+           id="text3-3-1-9-2"><tspan
+             sodipodi:role="line"
+             id="tspan3-9-5-4-9"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
+             x="23.180428"
+             y="26.306543">type=monkey</tspan></text>
+      </g>
+      <g
          id="g4-5-8-6-2"
          transform="translate(11.187013,-15.969695)">
         <path
@@ -162,7 +222,7 @@
       </g>
       <g
          id="g4-7-6"
-         transform="translate(-16.047371,95.560457)"
+         transform="translate(9.6398183,20.714432)"
          inkscape:transform-center-x="0.44292273"
          inkscape:transform-center-y="0.15714354">
         <path
@@ -261,6 +321,36 @@
            style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
            d="m 6.9622216,60.58859 7.8253074,-0.575389 -1.956327,-9.091165 -8.2856191,1.72617 z"
            id="path6" />
+      </g>
+      <g
+         id="g7-1"
+         transform="translate(8.3531125,17.770098)">
+        <text
+           xml:space="preserve"
+           style="font-size:0.909496px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0757912;stroke-opacity:1"
+           x="7.0704732"
+           y="56.936832"
+           id="text2-3-8"><tspan
+             sodipodi:role="line"
+             id="tspan2-9-7"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0757912"
+             x="7.0704732"
+             y="56.936832">type=zone</tspan></text>
+        <text
+           xml:space="preserve"
+           style="font-size:0.909496px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0757912;stroke-opacity:1"
+           x="7.5071931"
+           y="58.386623"
+           id="text2-3-3-9"><tspan
+             sodipodi:role="line"
+             id="tspan2-9-6-2"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0757912"
+             x="7.5071931"
+             y="58.386623">floor=2</tspan></text>
+        <path
+           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
+           d="m 6.9622216,60.58859 7.8253074,-0.575389 -1.956327,-9.091165 -8.2856191,1.72617 z"
+           id="path6-0" />
       </g>
       <g
          id="g7-4"
@@ -454,7 +544,7 @@
       </g>
       <g
          id="g4-5-8-6-0-0"
-         transform="translate(-17.127339,42.66079)">
+         transform="translate(-15.623138,31.805665)">
         <path
            style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
            d="m 26.172984,24.413155 1.055896,0.612506 0.335144,-1.805929 z"

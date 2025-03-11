@@ -157,7 +157,10 @@ void GameImpl::update()
   measureFrameRate();
   processKeyboardInput();
   processMouseInput();
-  gravity();
+  //m_player->rotate(0.f, 0.01f); // TODO: Remove
+  if (!m_freeflyMode) {
+    gravity();
+  }
 }
 
 } // namespace

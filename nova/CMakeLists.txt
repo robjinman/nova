@@ -88,6 +88,7 @@ elseif(PLATFORM_ANDROID)
     ${CPP_SOURCES}
     "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/android/src/main/cpp/application.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/android/src/main/cpp/file_system.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/android/src/main/cpp/logger.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan/platform/android/vulkan_window_delegate.cpp"
   )
   add_library(app-glue STATIC
