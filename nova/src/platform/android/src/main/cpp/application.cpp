@@ -117,8 +117,8 @@ bool waitForWindow(android_app& state)
 
 enum class StateChange : size_t
 {
-  windowInitialised = 1,
-  configChanged
+  WindowInitialised = 1,
+  ConfigChanged
 };
 
 void handleCommand(android_app* state, int32_t command)

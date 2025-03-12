@@ -8,9 +8,9 @@
 
 enum class CRenderType
 {
-  regular,
-  instance,
-  skybox
+  Regular,
+  Instance,
+  Skybox
 };
 
 struct CRender : public Component

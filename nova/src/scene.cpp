@@ -130,7 +130,7 @@ void SceneBuilder::constructSky()
 {
   EntityId entityId = System::nextId();
 
-  auto render = std::make_unique<CRender>(entityId, CRenderType::skybox);
+  auto render = std::make_unique<CRender>(entityId, CRenderType::Skybox);
   auto mesh = cuboid(10000, 10000, 10000, { 1, 1, 1 }, Vec2f{ 1, 1 });
   std::reverse(mesh->indices.begin(), mesh->indices.end());
   std::array<TexturePtr, 6> textures{
@@ -162,7 +162,7 @@ void SceneBuilder::constructOriginMarkers()
 
     MeshPtr mesh = cuboid(w, h, d, colour, Vec2f{ 1, 1 });
     auto meshId = m_renderSystem.addMesh(std::move(mesh));
-    CRenderPtr render = std::make_unique<CRender>(id, CRenderType::regular);
+    CRenderPtr render = std::make_unique<CRender>(id, CRenderType::Regular);
     render->mesh = meshId;
     m_renderSystem.addComponent(std::move(render));
 
@@ -381,7 +381,7 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
   auto mesh = mergeMeshes(*bottomFace, *topFace);
   createSideFaces(*mesh);
 
-  CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::regular);
+  CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::Regular);
   render->mesh = m_renderSystem.addMesh(std::move(mesh));
   render->material = m_groundMaterial;
   m_renderSystem.addComponent(std::move(render));
@@ -443,7 +443,7 @@ void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTra
     spatial->setTransform(parentTransform * obj.transform * m * shift);
     m_spatialSystem.addComponent(std::move(spatial));
 
-    CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::regular);
+    CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::Regular);
     auto mesh = cuboid(wallThickness, wallHeight, distance, colour, textureSize);
     render->mesh = m_renderSystem.addMesh(std::move(mesh));
     render->material = m_wallMaterial;

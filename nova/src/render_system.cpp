@@ -159,13 +159,13 @@ void RenderSystemImpl::update()
       const auto& spatial = m_spatialSystem.getComponent(component.id());
 
       switch(component.type) {
-        case CRenderType::instance:
+        case CRenderType::Instance:
           m_renderer.stageInstance(component.mesh, component.material, spatial.absTransform());
           break;
-        case CRenderType::regular:
+        case CRenderType::Regular:
           m_renderer.stageModel(component.mesh, component.material, spatial.absTransform());
           break;
-        case CRenderType::skybox:
+        case CRenderType::Skybox:
           m_renderer.stageSkybox(component.mesh, component.material);
           break;
       }
