@@ -191,6 +191,8 @@ Vec2i Application::windowSize() const
 
 void Application::onJoystickEvent(int event)
 {
+  m_logger->info(STR("Received joystick event: " << event));
+
   switch (event) {
     case GLFW_CONNECTED:
       exitInputCapture();
