@@ -6,7 +6,7 @@
 struct DefaultModelNode : public RenderNode
 {
   DefaultModelNode()
-    : RenderNode(RenderNodeType::defaultModel) {}
+    : RenderNode(RenderNodeType::DefaultModel) {}
 
   RenderItemId mesh;
   RenderItemId material;

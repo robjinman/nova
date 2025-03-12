@@ -44,9 +44,9 @@ const std::vector<const char*> DeviceExtensions = {
 
 enum class PipelineName : RenderGraphKey
 {
-  defaultModel,
-  instancedModel,
-  skybox
+  DefaultModel,
+  InstancedModel,
+  Skybox
 };
 
 struct QueueFamilyIndices
@@ -255,7 +255,7 @@ void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
   
   RenderGraph& renderGraph = m_renderStates.getWritable().graph;
   RenderGraph::Key key{
-    static_cast<RenderGraphKey>(PipelineName::instancedModel),
+    static_cast<RenderGraphKey>(PipelineName::InstancedModel),
     static_cast<RenderGraphKey>(meshId),
     static_cast<RenderGraphKey>(materialId)
   };
@@ -288,7 +288,7 @@ void RendererImpl::stageModel(RenderItemId mesh, RenderItemId material, const Ma
   node->modelMatrix = transform;
 
   RenderGraph::Key key{
-    static_cast<RenderGraphKey>(PipelineName::defaultModel),
+    static_cast<RenderGraphKey>(PipelineName::DefaultModel),
     static_cast<RenderGraphKey>(mesh),
     static_cast<RenderGraphKey>(material),
     nextId++
@@ -306,7 +306,7 @@ void RendererImpl::stageSkybox(RenderItemId mesh, RenderItemId material)
   node->mesh = mesh;
   node->material = material;
 
-  RenderGraph::Key key{ static_cast<RenderGraphKey>(PipelineName::skybox) };
+  RenderGraph::Key key{ static_cast<RenderGraphKey>(PipelineName::Skybox) };
   renderGraph.insert(key, std::move(node));
 }
 
@@ -363,7 +363,7 @@ void RendererImpl::updateResources()
 
   for (auto& node : renderGraph) {
     switch (node->type) {
-      case RenderNodeType::instancedModel: {
+      case RenderNodeType::InstancedModel: {
         auto& nodeData = dynamic_cast<const InstancedModelNode&>(*node);
         m_resources->updateMeshInstances(nodeData.mesh, nodeData.instances);
 
@@ -977,12 +977,12 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
 
   auto choosePipeline = [](RenderNodeType nodeType) {
     switch (nodeType) {
-      case RenderNodeType::defaultModel: return PipelineName::defaultModel;
-      case RenderNodeType::instancedModel: return PipelineName::instancedModel;
-      case RenderNodeType::skybox: return PipelineName::skybox;
+      case RenderNodeType::DefaultModel:    return PipelineName::DefaultModel;
+      case RenderNodeType::InstancedModel:  return PipelineName::InstancedModel;
+      case RenderNodeType::Skybox:          return PipelineName::Skybox;
     }
     assert(false);
-    return PipelineName::defaultModel;
+    return PipelineName::DefaultModel;
   };
 
   const auto& renderGraph = m_renderStates.getReadable().graph;
@@ -1124,11 +1124,11 @@ void RendererImpl::createPipelines()
 {
   DBG_TRACE(m_logger);
 
-  m_pipelines[PipelineName::defaultModel] = std::make_unique<DefaultPipeline>(m_fileSystem,
+  m_pipelines[PipelineName::DefaultModel] = std::make_unique<DefaultPipeline>(m_fileSystem,
     m_device, m_swapchainExtent, m_renderPass, *m_resources);
-  m_pipelines[PipelineName::instancedModel] = std::make_unique<InstancedPipeline>(m_fileSystem,
+  m_pipelines[PipelineName::InstancedModel] = std::make_unique<InstancedPipeline>(m_fileSystem,
     m_device, m_swapchainExtent, m_renderPass, *m_resources);
-  m_pipelines[PipelineName::skybox] = std::make_unique<SkyboxPipeline>(m_fileSystem, m_device,
+  m_pipelines[PipelineName::Skybox] = std::make_unique<SkyboxPipeline>(m_fileSystem, m_device,
     m_swapchainExtent, m_renderPass, *m_resources);
 }
 

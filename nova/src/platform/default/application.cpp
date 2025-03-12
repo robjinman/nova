@@ -34,6 +34,21 @@ struct WindowState
   int height = 0;
 };
 
+enum class ControlMode
+{
+  KeyboardMouse,
+  Gamepad
+};
+
+KeyboardKey buttonToKey(int button)
+{
+  switch (button) {
+    case GLFW_GAMEPAD_BUTTON_A: return KeyboardKey::E;
+    // ...
+    default: return KeyboardKey::Z; // TODO
+  }
+}
+
 class Application
 {
   public:
@@ -43,6 +58,7 @@ class Application
     void onKeyboardInput(int key, int action);
     void onMouseMove(float_t x, float_t y);
     void onMouseClick();
+    void onJoystickEvent(int event);
 
     ~Application();
 
@@ -51,6 +67,7 @@ class Application
     static void onKeyboardInput(GLFWwindow* window, int code, int, int action, int);
     static void onMouseMove(GLFWwindow*, double x, double y);
     static void onMouseClick(GLFWwindow* window, int, int, int);
+    static void onJoystickEvent(int, int event);
 
     GLFWwindow* m_window;
     FileSystemPtr m_fileSystem;
@@ -66,12 +83,15 @@ class Application
 
     bool m_fullscreen = false;
     WindowState m_initialWindowState;
+    ControlMode m_controlMode;
     Vec2f m_lastMousePos;
+    GLFWgamepadstate m_gamepadState;
 
     void enterInputCapture();
     void exitInputCapture();
     void toggleFullScreen();
     Vec2i windowSize() const;
+    void processGamepadInput();
 };
 
 Application* Application::m_instance = nullptr;
@@ -97,6 +117,13 @@ void Application::onMouseClick(GLFWwindow*, int, int, int)
   }
 }
 
+void Application::onJoystickEvent(int, int event)
+{
+  if (m_instance) {
+    m_instance->onJoystickEvent(event);
+  }
+}
+
 Application::Application()
 {
   glfwInit();
@@ -111,6 +138,10 @@ Application::Application()
     nullptr, nullptr);
   glfwGetWindowPos(m_window, &m_initialWindowState.posX, &m_initialWindowState.posY);
   glfwGetWindowSize(m_window, &m_initialWindowState.width, &m_initialWindowState.height);
+
+  if (glfwJoystickPresent(GLFW_JOYSTICK_1)) {
+    m_controlMode = ControlMode::Gamepad;
+  }
 
   m_fileSystem = createDefaultFileSystem(std::filesystem::current_path() / "data");
   m_windowDelegate = createWindowDelegate(*m_window);
@@ -143,6 +174,9 @@ void Application::run()
     m_spatialSystem->update();
     m_renderSystem->update();
     m_collisionSystem->update();
+    if (m_controlMode == ControlMode::Gamepad) {
+      processGamepadInput();
+    }
 
     frameRateLimiter.wait();
   }
@@ -153,6 +187,22 @@ Vec2i Application::windowSize() const
   Vec2i size;
   glfwGetWindowSize(m_window, &size[0], &size[1]);
   return size;
+}
+
+void Application::onJoystickEvent(int event)
+{
+  switch (event) {
+    case GLFW_CONNECTED:
+      exitInputCapture();
+      m_controlMode = ControlMode::Gamepad;
+      enterInputCapture();
+      break;
+    case GLFW_DISCONNECTED:
+      exitInputCapture();
+      m_controlMode = ControlMode::KeyboardMouse;
+      enterInputCapture();
+      break;
+  }
 }
 
 void Application::onKeyboardInput(int code, int action)
@@ -225,11 +275,61 @@ void Application::enterInputCapture()
   glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   glfwSetKeyCallback(m_window, Application::onKeyboardInput);
   glfwSetCursorPosCallback(m_window, Application::onMouseMove);
+  glfwSetJoystickCallback(Application::onJoystickEvent);
 
   double x = 0;
   double y = 0;
   glfwGetCursorPos(m_window, &x, &y);
   m_lastMousePos = { static_cast<float_t>(x), static_cast<float_t>(y) };
+}
+
+void Application::processGamepadInput()
+{
+  GLFWgamepadstate state;
+
+  if (glfwGetGamepadState(GLFW_JOYSTICK_1, &state)) {
+    for (int i = 0; i < GLFW_GAMEPAD_BUTTON_LAST; ++i) {
+      if (m_gamepadState.buttons[i] == GLFW_RELEASE && state.buttons[i] == GLFW_PRESS) {
+        m_game->onKeyDown(buttonToKey(i));
+      }
+      else if (m_gamepadState.buttons[i] == GLFW_PRESS && state.buttons[i] == GLFW_RELEASE) {
+        m_game->onKeyUp(buttonToKey(i));
+      }
+    }
+  }
+
+  float_t threshold = 0.4f;
+  float_t leftX = state.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
+  float_t leftY = state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+  m_game->onKeyUp(KeyboardKey::W);
+  m_game->onKeyUp(KeyboardKey::A);
+  m_game->onKeyUp(KeyboardKey::S);
+  m_game->onKeyUp(KeyboardKey::D);
+  if (leftY > threshold) {
+    m_game->onKeyDown(KeyboardKey::S);
+  }
+  if (leftY < -threshold) {
+    m_game->onKeyDown(KeyboardKey::W);
+  }
+  if (leftX > threshold) {
+    m_game->onKeyDown(KeyboardKey::D);
+  }
+  if (leftX < -threshold) {
+    m_game->onKeyDown(KeyboardKey::A);
+  }
+
+  float_t epsilon = 0.15f;
+  float_t sensitivity = 0.025f;
+  float_t rightX = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X];
+  float_t rightY = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y];
+  Vec2f lookDelta{
+    fabs(rightX) > epsilon ? sensitivity * rightX : 0.f,
+    fabs(rightY) > epsilon ? sensitivity * rightY : 0.f
+  };
+
+  m_game->onMouseMove(lookDelta);
+
+  m_gamepadState = state;
 }
 
 void Application::exitInputCapture()

@@ -8,9 +8,9 @@
 
 enum class RenderNodeType
 {
-  defaultModel,
-  instancedModel,
-  skybox
+  DefaultModel,
+  InstancedModel,
+  Skybox
 };
 
 struct RenderNode

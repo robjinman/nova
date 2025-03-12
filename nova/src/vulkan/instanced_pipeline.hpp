@@ -6,7 +6,7 @@
 struct InstancedModelNode : public RenderNode
 {
   InstancedModelNode()
-    : RenderNode(RenderNodeType::instancedModel) {}
+    : RenderNode(RenderNodeType::InstancedModel) {}
 
   RenderItemId mesh;
   RenderItemId material;

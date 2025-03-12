@@ -194,9 +194,9 @@ void EntityFactoryImpl::constructSpatialComponent(EntityId entityId, const XmlNo
 
 CRenderType parseCRenderType(const std::string& type)
 {
-  if (type == "regular")        return CRenderType::regular;
-  else if (type == "instance")  return CRenderType::instance;
-  else if (type == "skybox")    return CRenderType::skybox;
+  if (type == "regular")        return CRenderType::Regular;
+  else if (type == "instance")  return CRenderType::Instance;
+  else if (type == "skybox")    return CRenderType::Skybox;
   else EXCEPTION(STR("Unrecognised render component type '" << type << "'"));
 }
 
