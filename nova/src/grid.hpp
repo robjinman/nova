@@ -2,6 +2,7 @@
 
 #include "math.hpp"
 #include <set>
+#include <array>
 #include <cassert>
 
 template<typename T, size_t GRID_W, size_t GRID_H>
@@ -226,7 +227,7 @@ bool Grid<T, GRID_W, GRID_H>::clipToGrid(Vec2f& A, Vec2f& B) const
   }
 
   auto moveP = [this](Vec2f& P, const Vec2f& Q, int i) {
-    const float_t epsilon = 0.001;
+    const float_t epsilon = 0.001f;
     auto v = Q - P;
 
     if (P[i] < m_worldMin[i]) {
@@ -269,12 +270,12 @@ std::set<std::pair<int, int>> Grid<T, GRID_W, GRID_H>::gridCellsBetweenPoints(co
   }
 
   std::pair<int, int> startCell{
-    (A[0] - m_worldMin[0]) / m_cellW,
-    (A[1] - m_worldMin[1]) / m_cellH
+    static_cast<int>((A[0] - m_worldMin[0]) / m_cellW),
+    static_cast<int>((A[1] - m_worldMin[1]) / m_cellH)
   };
   std::pair<int, int> endCell{
-    (B[0] - m_worldMin[0]) / m_cellW,
-    (B[1] - m_worldMin[1]) / m_cellH
+    static_cast<int>((B[0] - m_worldMin[0]) / m_cellW),
+    static_cast<int>((B[1] - m_worldMin[1]) / m_cellH)
   };
 
   cells.insert(startCell);
