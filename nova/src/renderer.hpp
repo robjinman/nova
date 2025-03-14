@@ -5,12 +5,22 @@
 
 class Camera;
 
+struct ViewParams
+{
+  float_t hFov;
+  float_t vFov;
+  float_t aspectRatio;
+  float_t nearPlane;
+  float_t farPlane;
+};
+
 class Renderer
 {
   public:
     virtual void start() = 0;
     virtual double frameRate() const = 0;
     virtual void onResize() = 0;
+    virtual const ViewParams& getViewParams() const = 0;
 
     // Resources
     //

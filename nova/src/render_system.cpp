@@ -53,6 +53,8 @@ class RenderSystemImpl : public RenderSystem
     const SpatialSystem& m_spatialSystem;
     Renderer& m_renderer;
     std::map<EntityId, CRenderPtr> m_components;
+
+    std::vector<Vec2f> computeFrustumPerimeter() const;
 };
 
 RenderSystemImpl::RenderSystemImpl(const SpatialSystem& spatialSystem, Renderer& renderer,
@@ -61,6 +63,27 @@ RenderSystemImpl::RenderSystemImpl(const SpatialSystem& spatialSystem, Renderer&
   , m_spatialSystem(spatialSystem)
   , m_renderer(renderer)
 {
+}
+
+std::vector<Vec2f> RenderSystemImpl::computeFrustumPerimeter() const
+{
+  auto params = m_renderer.getViewParams();
+  Vec3f A{ params.nearPlane * static_cast<float_t>(tan(0.5f * params.hFov)), params.nearPlane, 1 };
+  Vec3f B{ params.farPlane * static_cast<float_t>(tan(0.5f * params.hFov)), params.farPlane, 1 };
+  Vec3f C{ -B[0], B[1], 1 };
+  Vec3f D{ -A[0], A[1], 1 };
+
+  const Vec3f& camPos = m_camera.getPosition();
+  const Vec3f& camDir = m_camera.getDirection();
+  float_t a = atan2(camDir[2], camDir[0]) - 0.5f * PI;
+
+  Mat3x3f m{
+    cosine(a), -sine(a), camPos[0],
+    sine(a), cosine(a), camPos[2],
+    0, 0, 1
+  };
+
+  return std::vector<Vec2f>{(m * A).sub<2>(), (m * B).sub<2>(), (m * C).sub<2>(), (m * D).sub<2>()};
 }
 
 void RenderSystemImpl::start()
@@ -154,8 +177,14 @@ void RenderSystemImpl::update()
   try {
     m_renderer.beginFrame(m_camera);
 
-    for (auto& entry : m_components) {
-      const auto& component = *entry.second;
+    auto visible = m_spatialSystem.getIntersecting(computeFrustumPerimeter());
+    for (EntityId id : visible) {
+      auto entry = m_components.find(id);
+      if (entry == m_components.end()) {
+        continue;
+      }
+
+      const auto& component = *entry->second;
       const auto& spatial = m_spatialSystem.getComponent(component.id());
 
       switch(component.type) {

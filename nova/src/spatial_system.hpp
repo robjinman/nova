@@ -1,6 +1,6 @@
 #pragma once
 
-#include "math.hpp"
+#include "model.hpp"
 #include "system.hpp"
 #include <set>
 #include <memory>
@@ -8,16 +8,16 @@
 class CSpatial : public Component
 {
   public:
-    CSpatial(EntityId entityId);
+    CSpatial(EntityId entityId, const Mat4x4f& transform, float_t radius);
 
     const Mat4x4f& relTransform() const;
     const Mat4x4f& absTransform() const;
-
-    void setTransform(const Mat4x4f& transform);
+    float_t radius() const;
 
   private:
     EntityId m_parent;
-    Mat4x4f m_transform = identityMatrix<float_t, 4>();
+    Mat4x4f m_transform;
+    float_t m_radius;
     std::set<EntityId> m_children;
 };
 
@@ -28,6 +28,8 @@ class SpatialSystem : public System
   public:
     CSpatial& getComponent(EntityId id) override = 0;
     const CSpatial& getComponent(EntityId id) const override = 0;
+
+    virtual std::set<EntityId> getIntersecting(const std::vector<Vec2f>& poly) const = 0;
 
     virtual ~SpatialSystem() {}
 };

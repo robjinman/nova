@@ -186,9 +186,11 @@ Mat4x4f EntityFactoryImpl::parseTransform(const XmlNode& node) const
 void EntityFactoryImpl::constructSpatialComponent(EntityId entityId, const XmlNode& node,
   const Mat4x4f& transform) const
 {
-  auto spatial = std::make_unique<CSpatial>(entityId);
+  auto radius = parseFloat<float_t>(node.attribute("radius"));
   auto& transformNode = *node.child("transform");
-  spatial->setTransform(transform * parseTransform(transformNode));
+  auto m = transform * parseTransform(transformNode);
+  auto spatial = std::make_unique<CSpatial>(entityId, m, radius);
+
   m_spatialSystem.addComponent(std::move(spatial));
 }
 
@@ -217,6 +219,8 @@ void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNod
 void EntityFactoryImpl::constructCollisionComponent(EntityId entityId, const XmlNode& node) const
 {
   auto collision = std::make_unique<CCollision>(entityId);
+
+  // Units in model space
 
   collision->height = parseFloat<float_t>(node.attribute("height"));
 

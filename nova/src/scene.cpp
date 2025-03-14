@@ -16,6 +16,21 @@
 namespace
 {
 
+float_t computeRadius(const Mesh& mesh)
+{
+  float_t furthestX = std::numeric_limits<float_t>::lowest();
+  float_t furthestZ = std::numeric_limits<float_t>::lowest();
+  for (const auto& v : mesh.vertices) {
+    if (fabs(v.pos[0]) > furthestX) {
+      furthestX = fabs(v.pos[0]);
+    }
+    if (fabs(v.pos[2]) > furthestZ) {
+      furthestZ = fabs(v.pos[2]);
+    }
+  }
+  return sqrt(furthestX * furthestX + furthestZ * furthestZ);
+}
+
 float_t getFloatValue(const KeyValueMap& map, const std::string& key)
 {
   if (map.count(key) == 0) {
@@ -147,7 +162,7 @@ void SceneBuilder::constructSky()
   render->material = m_renderSystem.addMaterial(std::move(material));
   m_renderSystem.addComponent(std::move(render));
 
-  CSpatialPtr spatial = std::make_unique<CSpatial>(entityId);
+  CSpatialPtr spatial = std::make_unique<CSpatial>(entityId, identityMatrix<float_t, 4>(), 10000.f);
   m_spatialSystem.addComponent(std::move(spatial));
 }
 
@@ -166,8 +181,8 @@ void SceneBuilder::constructOriginMarkers()
     render->mesh = meshId;
     m_renderSystem.addComponent(std::move(render));
 
-    CSpatialPtr spatial = std::make_unique<CSpatial>(id);
-    spatial->setTransform(translationMatrix4x4(Vec3f{ x, 0, z }));
+    CSpatialPtr spatial = std::make_unique<CSpatial>(id, translationMatrix4x4(Vec3f{ x, 0, z }),
+      0.5f);
     m_spatialSystem.addComponent(std::move(spatial));
   };
 
@@ -368,11 +383,6 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
   }
 
   Mat4x4f transform = parentTransform * offset * obj.transform;
-
-  CSpatialPtr spatial = std::make_unique<CSpatial>(entityId);
-  spatial->setTransform(transform);
-  m_spatialSystem.addComponent(std::move(spatial));
-
   Vec3f colour{ 0.15f, 0.1f, 0.08f };
 
   auto bottomFace = createBottomFace(obj.path.points, colour);
@@ -380,11 +390,15 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
 
   auto mesh = mergeMeshes(*bottomFace, *topFace);
   createSideFaces(*mesh);
+  float_t radius = computeRadius(*mesh);
 
   CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::Regular);
   render->mesh = m_renderSystem.addMesh(std::move(mesh));
   render->material = m_groundMaterial;
   m_renderSystem.addComponent(std::move(render));
+
+  CSpatialPtr spatial = std::make_unique<CSpatial>(entityId, transform, radius);
+  m_spatialSystem.addComponent(std::move(spatial));
 
   CCollisionPtr collision = std::make_unique<CCollision>(entityId);
   collision->height = height;
@@ -439,15 +453,16 @@ void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTra
 
     EntityId entityId = System::nextId();
 
-    CSpatialPtr spatial = std::make_unique<CSpatial>(entityId);
-    spatial->setTransform(parentTransform * obj.transform * m * shift);
-    m_spatialSystem.addComponent(std::move(spatial));
-
     CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::Regular);
     auto mesh = cuboid(wallThickness, wallHeight, distance, colour, textureSize);
+    float_t radius = computeRadius(*mesh);
     render->mesh = m_renderSystem.addMesh(std::move(mesh));
     render->material = m_wallMaterial;
     m_renderSystem.addComponent(std::move(render));
+
+    CSpatialPtr spatial = std::make_unique<CSpatial>(entityId,
+      parentTransform * obj.transform * m * shift, radius);
+    m_spatialSystem.addComponent(std::move(spatial));
 
     CCollisionPtr collision = std::make_unique<CCollision>(entityId);
     collision->height = wallHeight;

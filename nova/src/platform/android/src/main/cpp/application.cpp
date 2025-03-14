@@ -161,7 +161,9 @@ void android_main(android_app* state)
       source->process(state, source);
     }
 
-    if (reinterpret_cast<size_t>(state->userData) == static_cast<size_t>(StateChange::configChanged)) {
+    if (reinterpret_cast<size_t>(state->userData) ==
+      static_cast<size_t>(StateChange::configChanged)) {
+
       application->onConfigChange();
     }
     application->update();
