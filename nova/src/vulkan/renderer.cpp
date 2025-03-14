@@ -29,8 +29,6 @@
 namespace
 {
 
-const float_t DRAW_DISTANCE = 10000.f;
-
 const std::vector<const char*> ValidationLayers = {
   "VK_LAYER_KHRONOS_validation"
 };
@@ -75,6 +73,7 @@ class RendererImpl : public Renderer
     void start() override;
     void onResize() override;
     double frameRate() const override;
+    const ViewParams& getViewParams() const override;
 
     // Resources
     //
@@ -145,6 +144,7 @@ class RendererImpl : public Renderer
     void renderLoop();
     void cleanUp();
 
+    ViewParams m_viewParams;
     const FileSystem& m_fileSystem;
     VulkanWindowDelegate& m_window;
     Logger& m_logger;
@@ -204,6 +204,14 @@ RendererImpl::RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& w
 {
   DBG_TRACE(m_logger);
 
+  m_viewParams = ViewParams{
+    .hFov = 0.f,
+    .vFov = degreesToRadians(45.f),
+    .aspectRatio = 0,
+    .nearPlane = 0.1f,
+    .farPlane = 10000.f
+  };
+
   m_thread.run<void>([this]() {
     createInstance();
 #ifndef NDEBUG
@@ -246,6 +254,11 @@ double RendererImpl::frameRate() const
 void RendererImpl::onResize()
 {
   m_framebufferResized = true;
+}
+
+const ViewParams& RendererImpl::getViewParams() const
+{
+  return m_viewParams;
 }
 
 void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
@@ -600,9 +613,14 @@ void RendererImpl::createSwapChain()
 
 void RendererImpl::setProjectionMatrix(float_t rotation)
 {
-  Mat4x4f rot = rotationMatrix4x4<float_t>({ 0.f, 0.f, rotation });
   float_t aspect = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
-  m_projectionMatrix = rot * perspective(degreesToRadians(45.f), aspect, 0.1f, DRAW_DISTANCE);
+
+  m_viewParams.aspectRatio = aspect;
+  m_viewParams.hFov = 2.f * atan(aspect * tan(0.5f * m_viewParams.vFov));
+
+  Mat4x4f rot = rotationMatrix4x4<float_t>({ 0.f, 0.f, rotation });
+  m_projectionMatrix = rot * perspective(m_viewParams.vFov, aspect, m_viewParams.nearPlane,
+    m_viewParams.farPlane);
 }
 
 void RendererImpl::cleanupSwapChain()
@@ -1308,8 +1326,7 @@ RendererImpl::~RendererImpl()
 
 } // namespace
 
-RendererPtr createRenderer(const FileSystem& fileSystem, WindowDelegate& window,
-  Logger& logger)
+RendererPtr createRenderer(const FileSystem& fileSystem, WindowDelegate& window, Logger& logger)
 {
   return std::make_unique<RendererImpl>(fileSystem, dynamic_cast<VulkanWindowDelegate&>(window),
     logger);

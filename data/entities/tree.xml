@@ -1,5 +1,5 @@
 <entity name="tree">
-  <spatial-component>
+  <spatial-component radius="1.0">
     <transform scale="3">
       <pos x="0" y="0" z="0"/>
       <ori x="0" y="0" z="0"/>

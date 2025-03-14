@@ -208,7 +208,7 @@ else()
   set(CPACK_PACKAGE_CONTACT "jinmanr@gmail.com")
   include(CPack)
 
-  if(PLATOFRM_LINUX OR PLATFORM_OSX OR PLATFORM_WINDOWS)
+  if(PLATFORM_LINUX OR PLATFORM_OSX OR PLATFORM_WINDOWS)
     add_subdirectory("test")
   endif()
 
