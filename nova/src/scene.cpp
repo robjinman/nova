@@ -112,6 +112,9 @@ PlayerPtr SceneBuilder::createScene()
   auto objectData = m_mapParser.parseMapFile("map.svg");
 
   auto bounds = computeBounds(objectData);
+  bounds.first -= Vec2f{ 1.f, 1.f };
+  bounds.second += Vec2f{ 1.f, 1.f };
+
   m_logger.info(STR("Map boundary: (" << bounds.first << ") to (" << bounds.second << ")"));
 
   m_collisionSystem.initialise(bounds.first, bounds.second);
