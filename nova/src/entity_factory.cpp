@@ -186,7 +186,7 @@ Mat4x4f EntityFactoryImpl::parseTransform(const XmlNode& node) const
 void EntityFactoryImpl::constructSpatialComponent(EntityId entityId, const XmlNode& node,
   const Mat4x4f& transform) const
 {
-  auto radius = parseFloat<float_t>(node.attribute("radius"));
+  auto radius = metresToWorldUnits(parseFloat<float_t>(node.attribute("radius")));
   auto& transformNode = *node.child("transform");
   auto m = transform * parseTransform(transformNode);
   auto spatial = std::make_unique<CSpatial>(entityId, m, radius);
