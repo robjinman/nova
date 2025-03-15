@@ -418,6 +418,7 @@ void RendererImpl::finishFrame()
 
   VkPresentInfoKHR presentInfo{
     .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+    .pNext = nullptr,
     .waitSemaphoreCount = 1,
     .pWaitSemaphores = signalSemaphores,
     .swapchainCount = 1,
@@ -879,6 +880,7 @@ void RendererImpl::createRenderPass()
   DBG_TRACE(m_logger);
 
   VkAttachmentDescription colourAttachment{
+    .flags = 0,
     .format = m_swapchainImageFormat,
     .samples = VK_SAMPLE_COUNT_1_BIT,
     .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -895,6 +897,7 @@ void RendererImpl::createRenderPass()
   };
 
   VkAttachmentDescription depthAttachment{
+    .flags = 0,
     .format = findDepthFormat(),
     .samples = VK_SAMPLE_COUNT_1_BIT,
     .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -911,10 +914,16 @@ void RendererImpl::createRenderPass()
   };
 
   VkSubpassDescription subpass{
+    .flags = 0,
     .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+    .inputAttachmentCount = 0,
+    .pInputAttachments = nullptr,
     .colorAttachmentCount = 1,
     .pColorAttachments = &colourAttachmentRef,
-    .pDepthStencilAttachment = &depthAttachmentRef
+    .pResolveAttachments = nullptr,
+    .pDepthStencilAttachment = &depthAttachmentRef,
+    .preserveAttachmentCount = 0,
+    .pPreserveAttachments = nullptr,
   };
 
   std::array<VkAttachmentDescription, 2> attachments = {
@@ -937,6 +946,8 @@ void RendererImpl::createRenderPass()
 
   VkRenderPassCreateInfo renderPassInfo{
     .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
     .attachmentCount = static_cast<uint32_t>(attachments.size()),
     .pAttachments = attachments.data(),
     .subpassCount = 1,
@@ -960,6 +971,8 @@ void RendererImpl::createFramebuffers()
 
     VkFramebufferCreateInfo framebufferInfo{
       .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = 0,
       .renderPass = m_renderPass,
       .attachmentCount = static_cast<uint32_t>(attachments.size()),
       .pAttachments = attachments.data(),
@@ -980,6 +993,7 @@ void RendererImpl::createCommandPool()
   QueueFamilyIndices queueFamilyIndices = findQueueFamilies(m_physicalDevice);
   VkCommandPoolCreateInfo poolInfo{
     .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+    .pNext = nullptr,
     .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
     .queueFamilyIndex = queueFamilyIndices.graphicsFamily.value()
   };
@@ -992,6 +1006,7 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
 {
   VkCommandBufferBeginInfo beginInfo{
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+    .pNext = nullptr,
     .flags = 0,
     .pInheritanceInfo = nullptr
   };
@@ -1005,6 +1020,7 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
 
   VkRenderPassBeginInfo renderPassInfo{
     .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+    .pNext = nullptr,
     .renderPass = m_renderPass,
     .framebuffer = m_swapchainFramebuffers[imageIndex],
     .renderArea = VkRect2D{
@@ -1046,6 +1062,7 @@ void RendererImpl::createCommandBuffers()
 
   VkCommandBufferAllocateInfo allocInfo{
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+    .pNext = nullptr,
     .commandPool = m_commandPool,
     .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
     .commandBufferCount = static_cast<uint32_t>(m_commandBuffers.size())
@@ -1256,6 +1273,7 @@ void RendererImpl::createInstance()
 
   VkApplicationInfo appInfo{
     .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+    .pNext = nullptr,
     .pApplicationName = "Project Nova",
     .applicationVersion = VK_MAKE_VERSION(Nova_VERSION_MAJOR, Nova_VERSION_MINOR, 0),
     .pEngineName = "No Engine",
@@ -1292,6 +1310,8 @@ VkDebugUtilsMessengerCreateInfoEXT RendererImpl::getDebugMessengerCreateInfo() c
 {
   return VkDebugUtilsMessengerCreateInfoEXT{
     .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+    .pNext = nullptr,
+    .flags = 0,
     .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
       | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
       | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
