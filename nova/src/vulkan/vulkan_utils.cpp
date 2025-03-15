@@ -21,32 +21,39 @@ void createImage(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t widt
   VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
   VkImage& image, VkDeviceMemory& imageMemory, uint32_t arrayLayers, VkImageCreateFlags flags)
 {
-  VkImageCreateInfo imageInfo{};
-  imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-  imageInfo.imageType = VK_IMAGE_TYPE_2D;
-  imageInfo.extent.width = width;
-  imageInfo.extent.height = height;
-  imageInfo.extent.depth = 1;
-  imageInfo.mipLevels = 1;
-  imageInfo.arrayLayers = arrayLayers;
-  imageInfo.format = format;
-  imageInfo.tiling = tiling;
-  imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  imageInfo.usage = usage;
-  imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-  imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-  imageInfo.flags = flags;
+  VkImageCreateInfo imageInfo{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = flags,
+    .imageType = VK_IMAGE_TYPE_2D,
+    .format = format,
+    .extent = VkExtent3D{
+      .width = width,
+      .height = height,
+      .depth = 1
+    },
+    .mipLevels = 1,
+    .arrayLayers = arrayLayers,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .tiling = tiling,
+    .usage = usage,
+    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    .queueFamilyIndexCount = 0,
+    .pQueueFamilyIndices = nullptr,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+  };
 
   VK_CHECK(vkCreateImage(device, &imageInfo, nullptr, &image), "Failed to create image");
 
   VkMemoryRequirements memRequirements;
   vkGetImageMemoryRequirements(device, image, &memRequirements);
 
-  VkMemoryAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  allocInfo.allocationSize = memRequirements.size;
-  allocInfo.memoryTypeIndex = findMemoryType(physicalDevice, memRequirements.memoryTypeBits,
-    properties);
+  VkMemoryAllocateInfo allocInfo{
+    .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+    .pNext = nullptr,
+    .allocationSize = memRequirements.size,
+    .memoryTypeIndex = findMemoryType(physicalDevice, memRequirements.memoryTypeBits, properties)
+  };
 
   VK_CHECK(vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory),
     "Failed to allocate image memory");
@@ -57,20 +64,27 @@ void createImage(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t widt
 VkImageView createImageView(VkDevice device, VkImage image, VkFormat format,
   VkImageAspectFlags aspectFlags, VkImageViewType type, uint32_t layerCount)
 {
-  VkImageViewCreateInfo createInfo{};
-  createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  createInfo.image = image;
-  createInfo.viewType = type;
-  createInfo.format = format;
-  createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-  createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-  createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-  createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-  createInfo.subresourceRange.aspectMask = aspectFlags;
-  createInfo.subresourceRange.baseMipLevel = 0;
-  createInfo.subresourceRange.levelCount = 1;
-  createInfo.subresourceRange.baseArrayLayer = 0;
-  createInfo.subresourceRange.layerCount = layerCount;
+  VkImageViewCreateInfo createInfo{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .image = image,
+    .viewType = type,
+    .format = format,
+    .components = VkComponentMapping{
+      .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+      .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+      .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+      .a = VK_COMPONENT_SWIZZLE_IDENTITY
+    },
+    .subresourceRange = VkImageSubresourceRange{
+      .aspectMask = aspectFlags,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = layerCount
+    }
+  };
 
   VkImageView imageView;
 
