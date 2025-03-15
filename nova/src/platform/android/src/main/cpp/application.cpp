@@ -125,11 +125,11 @@ void handleCommand(android_app* state, int32_t command)
 {
   switch (command) {
     case APP_CMD_INIT_WINDOW:
-      state->userData = reinterpret_cast<void*>(StateChange::windowInitialised);
+      state->userData = reinterpret_cast<void*>(StateChange::WindowInitialised);
       __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Got event! Window initialised");
       break;
     case APP_CMD_CONFIG_CHANGED:
-      state->userData = reinterpret_cast<void*>(StateChange::configChanged);
+      state->userData = reinterpret_cast<void*>(StateChange::ConfigChanged);
       __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Got event! Config changed");
       break;
     default: break;
@@ -162,7 +162,7 @@ void android_main(android_app* state)
     }
 
     if (reinterpret_cast<size_t>(state->userData) ==
-      static_cast<size_t>(StateChange::configChanged)) {
+      static_cast<size_t>(StateChange::ConfigChanged)) {
 
       application->onConfigChange();
     }

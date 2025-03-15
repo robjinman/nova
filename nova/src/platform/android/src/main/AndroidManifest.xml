@@ -12,7 +12,8 @@
             android:label="@string/app_name"
             android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
-            android:exported="true">
+            android:exported="true"
+            android:colorMode="wideColorGamut">
         <meta-data android:name="android.app.lib_name"
             android:value="nova" />
         <intent-filter>

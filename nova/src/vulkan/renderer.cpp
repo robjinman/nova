@@ -414,15 +414,17 @@ void RendererImpl::finishFrame()
   VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_inFlightFences[m_currentFrame]),
     "Failed to submit draw command buffer");
 
-  VkPresentInfoKHR presentInfo{};
-  presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-  presentInfo.waitSemaphoreCount = 1;
-  presentInfo.pWaitSemaphores = signalSemaphores;
   VkSwapchainKHR swapchains[] = { m_swapchain };
-  presentInfo.swapchainCount = 1;
-  presentInfo.pSwapchains = swapchains;
-  presentInfo.pImageIndices = &m_imageIndex;
-  presentInfo.pResults = nullptr;
+
+  VkPresentInfoKHR presentInfo{
+    .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+    .waitSemaphoreCount = 1,
+    .pWaitSemaphores = signalSemaphores,
+    .swapchainCount = 1,
+    .pSwapchains = swapchains,
+    .pImageIndices = &m_imageIndex,
+    .pResults = nullptr
+  };
 
   VkResult presentResult = vkQueuePresentKHR(m_presentQueue, &presentInfo);
   if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR
@@ -539,12 +541,20 @@ VkSurfaceFormatKHR RendererImpl::chooseSwapChainSurfaceFormat(
 {
   for (const auto& format : availableFormats) {
     if (format.format == VK_FORMAT_B8G8R8A8_SRGB &&
-        format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+      format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+
+      return format;
+    }
+    if (format.format == VK_FORMAT_R16G16B16A16_SFLOAT &&
+      format.colorSpace == VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT) {
+
       return format;
     }
   }
 
   assert(availableFormats.size() > 0);
+
+  m_logger.warn("Preferred swap chain surface format not available");
 
   return availableFormats[0];
 }
@@ -868,65 +878,72 @@ void RendererImpl::createRenderPass()
 {
   DBG_TRACE(m_logger);
 
-  VkAttachmentDescription colourAttachment{};
-  colourAttachment.format = m_swapchainImageFormat;
-  colourAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-  colourAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  colourAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-  colourAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  colourAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  colourAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  colourAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+  VkAttachmentDescription colourAttachment{
+    .format = m_swapchainImageFormat,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+  };
 
-  VkAttachmentReference colourAttachmentRef{};
-  colourAttachmentRef.attachment = 0;
-  colourAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  VkAttachmentReference colourAttachmentRef{
+    .attachment = 0,
+    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+  };
 
-  VkAttachmentDescription depthAttachment{};
-  depthAttachment.format = findDepthFormat();
-  depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-  depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  VkAttachmentDescription depthAttachment{
+    .format = findDepthFormat(),
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+  };
 
-  VkAttachmentReference depthAttachmentRef{};
-  depthAttachmentRef.attachment = 1;
-  depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  VkAttachmentReference depthAttachmentRef{
+    .attachment = 1,
+    .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+  };
 
-  VkSubpassDescription subpass{};
-  subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-  subpass.colorAttachmentCount = 1;
-  subpass.pColorAttachments = &colourAttachmentRef;
-  subpass.pDepthStencilAttachment = &depthAttachmentRef;
+  VkSubpassDescription subpass{
+    .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+    .colorAttachmentCount = 1,
+    .pColorAttachments = &colourAttachmentRef,
+    .pDepthStencilAttachment = &depthAttachmentRef
+  };
 
   std::array<VkAttachmentDescription, 2> attachments = {
     colourAttachment,
     depthAttachment
   };
 
-  VkRenderPassCreateInfo renderPassInfo{};
-  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-  renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-  renderPassInfo.pAttachments = attachments.data();
-  renderPassInfo.subpassCount = 1;
-  renderPassInfo.pSubpasses = &subpass;
+  VkSubpassDependency dependency{
+    .srcSubpass = VK_SUBPASS_EXTERNAL,
+    .dstSubpass = 0,
+    .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+      | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+      | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+    .srcAccessMask = 0,
+    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+      | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    .dependencyFlags = 0
+  };
 
-  VkSubpassDependency dependency{};
-  dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-  dependency.dstSubpass = 0;
-  dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-                          | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-  dependency.srcAccessMask = 0;
-  dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-                          | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-  dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
-                           | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-  renderPassInfo.dependencyCount = 1;
-  renderPassInfo.pDependencies = &dependency;
+  VkRenderPassCreateInfo renderPassInfo{
+    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+    .attachmentCount = static_cast<uint32_t>(attachments.size()),
+    .pAttachments = attachments.data(),
+    .subpassCount = 1,
+    .pSubpasses = &subpass,
+    .dependencyCount = 1,
+    .pDependencies = &dependency
+  };
 
   VK_CHECK(vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_renderPass),
     "Failed to create render pass");
@@ -941,14 +958,15 @@ void RendererImpl::createFramebuffers()
   for (size_t i = 0; i < m_swapchainImageViews.size(); ++i) {
     std::array<VkImageView, 2> attachments = { m_swapchainImageViews[i], m_depthImageView };
 
-    VkFramebufferCreateInfo framebufferInfo{};
-    framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebufferInfo.renderPass = m_renderPass;
-    framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-    framebufferInfo.pAttachments = attachments.data();
-    framebufferInfo.width = m_swapchainExtent.width;
-    framebufferInfo.height = m_swapchainExtent.height;
-    framebufferInfo.layers = 1;
+    VkFramebufferCreateInfo framebufferInfo{
+      .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+      .renderPass = m_renderPass,
+      .attachmentCount = static_cast<uint32_t>(attachments.size()),
+      .pAttachments = attachments.data(),
+      .width = m_swapchainExtent.width,
+      .height = m_swapchainExtent.height,
+      .layers = 1
+    };
 
     VK_CHECK(vkCreateFramebuffer(m_device, &framebufferInfo, nullptr, &m_swapchainFramebuffers[i]),
       "Failed to create framebuffer");
@@ -960,10 +978,11 @@ void RendererImpl::createCommandPool()
   DBG_TRACE(m_logger);
 
   QueueFamilyIndices queueFamilyIndices = findQueueFamilies(m_physicalDevice);
-  VkCommandPoolCreateInfo poolInfo{};
-  poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
-  poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+  VkCommandPoolCreateInfo poolInfo{
+    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+    .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+    .queueFamilyIndex = queueFamilyIndices.graphicsFamily.value()
+  };
 
   VK_CHECK(vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool),
     "Failed to create command pool");
@@ -971,25 +990,30 @@ void RendererImpl::createCommandPool()
 
 void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
-  VkCommandBufferBeginInfo beginInfo{};
-  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  beginInfo.flags = 0;
-  beginInfo.pInheritanceInfo = nullptr;
+  VkCommandBufferBeginInfo beginInfo{
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+    .flags = 0,
+    .pInheritanceInfo = nullptr
+  };
 
   VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo),
     "Failed to begin recording command buffer");
 
-  VkRenderPassBeginInfo renderPassInfo{};
-  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  renderPassInfo.renderPass = m_renderPass;
-  renderPassInfo.framebuffer = m_swapchainFramebuffers[imageIndex];
-  renderPassInfo.renderArea.offset = { 0, 0 };
-  renderPassInfo.renderArea.extent = m_swapchainExtent;
   std::array<VkClearValue, 2> clearValues{};
   clearValues[0].color = {{ 0.0f, 0.0f, 1.0f, 1.0f }};
   clearValues[1].depthStencil = { 1.0f, 0 };
-  renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-  renderPassInfo.pClearValues = clearValues.data();
+
+  VkRenderPassBeginInfo renderPassInfo{
+    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+    .renderPass = m_renderPass,
+    .framebuffer = m_swapchainFramebuffers[imageIndex],
+    .renderArea = VkRect2D{
+      .offset = { 0, 0 },
+      .extent = m_swapchainExtent
+    },
+    .clearValueCount = static_cast<uint32_t>(clearValues.size()),
+    .pClearValues = clearValues.data()
+  };
 
   vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -1020,11 +1044,12 @@ void RendererImpl::createCommandBuffers()
 
   m_commandBuffers.resize(m_swapchainFramebuffers.size());
 
-  VkCommandBufferAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocInfo.commandPool = m_commandPool;
-  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandBufferCount = static_cast<uint32_t>(m_commandBuffers.size());
+  VkCommandBufferAllocateInfo allocInfo{
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+    .commandPool = m_commandPool,
+    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+    .commandBufferCount = static_cast<uint32_t>(m_commandBuffers.size())
+  };
 
   VK_CHECK(vkAllocateCommandBuffers(m_device, &allocInfo, m_commandBuffers.data()),
     "Failed to allocate command buffers");
@@ -1229,13 +1254,14 @@ void RendererImpl::createInstance()
   checkValidationLayerSupport();
 #endif
 
-  VkApplicationInfo appInfo{};
-  appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-  appInfo.pApplicationName = "Project Nova";
-  appInfo.applicationVersion = VK_MAKE_VERSION(Nova_VERSION_MAJOR, Nova_VERSION_MINOR, 0);
-  appInfo.pEngineName = "No Engine";
-  appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  appInfo.apiVersion = VK_API_VERSION_1_0;
+  VkApplicationInfo appInfo{
+    .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+    .pApplicationName = "Project Nova",
+    .applicationVersion = VK_MAKE_VERSION(Nova_VERSION_MAJOR, Nova_VERSION_MINOR, 0),
+    .pEngineName = "No Engine",
+    .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+    .apiVersion = VK_API_VERSION_1_0
+  };
 
   VkInstanceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -1264,17 +1290,17 @@ void RendererImpl::createInstance()
 
 VkDebugUtilsMessengerCreateInfoEXT RendererImpl::getDebugMessengerCreateInfo() const
 {
-  VkDebugUtilsMessengerCreateInfoEXT createInfo{};
-  createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-  createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
-                             | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-                             | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-  createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-                         | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-                         | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-  createInfo.pfnUserCallback = debugCallback;
-  createInfo.pUserData = nullptr;
-  return createInfo;
+  return VkDebugUtilsMessengerCreateInfoEXT{
+    .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+    .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+      | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+      | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+    .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+      | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+      | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+    .pfnUserCallback = debugCallback,
+    .pUserData = nullptr
+  };
 }
 
 void RendererImpl::setupDebugMessenger()
