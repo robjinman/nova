@@ -25,6 +25,7 @@ AndroidWindowDelegateImpl::AndroidWindowDelegateImpl(ANativeWindow& window)
 {
   m_extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
   m_extensions.push_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
+  m_extensions.push_back(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
 }
 
 const std::vector<const char*>& AndroidWindowDelegateImpl::getRequiredExtensions() const
