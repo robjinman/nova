@@ -185,7 +185,7 @@ void SceneBuilder::constructOriginMarkers()
     m_renderSystem.addComponent(std::move(render));
 
     CSpatialPtr spatial = std::make_unique<CSpatial>(id, translationMatrix4x4(Vec3f{ x, 0, z }),
-      0.5f);
+      metresToWorldUnits(0.5f));
     m_spatialSystem.addComponent(std::move(spatial));
   };
 

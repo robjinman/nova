@@ -14,7 +14,7 @@ namespace
 {
 
 const float_t GRAVITY_STRENGTH = 3.5f;
-const float_t BUOYANCY = 0.2f;
+const float_t BUOYANCY = 0.1f;
 const float_t MOUSE_LOOK_SPEED = 2.5f;
 
 class GameImpl : public Game
@@ -92,7 +92,7 @@ void GameImpl::gravity()
     m_playerVerticalVelocity = std::max(m_playerVerticalVelocity - g(), -altitude);
   }
   else if (altitude < 0) {
-    m_playerVerticalVelocity = clip(m_playerVerticalVelocity + BUOYANCY, 0.f, -altitude);
+    m_playerVerticalVelocity = clip(m_playerVerticalVelocity - BUOYANCY * altitude, 0.f, -altitude);
   }
   else if (altitude == 0) {
     m_playerVerticalVelocity = 0;
