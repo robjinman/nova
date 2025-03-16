@@ -25,6 +25,8 @@ class GameImpl : public Game
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
     void onMouseMove(const Vec2f& delta) override;
+    void onLeftStickMove(const Vec2f& delta) override;
+    void onRightStickMove(const Vec2f& delta) override;
     void update() override;
 
   private:
@@ -33,6 +35,7 @@ class GameImpl : public Game
     PlayerPtr m_player;
     std::set<KeyboardKey> m_keysPressed;
     Vec2f m_mouseDelta;
+    Vec2f m_leftStickDelta;
     Timer m_timer;
     size_t m_frame = 0;
     double m_measuredFrameRate = 0;
@@ -83,6 +86,21 @@ void GameImpl::onMouseMove(const Vec2f& delta)
   m_mouseDelta = delta;
 }
 
+void GameImpl::onLeftStickMove(const Vec2f& delta)
+{
+  m_leftStickDelta = delta;
+}
+
+void GameImpl::onRightStickMove(const Vec2f& delta)
+{
+  float_t epsilon = 0.15f;
+  float_t sensitivity = 0.025f;
+  m_mouseDelta = {
+    fabs(delta[0]) > epsilon ? sensitivity * delta[0] : 0.f,
+    fabs(delta[1]) > epsilon ? sensitivity * delta[1] : 0.f
+  };
+}
+
 void GameImpl::gravity()
 {
   m_player->translate(Vec3f{ 0, m_playerVerticalVelocity, 0 });
@@ -102,25 +120,43 @@ void GameImpl::gravity()
 void GameImpl::processKeyboardInput()
 {
   Vec3f direction{};
+  float_t speed = m_player->getSpeed();
+  const auto forward = m_player->getDirection();
+  const auto strafe = m_player->getDirection().cross(Vec3f{0, 1, 0});
 
-  if (m_keysPressed.count(KeyboardKey::W)) {
-    direction += m_player->getDirection();
+  if (m_leftStickDelta != Vec2f{}) {
+    float_t threshold = 0.4f;
+
+    if (m_leftStickDelta.magnitude() > threshold) {
+      float_t x = m_leftStickDelta[0];
+      float_t y = -m_leftStickDelta[1];
+      direction = forward * y + strafe * x;
+      speed = m_leftStickDelta.magnitude() * m_player->getSpeed();
+    }
+
+    m_leftStickDelta = Vec2f{};
   }
-  if (m_keysPressed.count(KeyboardKey::S)) {
-    direction += -m_player->getDirection();
+  else {
+    if (m_keysPressed.count(KeyboardKey::W)) {
+      direction += forward;
+    }
+    if (m_keysPressed.count(KeyboardKey::S)) {
+      direction -= forward;
+    }
+    if (m_keysPressed.count(KeyboardKey::D)) {
+      direction += strafe;
+    }
+    if (m_keysPressed.count(KeyboardKey::A)) {
+      direction -= strafe;
+    }
   }
-  if (m_keysPressed.count(KeyboardKey::D)) {
-    direction += m_player->getDirection().cross(Vec3f{0, 1, 0});
-  }
-  if (m_keysPressed.count(KeyboardKey::A)) {
-    direction += -m_player->getDirection().cross(Vec3f{0, 1, 0});
-  }
+
   if (m_keysPressed.count(KeyboardKey::E)) {
     if (m_collisionSystem.altitude(m_player->getPosition()) == 0) {
       m_playerVerticalVelocity = sqrt(m_player->getJumpHeight() * 2.f * g());
     }
   }
-
+  
   if (direction != Vec3f{}) {
     if (!m_freeflyMode) {
       direction[1] = 0;
@@ -128,7 +164,7 @@ void GameImpl::processKeyboardInput()
 
     direction = direction.normalise();
     auto playerPos = m_player->getPosition();
-    auto desiredDelta = direction * m_player->getSpeed() / static_cast<float_t>(TARGET_FRAME_RATE);
+    auto desiredDelta = direction * speed / static_cast<float_t>(TARGET_FRAME_RATE);
 
     Vec3f delta = m_collisionSystem.tryMove(playerPos, desiredDelta, m_player->getRadius(),
       m_player->getStepHeight());
