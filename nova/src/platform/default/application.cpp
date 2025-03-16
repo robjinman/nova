@@ -42,6 +42,7 @@ enum class ControlMode
 
 KeyboardKey buttonToKey(int button)
 {
+  // TODO: Do button mapping inside Game class
   switch (button) {
     case GLFW_GAMEPAD_BUTTON_A: return KeyboardKey::E;
     // ...
