@@ -181,6 +181,7 @@ class RendererImpl : public Renderer
     struct RenderState
     {
       RenderGraph graph;
+      std::map<RenderGraph::Key, RenderNode*> lookup;
       Mat4x4f cameraMatrix;
     };
 
@@ -266,16 +267,18 @@ void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
 {
   //DBG_TRACE(m_logger);
   
-  RenderGraph& renderGraph = m_renderStates.getWritable().graph;
+  RenderState& state = m_renderStates.getWritable();
+  RenderGraph& renderGraph = state.graph;
+
   RenderGraph::Key key{
     static_cast<RenderGraphKey>(PipelineName::InstancedModel),
     static_cast<RenderGraphKey>(meshId),
     static_cast<RenderGraphKey>(materialId)
   };
   InstancedModelNode* node = nullptr;
-  auto i = renderGraph.find(key);
-  if (i != renderGraph.end()) {
-    node = dynamic_cast<InstancedModelNode*>(i->get());
+  auto i = state.lookup.find(key);
+  if (i != state.lookup.end()) {
+    node = dynamic_cast<InstancedModelNode*>(i->second);
   }
   else {
     auto newNode = std::make_unique<InstancedModelNode>();
@@ -283,6 +286,7 @@ void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
     newNode->material = materialId;
     node = newNode.get();
     renderGraph.insert(key, std::move(newNode));
+    state.lookup.insert({ key, node });
   }
   node->instances.push_back(MeshInstance{transform});
 }
@@ -293,7 +297,8 @@ void RendererImpl::stageModel(RenderItemId mesh, RenderItemId material, const Ma
 
   static RenderGraphKey nextId = 0;
 
-  RenderGraph& renderGraph = m_renderStates.getWritable().graph;
+  RenderState& state = m_renderStates.getWritable();
+  RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<DefaultModelNode>();
   node->mesh = mesh;
@@ -306,6 +311,8 @@ void RendererImpl::stageModel(RenderItemId mesh, RenderItemId material, const Ma
     static_cast<RenderGraphKey>(material),
     nextId++
   };
+
+  state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
 }
 
@@ -313,13 +320,16 @@ void RendererImpl::stageSkybox(RenderItemId mesh, RenderItemId material)
 {
   //DBG_TRACE(m_logger);
 
-  RenderGraph& renderGraph = m_renderStates.getWritable().graph;
+  RenderState& state = m_renderStates.getWritable();
+  RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<SkyboxNode>();
   node->mesh = mesh;
   node->material = material;
 
   RenderGraph::Key key{ static_cast<RenderGraphKey>(PipelineName::Skybox) };
+
+  state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
 }
 
@@ -328,6 +338,7 @@ void RendererImpl::beginFrame(const Camera& camera)
   DBG_TRACE(m_logger);
 
   auto& state = m_renderStates.getWritable();
+  state.lookup.clear();
   state.graph.clear();
   state.cameraMatrix = camera.getMatrix();
 }
