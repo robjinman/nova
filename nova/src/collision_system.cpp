@@ -69,7 +69,7 @@ class CollisionSystemImpl : public CollisionSystem
 
     Vec3f tryMove(const Vec3f& pos, const Vec3f& delta, float_t radius, float_t stepHeight,
       int depth) const;
-    std::vector<LineSegment> intersectingLineSegments(std::set<const CollisionItem*>& items,
+    std::vector<LineSegment> intersectingLineSegments(std::unordered_set<const CollisionItem*>& items,
       const Vec3f& pos3, float_t radius, float_t stepHeight) const;
 };
 
@@ -164,7 +164,7 @@ float_t CollisionSystemImpl::altitude(const Vec3f& pos3) const
 }
 
 std::vector<LineSegment> CollisionSystemImpl::intersectingLineSegments(
-  std::set<const CollisionItem*>& items, const Vec3f& pos3, float_t radius,
+  std::unordered_set<const CollisionItem*>& items, const Vec3f& pos3, float_t radius,
   float_t stepHeight) const
 {
   Vec2f pos{ pos3[0], pos3[2] };

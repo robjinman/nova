@@ -2,7 +2,7 @@
 
 #include "model.hpp"
 #include "system.hpp"
-#include <set>
+#include <unordered_set>
 #include <memory>
 
 class CSpatial : public Component
@@ -18,7 +18,7 @@ class CSpatial : public Component
     EntityId m_parent;
     Mat4x4f m_transform;
     float_t m_radius;
-    std::set<EntityId> m_children;
+    std::unordered_set<EntityId> m_children;
 };
 
 using CSpatialPtr = std::unique_ptr<CSpatial>;
@@ -29,7 +29,7 @@ class SpatialSystem : public System
     CSpatial& getComponent(EntityId id) override = 0;
     const CSpatial& getComponent(EntityId id) const override = 0;
 
-    virtual std::set<EntityId> getIntersecting(const std::vector<Vec2f>& poly) const = 0;
+    virtual std::unordered_set<EntityId> getIntersecting(const std::vector<Vec2f>& poly) const = 0;
 
     virtual ~SpatialSystem() {}
 };

@@ -75,6 +75,11 @@ else()
     target_link_libraries(${EXE_TARGET} PRIVATE
       glfw
     )
+    if (CPU_PROFILE)
+      target_link_libraries(${EXE_TARGET} PRIVATE
+        -Wl,--no-as-needed -lprofiler -Wl,--as-needed
+      )
+    endif()
   elseif(PLATFORM_WINDOWS)
     find_package(glfw3 REQUIRED)
     add_executable(${EXE_TARGET}

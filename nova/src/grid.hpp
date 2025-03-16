@@ -1,9 +1,21 @@
 #pragma once
 
 #include "math.hpp"
-#include <set>
+#include <unordered_set>
 #include <array>
 #include <cassert>
+
+struct Vec2iHash
+{
+  inline size_t operator()(const Vec2i& value) const
+  {
+    int64_t a = static_cast<int64_t>(value[0]) << 32;
+    int64_t b = static_cast<int64_t>(value[1]);
+    return std::hash<int64_t>{}(a | b);
+  }
+};
+
+using GridCellList = std::unordered_set<Vec2i, Vec2iHash>;
 
 template<typename T, size_t GRID_W, size_t GRID_H>
 class Grid
@@ -18,13 +30,13 @@ class Grid
     void addItemByArea(const std::vector<Vec2f>& poly, const T& item);
     void addItemByRadius(const Vec2f& pos, float_t radius, const T& item);
 
-    std::set<T> getItems(const Vec2f& pos, float_t radius) const;
-    std::set<T> getItems(const Vec2f& pos) const;
-    std::set<T> getItems(const std::vector<Vec2f>& poly) const;
+    std::unordered_set<T> getItems(const Vec2f& pos, float_t radius) const;
+    std::unordered_set<T> getItems(const Vec2f& pos) const;
+    std::unordered_set<T> getItems(const std::vector<Vec2f>& poly) const;
 
     // Exposed for testing
     //
-    std::set<std::pair<int, int>> test_gridCellsBetweenPoints(const Vec2f& A, const Vec2f& B) const;
+    GridCellList test_gridCellsBetweenPoints(const Vec2f& A, const Vec2f& B) const;
 
   private:
     Vec2f m_worldMin;
@@ -33,12 +45,12 @@ class Grid
     float_t m_worldH;
     float_t m_cellW;
     float_t m_cellH;
-    std::array<std::array<std::set<T>, GRID_H>, GRID_W> m_items;
+    std::array<std::array<std::unordered_set<T>, GRID_H>, GRID_W> m_items;
 
     bool withinBounds(const Vec2f& p) const;
     void boundsCheck(const Vec2f& p) const;
     Vec2i worldToGridCoords(const Vec2f& p) const;
-    std::set<std::pair<int, int>> gridCellsBetweenPoints(const Vec2f& A, const Vec2f& B) const;
+    GridCellList gridCellsBetweenPoints(const Vec2f& A, const Vec2f& B) const;
     bool clipToGrid(Vec2f& A, Vec2f& B) const;
 };
 
@@ -67,7 +79,7 @@ void Grid<T, GRID_W, GRID_H>::addItemByPerimeter(const std::vector<Vec2f>& poly,
 
     auto cells = gridCellsBetweenPoints(p1, p2);
     for (auto& cell : cells) {
-      m_items[cell.first][cell.second].insert(item);
+      m_items[cell[0]][cell[1]].insert(item);
     }
   }
 }
@@ -112,9 +124,9 @@ void Grid<T, GRID_W, GRID_H>::addItemByRadius(const Vec2f& pos, float_t radius, 
 }
 
 template<typename T, size_t GRID_W, size_t GRID_H>
-std::set<T> Grid<T, GRID_W, GRID_H>::getItems(const Vec2f& pos, float_t radius) const
+std::unordered_set<T> Grid<T, GRID_W, GRID_H>::getItems(const Vec2f& pos, float_t radius) const
 {
-  std::set<T> items;
+  std::unordered_set<T> items;
 
   Vec2i p0 = worldToGridCoords(Vec2f{ pos[0] - radius, pos[1] - radius });
   Vec2i p1 = worldToGridCoords(Vec2f{ pos[0] + radius, pos[1] + radius });
@@ -130,7 +142,7 @@ std::set<T> Grid<T, GRID_W, GRID_H>::getItems(const Vec2f& pos, float_t radius) 
 }
 
 template<typename T, size_t GRID_W, size_t GRID_H>
-std::set<T> Grid<T, GRID_W, GRID_H>::getItems(const Vec2f& pos) const
+std::unordered_set<T> Grid<T, GRID_W, GRID_H>::getItems(const Vec2f& pos) const
 {
   boundsCheck(pos);
 
@@ -140,9 +152,9 @@ std::set<T> Grid<T, GRID_W, GRID_H>::getItems(const Vec2f& pos) const
 }
 
 template<typename T, size_t GRID_W, size_t GRID_H>
-std::set<T> Grid<T, GRID_W, GRID_H>::getItems(const std::vector<Vec2f>& poly) const
+std::unordered_set<T> Grid<T, GRID_W, GRID_H>::getItems(const std::vector<Vec2f>& poly) const
 {
-  std::set<T> items;
+  std::unordered_set<T> items;
 
   if (poly.size() == 0) {
     return items;
@@ -158,20 +170,20 @@ std::set<T> Grid<T, GRID_W, GRID_H>::getItems(const std::vector<Vec2f>& poly) co
 
     auto cells = gridCellsBetweenPoints(p1, p2);
     for (auto& cell : cells) {
-      auto& list = m_items[cell.first][cell.second];
+      auto& list = m_items[cell[0]][cell[1]];
       items.insert(list.begin(), list.end());
 
-      if (cell.first < minGridCoord[0]) {
-        minGridCoord[0] = cell.first;
+      if (cell[0] < minGridCoord[0]) {
+        minGridCoord[0] = cell[0];
       }
-      if (cell.first > maxGridCoord[0]) {
-        maxGridCoord[0] = cell.first;
+      if (cell[0] > maxGridCoord[0]) {
+        maxGridCoord[0] = cell[0];
       }
-      if (cell.second < minGridCoord[1]) {
-        minGridCoord[1] = cell.second;
+      if (cell[1] < minGridCoord[1]) {
+        minGridCoord[1] = cell[1];
       }
-      if (cell.second > maxGridCoord[1]) {
-        maxGridCoord[1] = cell.second;
+      if (cell[1] > maxGridCoord[1]) {
+        maxGridCoord[1] = cell[1];
       }
     }
   }
@@ -257,10 +269,9 @@ bool Grid<T, GRID_W, GRID_H>::clipToGrid(Vec2f& A, Vec2f& B) const
 }
 
 template<typename T, size_t GRID_W, size_t GRID_H>
-std::set<std::pair<int, int>> Grid<T, GRID_W, GRID_H>::gridCellsBetweenPoints(const Vec2f& A_,
-  const Vec2f& B_) const
+GridCellList Grid<T, GRID_W, GRID_H>::gridCellsBetweenPoints(const Vec2f& A_, const Vec2f& B_) const
 {
-  std::set<std::pair<int, int>> cells;
+  GridCellList cells;
 
   auto A = A_;
   auto B = B_;
@@ -269,11 +280,11 @@ std::set<std::pair<int, int>> Grid<T, GRID_W, GRID_H>::gridCellsBetweenPoints(co
     return cells;
   }
 
-  std::pair<int, int> startCell{
+  Vec2i startCell{
     static_cast<int>((A[0] - m_worldMin[0]) / m_cellW),
     static_cast<int>((A[1] - m_worldMin[1]) / m_cellH)
   };
-  std::pair<int, int> endCell{
+  Vec2i endCell{
     static_cast<int>((B[0] - m_worldMin[0]) / m_cellW),
     static_cast<int>((B[1] - m_worldMin[1]) / m_cellH)
   };
@@ -307,15 +318,15 @@ std::set<std::pair<int, int>> Grid<T, GRID_W, GRID_H>::gridCellsBetweenPoints(co
   float_t dtX = m_cellW / fabs(delta[0]);
   float_t dtY = m_cellH / fabs(delta[1]);
 
-  std::pair<int, int> cell = startCell;
+  Vec2i cell = startCell;
 
   while (cell != endCell) {
     if (tx < ty) {
-      cell.first += stepX;
+      cell[0] += stepX;
       tx += dtX;
     }
     else {
-      cell.second += stepY;
+      cell[1] += stepY;
       ty += dtY;
     }
 
@@ -326,7 +337,7 @@ std::set<std::pair<int, int>> Grid<T, GRID_W, GRID_H>::gridCellsBetweenPoints(co
 }
 
 template<typename T, size_t GRID_W, size_t GRID_H>
-std::set<std::pair<int, int>> Grid<T, GRID_W, GRID_H>::test_gridCellsBetweenPoints(const Vec2f& A,
+GridCellList Grid<T, GRID_W, GRID_H>::test_gridCellsBetweenPoints(const Vec2f& A,
   const Vec2f& B) const
 {
   return gridCellsBetweenPoints(A, B);

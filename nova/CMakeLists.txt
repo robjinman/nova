@@ -73,10 +73,18 @@ file(GLOB CPP_SOURCES
 )
 
 if(PLATFORM_LINUX)
+  if (CPU_PROFILE)
+    message("CPU profiling ON")
+    #find_package(GOOGLE_PERFTOOLS REQUIRED)
+  endif()
+
   find_package(Vulkan REQUIRED)
   set(COMPILE_FLAGS -Wextra -Wall)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
+  if (CPU_PROFILE)
+    set(RELEASE_COMPILE_FLAGS ${RELEASE_COMPILE_FLAGS} -g)
+  endif()
   add_library(${LIB_TARGET} ${CPP_SOURCES})
 elseif(PLATFORM_ANDROID)
   find_package(Vulkan REQUIRED)
