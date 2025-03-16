@@ -300,36 +300,13 @@ void Application::processGamepadInput()
     }
   }
 
-  float_t threshold = 0.4f;
   float_t leftX = state.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
   float_t leftY = state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
-  m_game->onKeyUp(KeyboardKey::W);
-  m_game->onKeyUp(KeyboardKey::A);
-  m_game->onKeyUp(KeyboardKey::S);
-  m_game->onKeyUp(KeyboardKey::D);
-  if (leftY > threshold) {
-    m_game->onKeyDown(KeyboardKey::S);
-  }
-  if (leftY < -threshold) {
-    m_game->onKeyDown(KeyboardKey::W);
-  }
-  if (leftX > threshold) {
-    m_game->onKeyDown(KeyboardKey::D);
-  }
-  if (leftX < -threshold) {
-    m_game->onKeyDown(KeyboardKey::A);
-  }
+  m_game->onLeftStickMove({ leftX, leftY });
 
-  float_t epsilon = 0.15f;
-  float_t sensitivity = 0.025f;
   float_t rightX = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X];
   float_t rightY = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y];
-  Vec2f lookDelta{
-    fabs(rightX) > epsilon ? sensitivity * rightX : 0.f,
-    fabs(rightY) > epsilon ? sensitivity * rightY : 0.f
-  };
-
-  m_game->onMouseMove(lookDelta);
+  m_game->onRightStickMove({ rightX, rightY });
 
   m_gamepadState = state;
 }

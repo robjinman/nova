@@ -29,6 +29,8 @@ class Game
     virtual void onKeyDown(KeyboardKey key) = 0;
     virtual void onKeyUp(KeyboardKey key) = 0;
     virtual void onMouseMove(const Vec2f& delta) = 0;
+    virtual void onLeftStickMove(const Vec2f& delta) = 0;
+    virtual void onRightStickMove(const Vec2f& delta) = 0;
     virtual void update() = 0;
 
     virtual ~Game() {}
