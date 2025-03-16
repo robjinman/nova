@@ -17,6 +17,15 @@ const float_t GRAVITY_STRENGTH = 3.5f;
 const float_t BUOYANCY = 0.1f;
 const float_t MOUSE_LOOK_SPEED = 2.5f;
 
+KeyboardKey buttonToKey(GamepadButton button)
+{
+  switch (button) {
+    case GamepadButton::A: return KeyboardKey::E;
+    // ...
+    default: return KeyboardKey::Unknown;
+  }
+}
+
 class GameImpl : public Game
 {
   public:
@@ -24,6 +33,8 @@ class GameImpl : public Game
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
+    void onButtonDown(GamepadButton button) override;
+    void onButtonUp(GamepadButton button) override;
     void onMouseMove(const Vec2f& delta) override;
     void onLeftStickMove(const Vec2f& delta) override;
     void onRightStickMove(const Vec2f& delta) override;
@@ -79,6 +90,16 @@ void GameImpl::onKeyDown(KeyboardKey key)
 void GameImpl::onKeyUp(KeyboardKey key)
 {
   m_keysPressed.erase(key);
+}
+
+void GameImpl::onButtonDown(GamepadButton button)
+{
+  onKeyDown(buttonToKey(button));
+}
+
+void GameImpl::onButtonUp(GamepadButton button)
+{
+  onKeyUp(buttonToKey(button));
 }
 
 void GameImpl::onMouseMove(const Vec2f& delta)

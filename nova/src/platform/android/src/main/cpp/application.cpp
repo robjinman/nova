@@ -25,6 +25,21 @@ FileSystemPtr createAndroidFileSystem(AAssetManager& assetManager);
 namespace
 {
 
+GamepadButton buttonCode(int32_t key)
+{
+  switch (key) {
+    case AKEYCODE_BUTTON_A:   return GamepadButton::A;
+    case AKEYCODE_BUTTON_B:   return GamepadButton::B;
+    case AKEYCODE_BUTTON_X:   return GamepadButton::X;
+    case AKEYCODE_BUTTON_Y:   return GamepadButton::Y;
+    case AKEYCODE_BUTTON_L1:  return GamepadButton::L1;
+    case AKEYCODE_BUTTON_L2:  return GamepadButton::L2;
+    case AKEYCODE_BUTTON_R1:  return GamepadButton::R1;
+    case AKEYCODE_BUTTON_R2:  return GamepadButton::R2;
+    default: return GamepadButton::Unknown;
+  }
+}
+
 KeyboardKey keyCode(int32_t key)
 {
   if (key >= AKEYCODE_A && key <= AKEYCODE_Z) {
@@ -34,8 +49,8 @@ KeyboardKey keyCode(int32_t key)
 
   switch (key) {
     case AKEYCODE_SPACE: return KeyboardKey::Space;
-    case AKEYCODE_BUTTON_A: return KeyboardKey::E;  // TODO: Do button mapping inside Game class
-    default: return KeyboardKey::Z; // TODO
+    // ...
+    default: return KeyboardKey::Unknown;
   }
 }
 
@@ -50,6 +65,8 @@ class Application
     void onRightStickMove(float_t x, float_t y);
     void onKeyDown(KeyboardKey key);
     void onKeyUp(KeyboardKey key);
+    void onButtonDown(GamepadButton button);
+    void onButtonUp(GamepadButton button);
 
   private:
     Logger& m_logger;
@@ -123,6 +140,16 @@ void Application::onKeyUp(KeyboardKey key)
   m_game->onKeyUp(key);
 }
 
+void Application::onButtonDown(GamepadButton button)
+{
+  m_game->onButtonDown(button);
+}
+
+void Application::onButtonUp(GamepadButton button)
+{
+  m_game->onButtonUp(button);
+}
+
 ApplicationPtr createApplication(android_app& state, Logger& logger)
 {
   ASSERT(state.window != nullptr, "Window is NULL");
@@ -188,10 +215,22 @@ int32_t EventHandler::onInputEvent(const AInputEvent& event)
       int32_t key = AKeyEvent_getKeyCode(&event);
 
       if (action == AKEY_EVENT_ACTION_DOWN) {
-        m_app->onKeyDown(keyCode(key));
+        auto button = buttonCode(key);
+        if (button != GamepadButton::Unknown) {
+          m_app->onButtonDown(button);
+        }
+        else {
+          m_app->onKeyDown(keyCode(key));
+        }
       }
       else if (action == AKEY_EVENT_ACTION_UP) {
-        m_app->onKeyUp(keyCode(key));
+        auto button = buttonCode(key);
+        if (button != GamepadButton::Unknown) {
+          m_app->onButtonUp(button);
+        }
+        else {
+          m_app->onKeyUp(keyCode(key));
+        }
       }
 
       return 1;

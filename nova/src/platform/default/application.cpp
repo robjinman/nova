@@ -40,13 +40,17 @@ enum class ControlMode
   Gamepad
 };
 
-KeyboardKey buttonToKey(int button)
+GamepadButton buttonCode(int button)
 {
-  // TODO: Do button mapping inside Game class
   switch (button) {
-    case GLFW_GAMEPAD_BUTTON_A: return KeyboardKey::E;
+    case GLFW_GAMEPAD_BUTTON_A:             return GamepadButton::A;
+    case GLFW_GAMEPAD_BUTTON_B:             return GamepadButton::B;
+    case GLFW_GAMEPAD_BUTTON_X:             return GamepadButton::X;
+    case GLFW_GAMEPAD_BUTTON_Y:             return GamepadButton::Y;
+    case GLFW_GAMEPAD_BUTTON_LEFT_BUMPER:   return GamepadButton::L1;
+    case GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER:  return GamepadButton::R1;
     // ...
-    default: return KeyboardKey::Z; // TODO
+    default:                                return GamepadButton::Unknown;
   }
 }
 
@@ -293,10 +297,10 @@ void Application::processGamepadInput()
   if (glfwGetGamepadState(GLFW_JOYSTICK_1, &state)) {
     for (int i = 0; i < GLFW_GAMEPAD_BUTTON_LAST; ++i) {
       if (m_gamepadState.buttons[i] == GLFW_RELEASE && state.buttons[i] == GLFW_PRESS) {
-        m_game->onKeyDown(buttonToKey(i));
+        m_game->onButtonDown(buttonCode(i));
       }
       else if (m_gamepadState.buttons[i] == GLFW_PRESS && state.buttons[i] == GLFW_RELEASE) {
-        m_game->onKeyUp(buttonToKey(i));
+        m_game->onButtonUp(buttonCode(i));
       }
     }
   }
