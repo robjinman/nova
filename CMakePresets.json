@@ -29,6 +29,15 @@
       }
     },
     {
+      "name": "linux-cpuprof",
+      "inherits": "linux-default",
+      "binaryDir": "${sourceDir}/build/linux/cpuprof",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CPU_PROFILE": "TRUE"
+      }
+    },
+    {
       "name": "android-default",
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/android/debug",
@@ -151,6 +160,10 @@
       "configurePreset": "linux-release"
     },
     {
+      "name": "linux-cpuprof",
+      "configurePreset": "linux-cpuprof"
+    },
+    {
       "name": "android-debug",
       "configurePreset": "android-debug"
     },
@@ -227,6 +240,20 @@
         {
           "type": "package",
           "name": "linux-zip"
+        }
+      ]
+    },
+    {
+      "description": "Linux cpu profiling build",
+      "name": "linux-cpuprof",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "linux-cpuprof"
+        },
+        {
+          "type": "build",
+          "name": "linux-cpuprof"
         }
       ]
     },

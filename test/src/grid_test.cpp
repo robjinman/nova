@@ -15,7 +15,7 @@ TEST_F(GridTest, gridCellsBetweenPoints_single_cell)
 
   auto cells = grid.test_gridCellsBetweenPoints({ 0.2f, 0.3f }, { 0.4f, 0.5f });
 
-  std::set<std::pair<int, int>> expected{
+  GridCellList expected{
     { 0, 0 }
   };
 
@@ -28,7 +28,7 @@ TEST_F(GridTest, gridCellsBetweenPoints_two_cells)
 
   auto cells = grid.test_gridCellsBetweenPoints({ 0.2f, 0.3f }, { 1.2f, 0.9f });
 
-  std::set<std::pair<int, int>> expected{
+  GridCellList expected{
     { 0, 0 },
     { 1, 0 }
   };
@@ -42,7 +42,7 @@ TEST_F(GridTest, gridCellsBetweenPoints_nonzero_origin)
 
   auto cells = grid.test_gridCellsBetweenPoints({ 0.2f, 0.3f }, { 1.2f, 0.9f });
 
-  std::set<std::pair<int, int>> expected{
+  GridCellList expected{
     { 5, 5 },
     { 6, 5 }
   };
@@ -56,7 +56,7 @@ TEST_F(GridTest, gridCellsBetweenPoints_vertical_line)
 
   auto cells = grid.test_gridCellsBetweenPoints({ 0.5f, 0.5f }, { 0.5f, 7.5f });
 
-  std::set<std::pair<int, int>> expected{
+  GridCellList expected{
     { 0, 0 },
     { 0, 1 },
     { 0, 2 },
@@ -77,7 +77,7 @@ TEST_F(GridTest, gridCellsBetweenPoints_out_of_bounds)
 
   auto cells = grid.test_gridCellsBetweenPoints({ -0.1f, 8.1f }, { 1.8f, 10.3f });
 
-  std::set<std::pair<int, int>> expected{
+  GridCellList expected{
     { 0, 8 },
     { 0, 9 },
     { 1, 9 }

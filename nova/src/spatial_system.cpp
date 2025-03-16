@@ -41,7 +41,7 @@ class SpatialSystemImpl : public SpatialSystem
     const CSpatial& getComponent(EntityId entityId) const override;
     void update() override;
 
-    std::set<EntityId> getIntersecting(const std::vector<Vec2f>& poly) const override;
+    std::unordered_set<EntityId> getIntersecting(const std::vector<Vec2f>& poly) const override;
 
   private:
     Logger& m_logger;
@@ -89,7 +89,8 @@ void SpatialSystemImpl::update()
 {
 }
 
-std::set<EntityId> SpatialSystemImpl::getIntersecting(const std::vector<Vec2f>& poly) const
+std::unordered_set<EntityId>
+SpatialSystemImpl::getIntersecting(const std::vector<Vec2f>& poly) const
 {
   return m_grid.getItems(poly);
 }
