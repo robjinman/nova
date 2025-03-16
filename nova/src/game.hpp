@@ -20,7 +20,23 @@ enum class KeyboardKey
   F9 = 298,
   F10 = 299,
   F11 = 300,
-  F12 = 301
+  F12 = 301,
+  // ...
+  Unknown
+};
+
+enum class GamepadButton
+{
+  A,
+  B,
+  X,
+  Y,
+  L1,
+  L2,
+  R1,
+  R2,
+  // ...
+  Unknown
 };
 
 class Game
@@ -28,6 +44,8 @@ class Game
   public:
     virtual void onKeyDown(KeyboardKey key) = 0;
     virtual void onKeyUp(KeyboardKey key) = 0;
+    virtual void onButtonDown(GamepadButton button) = 0;
+    virtual void onButtonUp(GamepadButton button) = 0;
     virtual void onMouseMove(const Vec2f& delta) = 0;
     virtual void onLeftStickMove(const Vec2f& delta) = 0;
     virtual void onRightStickMove(const Vec2f& delta) = 0;
