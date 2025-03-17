@@ -24,8 +24,8 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="2.4673516"
-     inkscape:cx="222.50578"
-     inkscape:cy="214.60257"
+     inkscape:cx="147.12131"
+     inkscape:cy="227.16665"
      inkscape:window-width="1920"
      inkscape:window-height="990"
      inkscape:window-x="0"
@@ -55,7 +55,7 @@
        style="text-align:start;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect1);display:inline;fill:#000000"><tspan
          x="357.96094"
          y="880.23047"
-         id="tspan1313">8</tspan></text>
+         id="tspan1438">8</tspan></text>
     <g
        id="g5">
       <text
@@ -222,12 +222,12 @@
       </g>
       <g
          id="g4-7-6"
-         transform="translate(9.6398183,20.714432)"
+         transform="translate(-9.1305593,21.063812)"
          inkscape:transform-center-x="0.44292273"
          inkscape:transform-center-y="0.15714354">
         <path
            style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
-           d="m 25.652586,24.009723 0.748627,0.964175 0.988735,-1.547936 z"
+           d="m 26.421483,23.269823 -0.644132,1.036904 1.794982,0.389542 z"
            id="path2-55-7"
            sodipodi:nodetypes="cccc" />
         <text
