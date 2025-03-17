@@ -75,7 +75,7 @@ std::vector<Vec2f> RenderSystemImpl::computeFrustumPerimeter() const
 
   const Vec3f& camPos = m_camera.getPosition();
   const Vec3f& camDir = m_camera.getDirection();
-  float_t a = atan2(camDir[2], camDir[0]) - 0.5f * PI;
+  float_t a = atan2(camDir[2], camDir[0]) - 0.5f * static_cast<float_t>(PI);
 
   Mat3x3f m{
     cosine(a), -sine(a), camPos[0],
