@@ -143,6 +143,10 @@ void Application::onKeyUp(KeyboardKey key)
 void Application::onButtonDown(GamepadButton button)
 {
   m_game->onButtonDown(button);
+
+  if (button == GamepadButton::Y) {
+    m_logger.info(STR("Renderer frame rate: " << m_renderer->frameRate()));
+  }
 }
 
 void Application::onButtonUp(GamepadButton button)
@@ -208,7 +212,6 @@ int32_t EventHandler::onInputEvent(const AInputEvent& event)
 {
   if (m_app) {
     int32_t eventType = AInputEvent_getType(&event);
-    int32_t deviceId = AInputEvent_getDeviceId(&event);
 
     if (eventType == AINPUT_EVENT_TYPE_KEY) {
       int32_t action = AKeyEvent_getAction(&event);

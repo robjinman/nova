@@ -88,6 +88,9 @@ if(PLATFORM_LINUX)
   add_library(${LIB_TARGET} ${CPP_SOURCES})
 elseif(PLATFORM_ANDROID)
   find_package(Vulkan REQUIRED)
+  set(COMPILE_FLAGS -Wextra -Wall)
+  set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
+  set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
   # Export ANativeActivity_onCreate(),
   # Refer to: https://github.com/android-ndk/ndk/issues/381.
   set(CMAKE_SHARED_LINKER_FLAGS
@@ -125,6 +128,9 @@ elseif(PLATFORM_OSX)
 elseif(PLATFORM_IOS)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../platform/ios/cmake")
   find_package(Vulkan REQUIRED COMPONENTS MoltenVK)
+  set(COMPILE_FLAGS -Wextra -Wall)
+  set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
+  set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
   add_library(${LIB_TARGET} ${CPP_SOURCES})
 endif()
 

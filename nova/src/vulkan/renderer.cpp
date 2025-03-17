@@ -186,6 +186,7 @@ class RendererImpl : public Renderer
     };
 
     TripleBuffer<RenderState> m_renderStates;
+    BindState m_bindState{};
   
     RenderResourcesPtr m_resources;
     std::map<PipelineName, PipelinePtr> m_pipelines;
@@ -1054,10 +1055,11 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
     return PipelineName::DefaultModel;
   };
 
-  const auto& renderGraph = m_renderStates.getReadable().graph;
+  auto& state = m_renderStates.getReadable();
+  const auto& renderGraph = state.graph;
   for (auto& node : renderGraph) {
     auto& pipeline = m_pipelines.at(choosePipeline(node->type));
-    pipeline->recordCommandBuffer(commandBuffer, *node, m_currentFrame);
+    pipeline->recordCommandBuffer(commandBuffer, *node, m_bindState, m_currentFrame);
   }
 
   vkCmdEndRenderPass(commandBuffer);
