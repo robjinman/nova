@@ -233,7 +233,7 @@ void SceneBuilder::constructObject(const ObjectData& obj, const Mat4x4f& parentT
 void SceneBuilder::constructInstance(const ObjectData& obj, const Mat4x4f& parentTransform)
 {
   Mat4x4f m = parentTransform * obj.transform * transformFromTriangle(obj.path);
-  m_entityFactory.constructEntity(obj.name, m);
+  m_entityFactory.constructEntity(obj, m);
 }
 
 void SceneBuilder::constructPlayer(const ObjectData& obj, const Mat4x4f& parentTransform)
@@ -356,6 +356,9 @@ void createSideFaces(Mesh& mesh)
 void SceneBuilder::fillArea(const ObjectData& area, const Mat4x4f& transform, float_t height,
   const std::string& entityType)
 {
+  ObjectData data{};
+  data.name = entityType;
+
   const Vec2f spacing = metresToWorldUnits(Vec2f{ 1, 1 }); // TODO
 
   auto bounds = computeBounds(area);
@@ -368,7 +371,7 @@ void SceneBuilder::fillArea(const ObjectData& area, const Mat4x4f& transform, fl
     for (float_t z = bounds.first[1]; z <= bounds.second[1]; z += spacing[1]) {
       if (pointIsInsidePoly(Vec2f{ x, z }, perimeter)) {
         Mat4x4f m = translationMatrix4x4(Vec3f{ x, height, z });
-        m_entityFactory.constructEntity(entityType, transform * m);
+        m_entityFactory.constructEntity(data, transform * m);
       }
     }
   }

@@ -53,6 +53,7 @@ class RenderSystemImpl : public RenderSystem
     const SpatialSystem& m_spatialSystem;
     Renderer& m_renderer;
     std::map<EntityId, CRenderPtr> m_components;
+    std::set<EntityId> m_lights;
 
     std::vector<Vec2f> computeFrustumPerimeter() const;
 };
@@ -99,12 +100,21 @@ double RenderSystemImpl::frameRate() const
 void RenderSystemImpl::addComponent(ComponentPtr component)
 {
   auto renderComp = CRenderPtr(dynamic_cast<CRender*>(component.release()));
+  if (renderComp->type == CRenderType::Light) {
+    m_lights.insert(renderComp->id());
+  }
   m_components[renderComp->id()] = std::move(renderComp);
 }
 
 void RenderSystemImpl::removeComponent(EntityId entityId)
 {
-  m_components.erase(entityId);
+  auto i = m_components.find(entityId);
+  if (i != m_components.end()) {
+    if (i->second->type == CRenderType::Light) {
+      m_lights.erase(entityId);
+    }
+    m_components.erase(i);
+  }
 }
 
 bool RenderSystemImpl::hasComponent(EntityId entityId) const
@@ -185,18 +195,31 @@ void RenderSystemImpl::update()
       }
 
       const auto& component = *entry->second;
-      const auto& spatial = m_spatialSystem.getComponent(component.id());
+      const auto& spatial = m_spatialSystem.getComponent(id);
 
       switch(component.type) {
         case CRenderType::Instance:
-          m_renderer.stageInstance(component.mesh, component.material, spatial.absTransform());
+          m_renderer.drawInstance(component.mesh, component.material, spatial.absTransform());
           break;
         case CRenderType::Regular:
-          m_renderer.stageModel(component.mesh, component.material, spatial.absTransform());
+          m_renderer.drawModel(component.mesh, component.material, spatial.absTransform());
           break;
         case CRenderType::Skybox:
-          m_renderer.stageSkybox(component.mesh, component.material);
+          m_renderer.drawSkybox(component.mesh, component.material);
           break;
+        case CRenderType::Light: break;
+      }
+    }
+
+    for (EntityId id : m_lights) {
+      const CRenderLight& light = dynamic_cast<const CRenderLight&>(*m_components.at(id));
+      const auto& spatial = m_spatialSystem.getComponent(id);
+      const auto& transform = spatial.absTransform();
+
+      m_renderer.drawLight(light.colour, light.ambient, getTranslation(transform));
+
+      if (light.mesh != NULL_ID && light.material != NULL_ID) {
+        m_renderer.drawModel(light.mesh, light.material, transform);
       }
     }
 

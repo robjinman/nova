@@ -5,10 +5,12 @@
 #include <memory>
 #include <string>
 
+class ObjectData;
+
 class EntityFactory
 {
   public:
-    virtual EntityId constructEntity(const std::string& name, const Mat4x4f& transform) const = 0;
+    virtual EntityId constructEntity(const ObjectData& data, const Mat4x4f& transform) const = 0;
 
     virtual ~EntityFactory() {}
 };

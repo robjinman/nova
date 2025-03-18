@@ -10,6 +10,7 @@ enum class CRenderType
 {
   Regular,
   Instance,
+  Light,
   Skybox
 };
 
@@ -17,12 +18,24 @@ struct CRender : public Component
 {
   CRender(EntityId entityId, CRenderType type)
     : Component(entityId)
-    , type(type) {}
+    , type(type)
+  {}
+
+  CRenderType type;
 
   // TODO: Consider subclassing this
   RenderItemId mesh = NULL_ID;
   RenderItemId material = NULL_ID;
-  CRenderType type;
+};
+
+struct CRenderLight : public CRender
+{
+  CRenderLight(EntityId entityId)
+    : CRender(entityId, CRenderType::Light)
+  {}
+
+  Vec3f colour;
+  float_t ambient = 0.f;
 };
 
 using CRenderPtr = std::unique_ptr<CRender>;

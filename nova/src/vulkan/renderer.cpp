@@ -95,9 +95,10 @@ class RendererImpl : public Renderer
     // Per frame draw functions
     //
     void beginFrame(const Camera& camera) override;
-    void stageInstance(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform) override;
-    void stageModel(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform) override;
-    void stageSkybox(RenderItemId mesh, RenderItemId material) override;
+    void drawInstance(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform) override;
+    void drawModel(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform) override;
+    void drawLight(const Vec3f& colour, float_t ambient, const Vec3f& worldPos) override;
+    void drawSkybox(RenderItemId mesh, RenderItemId material) override;
     void endFrame() override;
 
     ~RendererImpl() override;
@@ -137,7 +138,6 @@ class RendererImpl : public Renderer
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void updateResources();
     void updateMatricesUbo(const Mat4x4f& cameraMatrix);
-    void updateLightingUbo();
     void finishFrame();
     void createSyncObjects();
     VkFormat findDepthFormat() const;
@@ -182,6 +182,7 @@ class RendererImpl : public Renderer
     {
       RenderGraph graph;
       std::map<RenderGraph::Key, RenderNode*> lookup;
+      LightingUbo lighting;
       Mat4x4f cameraMatrix;
     };
 
@@ -263,7 +264,7 @@ const ViewParams& RendererImpl::getViewParams() const
   return m_viewParams;
 }
 
-void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
+void RendererImpl::drawInstance(RenderItemId meshId, RenderItemId materialId,
   const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
@@ -292,7 +293,7 @@ void RendererImpl::stageInstance(RenderItemId meshId, RenderItemId materialId,
   node->instances.push_back(MeshInstance{transform});
 }
 
-void RendererImpl::stageModel(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform)
+void RendererImpl::drawModel(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
 
@@ -317,7 +318,18 @@ void RendererImpl::stageModel(RenderItemId mesh, RenderItemId material, const Ma
   renderGraph.insert(key, std::move(node));
 }
 
-void RendererImpl::stageSkybox(RenderItemId mesh, RenderItemId material)
+void RendererImpl::drawLight(const Vec3f& colour, float_t ambient, const Vec3f& worldPos)
+{
+  auto& state = m_renderStates.getWritable();
+  ASSERT(state.lighting.numLights < MAX_LIGHTS, "Exceeded max lights");
+
+  Light& light = state.lighting.lights[state.lighting.numLights++];
+  light.colour = colour;
+  light.ambient = ambient;
+  light.worldPos = worldPos;
+}
+
+void RendererImpl::drawSkybox(RenderItemId mesh, RenderItemId material)
 {
   //DBG_TRACE(m_logger);
 
@@ -341,6 +353,7 @@ void RendererImpl::beginFrame(const Camera& camera)
   auto& state = m_renderStates.getWritable();
   state.lookup.clear();
   state.graph.clear();
+  state.lighting = LightingUbo{};
   state.cameraMatrix = camera.getMatrix();
 }
 
@@ -366,8 +379,10 @@ void RendererImpl::renderLoop()
 
     vkResetCommandBuffer(m_commandBuffers[m_imageIndex], 0);
 
-    updateMatricesUbo(m_renderStates.getReadable().cameraMatrix);
-    updateLightingUbo();
+    auto& state = m_renderStates.getReadable();
+
+    updateMatricesUbo(state.cameraMatrix);
+    m_resources->updateLightingUbo(state.lighting, m_currentFrame);
 
     updateResources();
     recordCommandBuffer(m_commandBuffers[m_imageIndex], m_imageIndex);
@@ -463,25 +478,6 @@ void RendererImpl::updateMatricesUbo(const Mat4x4f& cameraMatrix)
   };
 
   m_resources->updateMatricesUbo(ubo, m_currentFrame);
-}
-
-void RendererImpl::updateLightingUbo()
-{
-  DBG_TRACE(m_logger);
-
-  // TODO
-  LightingUbo ubo{};
-  ubo.numLights = 2;
-
-  ubo.lights[0].worldPos = { 123, 1000, 0 };
-  ubo.lights[0].colour = { 1, 1, 1 };
-  ubo.lights[0].ambient = 0.4f;
-
-  ubo.lights[1].worldPos = { 500, 100, 700 };
-  ubo.lights[1].colour = { 1, 1, 1 };
-  ubo.lights[1].ambient = 0.4f;
-
-  m_resources->updateLightingUbo(ubo, m_currentFrame);
 }
 
 void RendererImpl::removeMesh(RenderItemId)
@@ -1050,9 +1046,8 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
       case RenderNodeType::DefaultModel:    return PipelineName::DefaultModel;
       case RenderNodeType::InstancedModel:  return PipelineName::InstancedModel;
       case RenderNodeType::Skybox:          return PipelineName::Skybox;
+      default:                              return PipelineName::DefaultModel;
     }
-    assert(false);
-    return PipelineName::DefaultModel;
   };
 
   auto& state = m_renderStates.getReadable();

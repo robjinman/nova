@@ -6,7 +6,8 @@
 struct SkyboxNode : public RenderNode
 {
   SkyboxNode()
-    : RenderNode(RenderNodeType::Skybox) {}
+    : RenderNode(RenderNodeType::Skybox)
+  {}
 
   RenderItemId mesh;
   RenderItemId material;
