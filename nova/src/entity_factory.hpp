@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 
-class ObjectData;
+struct ObjectData;
 
 class EntityFactory
 {

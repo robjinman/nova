@@ -3,6 +3,7 @@
 #include "file_system.hpp"
 #include "utils.hpp"
 #include "model.hpp"
+#include <array>
 
 namespace
 {

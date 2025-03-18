@@ -4,6 +4,7 @@
 #include "file_system.hpp"
 #include "utils.hpp"
 #include "model.hpp"
+#include <array>
 
 DefaultPipeline::DefaultPipeline(const FileSystem& fileSystem, VkDevice device,
   VkExtent2D swapchainExtent, VkRenderPass renderPass, const RenderResources& renderResources)
