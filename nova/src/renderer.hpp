@@ -43,10 +43,11 @@ class Renderer
     // Per frame draw functions
     //
     virtual void beginFrame(const Camera& camera) = 0;
-    virtual void stageModel(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform) = 0;
-    virtual void stageInstance(RenderItemId mesh, RenderItemId material,
+    virtual void drawModel(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform) = 0;
+    virtual void drawInstance(RenderItemId mesh, RenderItemId material,
       const Mat4x4f& transform) = 0;
-    virtual void stageSkybox(RenderItemId mesh, RenderItemId cubeMap) = 0;
+    virtual void drawLight(const Vec3f& colour, float_t ambient, const Vec3f& worldPos) = 0;
+    virtual void drawSkybox(RenderItemId mesh, RenderItemId cubeMap) = 0;
     virtual void endFrame() = 0;
 
     virtual ~Renderer() {}
