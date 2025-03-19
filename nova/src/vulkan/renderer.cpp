@@ -638,8 +638,8 @@ void RendererImpl::setProjectionMatrix(float_t rotation)
   m_viewParams.hFov = 2.f * atan(aspect * tan(0.5f * m_viewParams.vFov));
 
   Mat4x4f rot = rotationMatrix4x4<float_t>({ 0.f, 0.f, rotation });
-  m_projectionMatrix = rot * perspective(m_viewParams.vFov, aspect, m_viewParams.nearPlane,
-    m_viewParams.farPlane);
+  m_projectionMatrix = rot * perspective(m_viewParams.hFov, m_viewParams.vFov,
+    m_viewParams.nearPlane, m_viewParams.farPlane);
 }
 
 void RendererImpl::cleanupSwapChain()
