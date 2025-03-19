@@ -180,10 +180,9 @@ Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre)
   return m;
 }
 
-Mat4x4f perspective(float_t fovY, float_t aspect, float_t near, float_t far)
+Mat4x4f perspective(float_t fovX, float_t fovY, float_t near, float_t far)
 {
   Mat4x4f m;
-  const float_t fovX = aspect * fovY;
   const float_t t = -near * tan(fovY * 0.5f);
   const float_t b = -t;
   const float_t r = near * tan(fovX * 0.5f);

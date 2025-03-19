@@ -31,6 +31,20 @@ float_t computeRadius(const Mesh& mesh)
   return sqrt(furthestX * furthestX + furthestZ * furthestZ);
 }
 
+void centreObject(ObjectData& object)
+{
+  Vec2f centre{};
+  for (auto& p : object.path.points) {
+    centre += { p[0], p[2] };
+  }
+  centre = centre / static_cast<float_t>(object.path.points.size());
+  for (auto& p : object.path.points) {
+    p[0] -= centre[0];
+    p[2] -= centre[1];
+  }
+  object.transform = object.transform * translationMatrix4x4(Vec3f{ centre[0], 0.f, centre[1] });
+}
+
 float_t getFloatValue(const KeyValueMap& map, const std::string& key)
 {
   if (map.count(key) == 0) {
@@ -379,8 +393,11 @@ void SceneBuilder::fillArea(const ObjectData& area, const Mat4x4f& transform, fl
 
 Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parentTransform)
 {
+  ObjectData centredObj = obj;
+  centreObject(centredObj);
+
   EntityId entityId = System::nextId();
-  float_t floorHeight = metresToWorldUnits(getFloatValue(obj.values, "floor"));
+  float_t floorHeight = metresToWorldUnits(getFloatValue(centredObj.values, "floor"));
   float_t height = floorHeight;
   auto offset = identityMatrix<float_t, 4>();
   if (floorHeight == 0) {
@@ -388,11 +405,11 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
     offset = translationMatrix4x4(Vec3f{ 0, -height, 0 });
   }
 
-  Mat4x4f transform = parentTransform * offset * obj.transform;
+  Mat4x4f transform = parentTransform * offset * centredObj.transform;
   Vec3f colour{ 0.15f, 0.1f, 0.08f };
 
-  auto bottomFace = createBottomFace(obj.path.points, colour);
-  auto topFace = createTopFace(obj.path.points, colour, height);
+  auto bottomFace = createBottomFace(centredObj.path.points, colour);
+  auto topFace = createTopFace(centredObj.path.points, colour, height);
 
   auto mesh = mergeMeshes(*bottomFace, *topFace);
   createSideFaces(*mesh);
@@ -408,13 +425,13 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
 
   CCollisionPtr collision = std::make_unique<CCollision>(entityId);
   collision->height = height;
-  std::transform(obj.path.points.begin(), obj.path.points.end(),
+  std::transform(centredObj.path.points.begin(), centredObj.path.points.end(),
     std::back_inserter(collision->perimeter), [](const Vec4f& p) { return Vec2f{ p[0], p[2] }; });
   m_collisionSystem.addComponent(std::move(collision));
 
-  auto i = obj.values.find("fill");
-  if (i != obj.values.end()) {
-    fillArea(obj, transform, height, i->second);
+  auto i = centredObj.values.find("fill");
+  if (i != centredObj.values.end()) {
+    fillArea(centredObj, transform, height, i->second);
   }
 
   return translationMatrix4x4(Vec3f{ 0, floorHeight, 0 }) * obj.transform;
