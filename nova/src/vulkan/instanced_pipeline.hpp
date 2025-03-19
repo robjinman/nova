@@ -6,7 +6,8 @@
 struct InstancedModelNode : public RenderNode
 {
   InstancedModelNode()
-    : RenderNode(RenderNodeType::InstancedModel) {}
+    : RenderNode(RenderNodeType::InstancedModel)
+  {}
 
   RenderItemId mesh;
   RenderItemId material;
@@ -22,7 +23,7 @@ class InstancedPipeline : public Pipeline
       VkRenderPass renderPass, const RenderResources& renderResources);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
-      size_t currentFrame) override;
+      BindState& bindState, size_t currentFrame) override;
 
     ~InstancedPipeline();
 

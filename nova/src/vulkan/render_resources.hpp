@@ -3,6 +3,8 @@
 #include "model.hpp"
 #include <vulkan/vulkan.h>
 
+const int32_t MAX_LIGHTS = 8;
+
 #pragma pack(push, 4)
 struct MatricesUbo
 {
@@ -22,7 +24,7 @@ struct LightingUbo
 {
   int32_t numLights;
   uint8_t _padding1[12];
-  Light lights[8];
+  Light lights[MAX_LIGHTS];
 };
 
 struct MaterialUbo

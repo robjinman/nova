@@ -3,6 +3,7 @@
 #include "file_system.hpp"
 #include "utils.hpp"
 #include "model.hpp"
+#include <array>
 
 SkyboxPipeline::SkyboxPipeline(const FileSystem& fileSystem, VkDevice device,
   VkExtent2D swapchainExtent, VkRenderPass renderPass, const RenderResources& renderResources)
@@ -130,7 +131,7 @@ SkyboxPipeline::SkyboxPipeline(const FileSystem& fileSystem, VkDevice device,
 }
 
 void SkyboxPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node_,
-  size_t currentFrame)
+  BindState& bindState, size_t currentFrame)
 {
   auto& node = dynamic_cast<const SkyboxNode&>(node_);
 
@@ -138,18 +139,23 @@ void SkyboxPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const Re
   auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material);
   auto buffers = m_renderResources.getMeshBuffers(node.mesh);
 
-  // TODO: Only bind things that have changed since last iteration
-  vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+  if (m_pipeline != bindState.pipeline) {
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+  }
   std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer };
   std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
   vkCmdBindVertexBuffers(commandBuffer, 0, static_cast<uint32_t>(vertexBuffers.size()),
     vertexBuffers.data(), offsets.data());
   vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0, 1,
-    &matricesDescriptorSet, 0, nullptr);
-  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 1, 1,
-    &materialDescriptorSet, 0, nullptr);
+  std::array<VkDescriptorSet, 3> descriptorSets{
+    matricesDescriptorSet,
+    materialDescriptorSet
+  };
+  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0, 2,
+    descriptorSets.data(), 0, nullptr);
   vkCmdDrawIndexed(commandBuffer, buffers.numIndices, 1, 0, 0, 0);
+
+  bindState.pipeline = m_pipeline;
 }
 
 SkyboxPipeline::~SkyboxPipeline()

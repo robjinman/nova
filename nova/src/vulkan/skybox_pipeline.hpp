@@ -6,7 +6,8 @@
 struct SkyboxNode : public RenderNode
 {
   SkyboxNode()
-    : RenderNode(RenderNodeType::Skybox) {}
+    : RenderNode(RenderNodeType::Skybox)
+  {}
 
   RenderItemId mesh;
   RenderItemId material;
@@ -21,7 +22,7 @@ class SkyboxPipeline : public Pipeline
       VkRenderPass renderPass, const RenderResources& renderResources);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
-      size_t currentFrame) override;
+      BindState& bindState, size_t currentFrame) override;
 
     ~SkyboxPipeline();
 
