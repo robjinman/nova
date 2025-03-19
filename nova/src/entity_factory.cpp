@@ -8,10 +8,28 @@
 #include "render_system.hpp"
 #include "collision_system.hpp"
 #include "file_system.hpp"
+#include "map_parser.hpp"
 #include <map>
+#include <regex>
 
 namespace
 {
+
+Vec3f parseVec3f(const std::string s)
+{
+  static std::regex pattern{
+    "(-?\\d+(?:\\.\\d+)?)\\,\\s*(-?\\d+(?:\\.\\d+)?)\\,\\s*(-?\\d+(?:\\.\\d+)?)"};
+  std::smatch match;
+  std::regex_search(s, match, pattern);
+
+  ASSERT(match.size() == 4, STR("Error parsing Vec3f: " << s));
+
+  return {
+    parseFloat<float_t>(match[1].str()),
+    parseFloat<float_t>(match[2].str()),
+    parseFloat<float_t>(match[3].str())
+  };
+}
 
 class EntityFactoryImpl : public EntityFactory
 {
@@ -19,7 +37,7 @@ class EntityFactoryImpl : public EntityFactory
     EntityFactoryImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
       CollisionSystem& CollisionSystem, const FileSystem& fileSystem, Logger& logger);
 
-    EntityId constructEntity(const std::string& name, const Mat4x4f& transform) const override;
+    EntityId constructEntity(const ObjectData& data, const Mat4x4f& transform) const override;
 
   private:
     Logger& m_logger;
@@ -41,7 +59,8 @@ class EntityFactoryImpl : public EntityFactory
     void parseEntityFile(const std::filesystem::path& path);
     void constructSpatialComponent(EntityId entityId, const XmlNode& node,
       const Mat4x4f& transform) const;
-    void constructRenderComponent(EntityId entityId, const XmlNode& node) const;
+    void constructRenderComponent(EntityId entityId, const XmlNode& node,
+      const ObjectData& data) const;
     void constructCollisionComponent(EntityId entityId, const XmlNode& node) const;
     Mat4x4f parseTransform(const XmlNode& node) const;
 };
@@ -134,18 +153,18 @@ void EntityFactoryImpl::parseEntityFile(const std::filesystem::path& path)
   m_definitions[entityName] = std::move(root);
 }
 
-EntityId EntityFactoryImpl::constructEntity(const std::string& name, const Mat4x4f& transform) const
+EntityId EntityFactoryImpl::constructEntity(const ObjectData& data, const Mat4x4f& transform) const
 {
   EntityId id = System::nextId();
 
-  const auto& root = *m_definitions.at(name);
+  const auto& root = *m_definitions.at(data.name);
 
   for (auto& node : root) {
     if (node.name() == "spatial-component") {
       constructSpatialComponent(id, node, transform);
     }
     else if (node.name() == "render-component") {
-      constructRenderComponent(id, node);
+      constructRenderComponent(id, node, data);
     }
     else if (node.name() == "collision-component") {
       constructCollisionComponent(id, node);
@@ -186,9 +205,12 @@ Mat4x4f EntityFactoryImpl::parseTransform(const XmlNode& node) const
 void EntityFactoryImpl::constructSpatialComponent(EntityId entityId, const XmlNode& node,
   const Mat4x4f& transform) const
 {
-  auto radius = metresToWorldUnits(parseFloat<float_t>(node.attribute("radius")));
-  auto& transformNode = *node.child("transform");
-  auto m = transform * parseTransform(transformNode);
+  auto strRadius = node.attribute("radius");
+  float_t radius = !strRadius.empty() ? metresToWorldUnits(parseFloat<float_t>(strRadius)) : 0.f;
+
+  auto i = node.child("transform");
+  auto m = i != node.end() ? transform * parseTransform(*i) : transform;
+
   auto spatial = std::make_unique<CSpatial>(entityId, m, radius);
 
   m_spatialSystem.addComponent(std::move(spatial));
@@ -198,16 +220,31 @@ CRenderType parseCRenderType(const std::string& type)
 {
   if (type == "regular")        return CRenderType::Regular;
   else if (type == "instance")  return CRenderType::Instance;
+  else if (type == "light")     return CRenderType::Light;
   else if (type == "skybox")    return CRenderType::Skybox;
   else EXCEPTION(STR("Unrecognised render component type '" << type << "'"));
 }
 
-void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNode& node) const
+void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNode& node,
+  const ObjectData& data) const
 {
   auto type = parseCRenderType(node.attribute("type"));
 
-  auto render = std::make_unique<CRender>(entityId, type);
-  render->mesh = m_meshes.at(node.attribute("mesh"));
+  CRenderPtr render;
+  if (type == CRenderType::Light) {
+    auto light = std::make_unique<CRenderLight>(entityId);
+    light->colour = parseVec3f(data.values.at("colour"));
+    light->ambient = parseFloat<float_t>(data.values.at("ambient"));
+    render = std::move(light);
+  }
+  else {
+    render = std::make_unique<CRender>(entityId, type);
+  }
+
+  auto mesh = node.attribute("mesh");
+  if (!mesh.empty()) {
+    render->mesh = m_meshes.at(mesh);
+  }
   auto material = node.attribute("material");
   if (!material.empty()) {
     render->material = m_materials.at(material);

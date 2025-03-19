@@ -4,6 +4,7 @@
 #include "file_system.hpp"
 #include "utils.hpp"
 #include "model.hpp"
+#include <array>
 
 DefaultPipeline::DefaultPipeline(const FileSystem& fileSystem, VkDevice device,
   VkExtent2D swapchainExtent, VkRenderPass renderPass, const RenderResources& renderResources)
@@ -125,7 +126,7 @@ DefaultPipeline::DefaultPipeline(const FileSystem& fileSystem, VkDevice device,
 }
 
 void DefaultPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node_,
-  size_t currentFrame)
+  BindState& bindState, size_t currentFrame)
 {
   auto& node = dynamic_cast<const DefaultModelNode&>(node_);
 
@@ -134,23 +135,26 @@ void DefaultPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const R
   auto lightingDescriptorSet = m_renderResources.getLightingDescriptorSet(currentFrame);
   auto buffers = m_renderResources.getMeshBuffers(node.mesh);
 
-  // TODO: Only bind things that have changed since last iteration
-  vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+  if (m_pipeline != bindState.pipeline) {
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+  }
   std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer };
   std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
   vkCmdBindVertexBuffers(commandBuffer, 0, static_cast<uint32_t>(vertexBuffers.size()),
     vertexBuffers.data(), offsets.data());
   vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-  // TODO: Combine into single call
-  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0, 1,
-    &matricesDescriptorSet, 0, nullptr);
-  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 1, 1,
-    &materialDescriptorSet, 0, nullptr);
-  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 2, 1,
-    &lightingDescriptorSet, 0, nullptr);
+  std::array<VkDescriptorSet, 3> descriptorSets{
+    matricesDescriptorSet,
+    materialDescriptorSet,
+    lightingDescriptorSet
+  };
+  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0, 3,
+    descriptorSets.data(), 0, nullptr);
   vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4x4f),
     &node.modelMatrix);
   vkCmdDrawIndexed(commandBuffer, buffers.numIndices, 1, 0, 0, 0);
+
+  bindState.pipeline = m_pipeline;
 }
 
 DefaultPipeline::~DefaultPipeline()

@@ -1,0 +1,4 @@
+<entity name="light">
+  <spatial-component/>
+  <render-component type="light"/>
+</entity>

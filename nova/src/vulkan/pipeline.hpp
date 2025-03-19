@@ -27,11 +27,16 @@ using RenderGraphKey = long;
 using RenderNodePtr = std::unique_ptr<RenderNode>;
 using RenderGraph = TreeSet<RenderGraphKey, RenderNodePtr>;
 
+struct BindState
+{
+  VkPipeline pipeline;
+};
+
 class Pipeline
 {
   public:
     virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
-      size_t currentFrame) = 0;
+      BindState& bindState, size_t currentFrame) = 0;
 
     virtual ~Pipeline() = default;
 };

@@ -6,7 +6,8 @@
 struct DefaultModelNode : public RenderNode
 {
   DefaultModelNode()
-    : RenderNode(RenderNodeType::DefaultModel) {}
+    : RenderNode(RenderNodeType::DefaultModel)
+  {}
 
   RenderItemId mesh;
   RenderItemId material;
@@ -22,7 +23,7 @@ class DefaultPipeline : public Pipeline
       VkRenderPass renderPass, const RenderResources& renderResources);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
-      size_t currentFrame) override;
+      BindState& bindState, size_t currentFrame) override;
 
     ~DefaultPipeline();
 
