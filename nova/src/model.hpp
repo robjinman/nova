@@ -51,4 +51,7 @@ using MeshPtr = std::unique_ptr<Mesh>;
 MeshPtr loadMesh(const std::vector<char>& data);
 TexturePtr loadTexture(const std::vector<char>& data);
 
+// TODO: Load glTF model
+void loadModel(const std::vector<char>& jsonData);
+
 MeshPtr cuboid(float_t w, float_t h, float_t d, const Vec3f& colour, const Vec2f& textureSize);
