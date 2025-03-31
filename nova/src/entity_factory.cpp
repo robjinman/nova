@@ -55,6 +55,7 @@ class EntityFactoryImpl : public EntityFactory
     void loadTextures(const XmlNode& node);
     void loadMeshes(const XmlNode& node);
     void loadMaterials(const XmlNode& node);
+    void loadModels(const XmlNode& node);
     void loadEntities();
     void parseEntityFile(const std::filesystem::path& path);
     void constructSpatialComponent(EntityId entityId, const XmlNode& node,
@@ -94,6 +95,9 @@ void EntityFactoryImpl::loadResources()
     else if (node.name() == "materials") {
       loadMaterials(node);
     }
+    else if (node.name() == "models") {
+      loadModels(node);
+    }
     // ...
   }
 }
@@ -131,6 +135,14 @@ void EntityFactoryImpl::loadMaterials(const XmlNode& root)
       material->normalMap = m_textures.at(node.attribute(normalMap));
     }
     m_materials[node.attribute("name")] = m_renderSystem.addMaterial(std::move(material));
+  }
+}
+
+void EntityFactoryImpl::loadModels(const XmlNode& root)
+{
+  for (auto& node : root) {
+    loadModel(m_fileSystem.readFile(node.attribute("file")));
+    // TODO
   }
 }
 
@@ -248,6 +260,10 @@ void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNod
   auto material = node.attribute("material");
   if (!material.empty()) {
     render->material = m_materials.at(material);
+  }
+  auto model = node.attribute("model");
+  if (!model.empty()) {
+    // TODO
   }
 
   m_renderSystem.addComponent(std::move(render));

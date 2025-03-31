@@ -1,7 +1,8 @@
 {
   "dependencies": [
     "tinyxml2",
-    "stb"
+    "stb",
+    "nlohmann-json"
   ],
   "overrides": [
     {
@@ -11,6 +12,10 @@
     {
       "name": "stb",
       "version": "2023-04-11"
+    },
+    {
+      "name": "nlohmann-json",
+      "version": "3.11.3"
     }
   ]
 }

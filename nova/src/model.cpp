@@ -1,6 +1,7 @@
 #include "model.hpp"
-#include "exception.hpp"
 #include "utils.hpp"
+#include "exception.hpp"
+#include <nlohmann/json.hpp>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <fstream>
@@ -200,4 +201,26 @@ MeshPtr cuboid(float_t W, float_t H, float_t D, const Vec3f& colour, const Vec2f
   };
 
   return mesh;
+}
+
+// TODO
+void loadModel(const std::vector<char>& jsonData)
+{
+  auto root = nlohmann::json::parse(jsonData);
+  auto scenes = root.at("scenes");
+  auto meshes = root.at("meshes");
+  auto nodes = root.at("nodes");
+  unsigned long sceneIndex = root.at("scene").get<unsigned long>();
+  auto accessors = root.at("accessors");
+  auto bufferViews = root.at("bufferViews");
+  auto buffers = root.at("buffers");
+
+  auto scene = scenes.at(sceneIndex);
+  auto sceneNodes = scene.at("nodes");
+
+  // TODO
+  ASSERT(sceneNodes.size() == 1, "Expect scene to contain a single root node");
+
+  auto rootNodeIndex = sceneNodes.at(0).get<unsigned long>();
+  std::cout << "scene root node index = " << rootNodeIndex << std::endl;
 }
