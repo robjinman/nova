@@ -10,6 +10,14 @@
 #include <cassert>
 #include <iostream> // TODO
 
+std::ostream& operator<<(std::ostream& stream, const Vertex& vertex)
+{
+  stream << "Vertex{ pos: (" << vertex.pos << "), normal: (" << vertex.normal << "), colour: ("
+    << vertex.colour << "), tex coord: (" << vertex.texCoord << ") }";
+
+  return stream;
+}
+
 bool startsWith(const std::string& str, const std::string& prefix)
 {
   return str.size() >= prefix.size() && strncmp(str.c_str(), prefix.c_str(), prefix.size()) == 0;
@@ -204,51 +212,208 @@ MeshPtr cuboid(float_t W, float_t H, float_t D, const Vec3f& colour, const Vec2f
   return mesh;
 }
 
+namespace gltf
+{
+
+enum class ComponentType : unsigned long
+{
+  SignedByte = 5120,
+  UnsignedByte = 5121,
+  SignedShort = 5122,
+  UnsignedShort = 5123,
+  UnsignedInt = 5125,
+  Float = 5126
+};
+
+enum class ElementType
+{
+  Position,
+  Normal,
+  TexCoord,
+  Index
+};
+
+struct BufferDesc
+{
+  ElementType type;
+  uint32_t dimensions;
+  ComponentType componentType;
+  size_t size;
+  size_t byteLength;
+  size_t offset;
+  size_t index;
+};
+
+uint32_t dimensions(const std::string& type)
+{
+  if (type == "SCALAR") return 1;
+  else if (type == "VEC2") return 2;
+  else if (type == "VEC3") return 3;
+  else EXCEPTION("Unknown element type '" << type << "'");
+}
+
+ElementType parseElementType(const std::string& type)
+{
+  if (type == "POSITION") return ElementType::Position;
+  else if (type == "NORMAL") return ElementType::Normal;
+  else if (type == "TEXCOORD_0") return ElementType::TexCoord;
+  else if (type == "INDEX") return ElementType::Index;
+  else EXCEPTION("Unknown attribute type '" << type << "'");
+}
+
+size_t getSize(ComponentType type)
+{
+  switch (type) {
+    case ComponentType::SignedByte: return 1;
+    case ComponentType::UnsignedByte: return 1;
+    case ComponentType::SignedShort: return 2;
+    case ComponentType::UnsignedShort: return 2;
+    case ComponentType::UnsignedInt: return 4;
+    case ComponentType::Float: return 4;
+  }
+}
+
+std::vector<BufferDesc> extractBufferDescs(const nlohmann::json& json, size_t meshIndex)
+{
+  auto& meshes = json.at("meshes");
+  auto& accessors = json.at("accessors");
+  auto& bufferViews = json.at("bufferViews");
+
+  auto& mesh = meshes[meshIndex];
+
+  auto& meshPrimitives = mesh.at("primitives");
+  ASSERT(meshPrimitives.size() == 1, "Expect mesh to contain 1 set of primitives, but found "
+    << meshPrimitives.size());
+  auto& meshPrimitive = meshPrimitives[0];
+  auto& meshAttributes = meshPrimitive.at("attributes");
+
+  auto extractDesc = [&](const std::string& attributeName, unsigned long attributeIndex) {
+    auto& accessor = accessors[attributeIndex];
+
+    auto numElements = accessor.at("count").get<unsigned long>();
+    auto bufferViewIndex = accessor.at("bufferView").get<unsigned long>();
+    auto type = accessor.at("type").get<std::string>();
+    auto componentType = accessor.at("componentType").get<unsigned long>();
+
+    auto& bufferView = bufferViews[bufferViewIndex];
+    auto bufferIndex = bufferView.at("buffer").get<unsigned long>();
+
+    auto byteLength = bufferView.at("byteLength").get<unsigned long>();
+    auto byteOffset = bufferView.at("byteOffset").get<unsigned long>();
+
+    return BufferDesc{
+      .type = parseElementType(attributeName),
+      .dimensions = dimensions(type),
+      .componentType = static_cast<ComponentType>(componentType),
+      .size = numElements,
+      .byteLength = byteLength,
+      .offset = byteOffset,
+      .index = bufferIndex
+    };
+  };
+
+  std::vector<BufferDesc> descs;
+
+  for (const auto& [ attributeName, attributeIndex ] : meshAttributes.items()) {
+    descs.push_back(extractDesc(attributeName, attributeIndex.get<unsigned long>()));
+  }
+
+  auto indexBufferIndex = meshPrimitive.at("indices").get<unsigned long>();
+  descs.push_back(extractDesc("INDEX", indexBufferIndex));
+
+  return descs;
+}
+
+template<typename T>
+T convert(const char* p, ComponentType dataType)
+{
+  switch (dataType) {
+    case ComponentType::SignedByte: return static_cast<T>(*reinterpret_cast<const int8_t*>(p));
+    case ComponentType::UnsignedByte: return static_cast<T>(*reinterpret_cast<const uint8_t*>(p));
+    case ComponentType::SignedShort: return static_cast<T>(*reinterpret_cast<const int16_t*>(p));
+    case ComponentType::UnsignedShort: return static_cast<T>(*reinterpret_cast<const uint16_t*>(p));
+    case ComponentType::UnsignedInt: return static_cast<T>(*reinterpret_cast<const uint32_t*>(p));
+    case ComponentType::Float: return static_cast<T>(*reinterpret_cast<const float*>(p));
+  }
+}
+
+template<typename T>
+void convert(const char* src, ComponentType srcType, uint32_t n, T* dest)
+{
+  for (uint32_t i = 0; i < n; ++i) {
+    *(dest + i) = convert<T>(src + i * getSize(srcType), srcType);
+  }
+}
+
+template<typename T>
+void copyToBuffer(const std::vector<std::vector<char>>& srcBuffers, char* dstBuffer,
+  size_t structSize, size_t offsetIntoStruct, const BufferDesc& desc)
+{
+  const char* src = srcBuffers[desc.index].data() + desc.offset;
+  for (unsigned long i = 0; i < desc.size; ++i) {
+    size_t srcElemSize = getSize(desc.componentType) * desc.dimensions;
+    T* dstPtr = reinterpret_cast<T*>(dstBuffer + i * structSize + offsetIntoStruct);
+    convert<T>(src + i * srcElemSize, desc.componentType, desc.dimensions, dstPtr);
+  }
+}
+
+}
+
 // TODO
-void loadModel(FileSystem& fileSystem, const std::string& filePath)
+MeshPtr loadModel(const FileSystem& fileSystem, const std::string& filePath)
 {
   auto jsonData = fileSystem.readFile(filePath);
 
   auto root = nlohmann::json::parse(jsonData);
-  auto scenes = root.at("scenes");
-  auto meshes = root.at("meshes");
-  auto nodes = root.at("nodes");
+  auto& scenes = root.at("scenes");
+  auto& nodes = root.at("nodes");
   auto sceneIndex = root.at("scene").get<unsigned long>();
-  auto accessors = root.at("accessors");
-  auto bufferViews = root.at("bufferViews");
-  auto buffers = root.at("buffers");
-
-  auto scene = scenes.at(sceneIndex);
-  auto sceneNodes = scene.at("nodes");
-
-  // TODO
-  ASSERT(sceneNodes.size() == 1, "Expect scene to contain a single root node");
-
-  auto rootNodeIndex = sceneNodes.at(0).get<unsigned long>();
-  std::cout << "scene root node index = " << rootNodeIndex << std::endl;
-
-  auto rootNode = nodes.at(rootNodeIndex);
+  auto& scene = scenes[sceneIndex];
+  auto& sceneNodes = scene.at("nodes");
+  ASSERT(sceneNodes.size() == 1, "Assume scene contains 1 root node, found " << sceneNodes.size());
+  auto rootNodeIndex = sceneNodes[0].get<unsigned long>();
+  auto& rootNode = nodes[rootNodeIndex];
   auto meshIndex = rootNode.at("mesh").get<unsigned long>();
-  auto mesh = meshes.at(meshIndex);
+  auto bufferDescs = gltf::extractBufferDescs(root, meshIndex);
+  auto& buffers = root.at("buffers");
 
-  auto meshPrimitives = mesh.at("primitives");
-  auto meshAttributes = meshPrimitives.at("attributes");
+  std::vector<std::vector<char>> dataBuffers;
+  for (const auto& buffer : buffers) {
+    auto binFileName = buffer.at("uri").get<std::string>();
+    auto binPath = std::filesystem::path{filePath}.parent_path() / binFileName;
 
-  auto positionIndex = meshAttributes.at("POSITION").get<unsigned long>();
-  auto normalIndex = meshAttributes.at("NORMAL").get<unsigned long>();
-  auto texCoordIndex = meshAttributes.at("TEXCOORD_0").get<unsigned long>();
+    dataBuffers.push_back(fileSystem.readFile(binPath));
+  }
 
-  auto positionAccessor = accessors.at(positionIndex);
-  auto normalAccessor = accessors.at(normalIndex);
-  auto texCoordAccessor = accessors.at(texCoordIndex);
+  MeshPtr mesh = std::make_unique<Mesh>();
 
-  auto positionBufferViewIndex = positionAccessor.at("bufferView").get<unsigned long>();
-  auto normalBufferViewIndex = normalAccessor.at("bufferView").get<unsigned long>();
-  auto texCoordBufferViewIndex = texCoordAccessor.at("bufferView").get<unsigned long>();
+  auto getOffset = [](gltf::ElementType type) {
+    switch (type) {
+      case gltf::ElementType::Position: return offsetof(Vertex, pos);
+      case gltf::ElementType::Normal: return offsetof(Vertex, normal);
+      case gltf::ElementType::TexCoord: return offsetof(Vertex, texCoord);
+      default: return 0ul;
+    }
+  };
 
-  auto positionBufferView = bufferViews.at(positionBufferViewIndex);
-  auto normalBufferView = bufferViews.at(normalBufferViewIndex);
-  auto texCoordBufferView = bufferViews.at(texCoordBufferViewIndex);
+  for (const auto& bufferDesc : bufferDescs) {
+    if (bufferDesc.type == gltf::ElementType::Index) {
+      mesh->indices.resize(bufferDesc.size);
+      gltf::copyToBuffer<uint16_t>(dataBuffers, reinterpret_cast<char*>(mesh->indices.data()),
+        sizeof(uint16_t), 0, bufferDesc);
+    }
+    else {
+      if (mesh->vertices.size() == 0) {
+        mesh->vertices.resize(bufferDesc.size);
+      }
+      else {
+        ASSERT(mesh->vertices.size() == bufferDesc.size,
+          "Expected mesh to contain same number of each attribute");
+      }
+      gltf::copyToBuffer<float_t>(dataBuffers, reinterpret_cast<char*>(mesh->vertices.data()),
+        sizeof(Vertex), getOffset(bufferDesc.type), bufferDesc);
+    }
+  }
 
-
+  return mesh;
 }

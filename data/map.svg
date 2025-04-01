@@ -264,7 +264,7 @@
              id="tspan3-9-53"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=monkey</tspan></text>
+             y="26.306543">type=monkey2</tspan></text>
       </g>
       <g
          id="g4-5-3-1"
@@ -333,7 +333,7 @@
          inkscape:transform-center-y="0.15714354">
         <path
            style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
-           d="m 26.421483,23.269823 -0.644132,1.036904 1.794982,0.389542 z"
+           d="m 26.047102,23.630513 0.159768,1.210186 1.634743,-0.837448 z"
            id="path2-55-7"
            sodipodi:nodetypes="cccc" />
         <text
