@@ -32,6 +32,7 @@ using IndexList = std::vector<uint16_t>;
 
 struct Material
 {
+  Vec3f colour = { 1, 1, 1 };
   RenderItemId texture = NULL_ID;
   RenderItemId cubeMap = NULL_ID;
   RenderItemId normalMap = NULL_ID;
