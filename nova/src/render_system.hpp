@@ -14,6 +14,12 @@ enum class CRenderType
   Skybox
 };
 
+struct MeshMaterialPair
+{
+  RenderItemId mesh = NULL_ID;
+  RenderItemId material = NULL_ID;
+};
+
 struct CRender : public Component
 {
   CRender(EntityId entityId, CRenderType type)
@@ -22,10 +28,7 @@ struct CRender : public Component
   {}
 
   CRenderType type;
-
-  // TODO: Consider subclassing this
-  RenderItemId mesh = NULL_ID;
-  RenderItemId material = NULL_ID;
+  std::vector<MeshMaterialPair> meshes;
 };
 
 struct CRenderLight : public CRender

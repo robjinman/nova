@@ -5,5 +5,7 @@
       <ori x="0" y="0" z="0"/>
     </transform>
   </spatial-component>
-  <render-component mesh="grass" material="grass" type="instance"/>
+  <render-component type="instance">
+    <mesh mesh="grass" material="grass"/>
+  </render-component>
 </entity>
