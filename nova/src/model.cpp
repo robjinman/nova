@@ -1,6 +1,7 @@
 #include "model.hpp"
 #include "utils.hpp"
 #include "exception.hpp"
+#include "file_system.hpp"
 #include <nlohmann/json.hpp>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -204,13 +205,15 @@ MeshPtr cuboid(float_t W, float_t H, float_t D, const Vec3f& colour, const Vec2f
 }
 
 // TODO
-void loadModel(const std::vector<char>& jsonData)
+void loadModel(FileSystem& fileSystem, const std::string& filePath)
 {
+  auto jsonData = fileSystem.readFile(filePath);
+
   auto root = nlohmann::json::parse(jsonData);
   auto scenes = root.at("scenes");
   auto meshes = root.at("meshes");
   auto nodes = root.at("nodes");
-  unsigned long sceneIndex = root.at("scene").get<unsigned long>();
+  auto sceneIndex = root.at("scene").get<unsigned long>();
   auto accessors = root.at("accessors");
   auto bufferViews = root.at("bufferViews");
   auto buffers = root.at("buffers");
@@ -223,4 +226,29 @@ void loadModel(const std::vector<char>& jsonData)
 
   auto rootNodeIndex = sceneNodes.at(0).get<unsigned long>();
   std::cout << "scene root node index = " << rootNodeIndex << std::endl;
+
+  auto rootNode = nodes.at(rootNodeIndex);
+  auto meshIndex = rootNode.at("mesh").get<unsigned long>();
+  auto mesh = meshes.at(meshIndex);
+
+  auto meshPrimitives = mesh.at("primitives");
+  auto meshAttributes = meshPrimitives.at("attributes");
+
+  auto positionIndex = meshAttributes.at("POSITION").get<unsigned long>();
+  auto normalIndex = meshAttributes.at("NORMAL").get<unsigned long>();
+  auto texCoordIndex = meshAttributes.at("TEXCOORD_0").get<unsigned long>();
+
+  auto positionAccessor = accessors.at(positionIndex);
+  auto normalAccessor = accessors.at(normalIndex);
+  auto texCoordAccessor = accessors.at(texCoordIndex);
+
+  auto positionBufferViewIndex = positionAccessor.at("bufferView").get<unsigned long>();
+  auto normalBufferViewIndex = normalAccessor.at("bufferView").get<unsigned long>();
+  auto texCoordBufferViewIndex = texCoordAccessor.at("bufferView").get<unsigned long>();
+
+  auto positionBufferView = bufferViews.at(positionBufferViewIndex);
+  auto normalBufferView = bufferViews.at(normalBufferViewIndex);
+  auto texCoordBufferView = bufferViews.at(texCoordBufferViewIndex);
+
+
 }

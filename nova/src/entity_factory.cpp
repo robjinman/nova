@@ -140,9 +140,11 @@ void EntityFactoryImpl::loadMaterials(const XmlNode& root)
 
 void EntityFactoryImpl::loadModels(const XmlNode& root)
 {
+  // TODO
+
   for (auto& node : root) {
-    loadModel(m_fileSystem.readFile(node.attribute("file")));
-    // TODO
+    auto meshId = m_renderSystem.addMesh(loadModel(m_fileSystem, node.attribute("file")));
+    m_meshes[node.attribute("name")] = meshId;
   }
 }
 
