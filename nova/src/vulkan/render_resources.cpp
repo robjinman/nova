@@ -461,7 +461,7 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
 
   // TODO: Use staging buffer instead of host mapping
   MaterialUbo ubo{
-    .colour = { 1, 1, 1 }, // TODO
+    .colour = material->colour,
     .hasTexture = !usingNullTexture
   };
 

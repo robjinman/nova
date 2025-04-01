@@ -194,10 +194,14 @@ void SceneBuilder::constructOriginMarkers()
 
     // TODO: Use colour
 
+    MaterialPtr material = std::make_unique<Material>();
+    material->colour = colour;
+
     MeshPtr mesh = cuboid(w, h, d, Vec2f{ 1, 1 });
     auto meshId = m_renderSystem.addMesh(std::move(mesh));
     CRenderPtr render = std::make_unique<CRender>(id, CRenderType::Regular);
     render->mesh = meshId;
+    render->material = m_renderSystem.addMaterial(std::move(material));
     m_renderSystem.addComponent(std::move(render));
 
     CSpatialPtr spatial = std::make_unique<CSpatial>(id, translationMatrix4x4(Vec3f{ x, 0, z }),
