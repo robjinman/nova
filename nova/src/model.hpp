@@ -12,7 +12,6 @@ struct Vertex
 {
   Vec3f pos;
   Vec3f normal;
-  Vec3f colour = { 1, 1, 1 }; // TODO: Remove per vertex colours
   Vec2f texCoord;
 };
 
@@ -58,4 +57,4 @@ class FileSystem;
 // TODO: Load glTF model
 MeshPtr loadModel(const FileSystem& fileSystem, const std::string& filePath);
 
-MeshPtr cuboid(float_t w, float_t h, float_t d, const Vec3f& colour, const Vec2f& textureSize);
+MeshPtr cuboid(float_t w, float_t h, float_t d, const Vec2f& textureSize);

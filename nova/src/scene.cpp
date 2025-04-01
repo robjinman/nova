@@ -163,7 +163,7 @@ void SceneBuilder::constructSky()
   EntityId entityId = System::nextId();
 
   auto render = std::make_unique<CRender>(entityId, CRenderType::Skybox);
-  auto mesh = cuboid(10000, 10000, 10000, { 1, 1, 1 }, Vec2f{ 1, 1 });
+  auto mesh = cuboid(10000, 10000, 10000, Vec2f{ 1, 1 });
   std::reverse(mesh->indices.begin(), mesh->indices.end());
   std::array<TexturePtr, 6> textures{
     loadTexture(m_fileSystem.readFile("resources/textures/skybox/right.png")),
@@ -192,7 +192,9 @@ void SceneBuilder::constructOriginMarkers()
     float_t d = metresToWorldUnits(1);
     float_t h = metresToWorldUnits(20);
 
-    MeshPtr mesh = cuboid(w, h, d, colour, Vec2f{ 1, 1 });
+    // TODO: Use colour
+
+    MeshPtr mesh = cuboid(w, h, d, Vec2f{ 1, 1 });
     auto meshId = m_renderSystem.addMesh(std::move(mesh));
     CRenderPtr render = std::make_unique<CRender>(id, CRenderType::Regular);
     render->mesh = meshId;
@@ -284,7 +286,7 @@ MeshPtr mergeMeshes(const Mesh& A, const Mesh& B)
   return mesh;
 }
 
-MeshPtr createBottomFace(const std::vector<Vec4f>& points, const Vec3f& colour)
+MeshPtr createBottomFace(const std::vector<Vec4f>& points)
 {
   MeshPtr mesh = std::make_unique<Mesh>();
 
@@ -295,7 +297,7 @@ MeshPtr createBottomFace(const std::vector<Vec4f>& points, const Vec3f& colour)
     auto& p = *i;
     vertices.push_back(p);
     Vec2f uv{ p[0] / textureSize[0], p[2] / textureSize[1] };
-    Vertex vertex{ p.sub<3>(), Vec3f{ 0, -1, 0 }, colour, uv };
+    Vertex vertex{ p.sub<3>(), Vec3f{ 0, -1, 0 }, uv };
     mesh->vertices.push_back(vertex);
   }
 
@@ -304,9 +306,9 @@ MeshPtr createBottomFace(const std::vector<Vec4f>& points, const Vec3f& colour)
   return mesh;
 }
 
-MeshPtr createTopFace(const std::vector<Vec4f>& points, const Vec3f& colour, float_t height)
+MeshPtr createTopFace(const std::vector<Vec4f>& points, float_t height)
 {
-  auto mesh = createBottomFace(points, colour);
+  auto mesh = createBottomFace(points);
   Vec3f normal{ 0, 1, 0 };
 
   for (auto& p : mesh->vertices) {
@@ -406,10 +408,9 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
   }
 
   Mat4x4f transform = parentTransform * offset * centredObj.transform;
-  Vec3f colour{ 0.15f, 0.1f, 0.08f };
 
-  auto bottomFace = createBottomFace(centredObj.path.points, colour);
-  auto topFace = createTopFace(centredObj.path.points, colour, height);
+  auto bottomFace = createBottomFace(centredObj.path.points);
+  auto topFace = createTopFace(centredObj.path.points, height);
 
   auto mesh = mergeMeshes(*bottomFace, *topFace);
   createSideFaces(*mesh);
@@ -444,7 +445,6 @@ void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTra
   Vec2f textureSize = metresToWorldUnits(Vec2f{ 4, 4 });
 
   float_t wallHeight = metresToWorldUnits(getFloatValue(obj.values, "height"));
-  const Vec3f colour{ 0.3f, 0.25f, 0.2f };
 
   auto& points = obj.path.points;
 
@@ -477,7 +477,7 @@ void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTra
     EntityId entityId = System::nextId();
 
     CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::Regular);
-    auto mesh = cuboid(wallThickness, wallHeight, distance, colour, textureSize);
+    auto mesh = cuboid(wallThickness, wallHeight, distance, textureSize);
     float_t radius = computeRadius(*mesh);
     render->mesh = m_renderSystem.addMesh(std::move(mesh));
     render->material = m_wallMaterial;

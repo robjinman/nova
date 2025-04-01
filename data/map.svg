@@ -24,8 +24,8 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="2.4673516"
-     inkscape:cx="147.32396"
-     inkscape:cy="187.2453"
+     inkscape:cx="98.28352"
+     inkscape:cy="252.09216"
      inkscape:window-width="1200"
      inkscape:window-height="965"
      inkscape:window-x="0"
@@ -735,7 +735,7 @@
              id="tspan2302-6"
              style="stroke-width:0.264583"
              x="23.697046"
-             y="89.415619">floor=0</tspan></text>
+             y="89.415619">floor=0.1</tspan></text>
         <text
            xml:space="preserve"
            style="font-style:normal;font-weight:normal;font-size:1.05478px;line-height:1.25;font-family:sans-serif;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"

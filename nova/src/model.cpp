@@ -12,8 +12,8 @@
 
 std::ostream& operator<<(std::ostream& stream, const Vertex& vertex)
 {
-  stream << "Vertex{ pos: (" << vertex.pos << "), normal: (" << vertex.normal << "), colour: ("
-    << vertex.colour << "), tex coord: (" << vertex.texCoord << ") }";
+  stream << "Vertex{ pos: (" << vertex.pos << "), normal: (" << vertex.normal << "), tex coord: ("
+    << vertex.texCoord << ") }";
 
   return stream;
 }
@@ -48,8 +48,6 @@ MeshPtr loadMesh(const std::vector<char>& data)
   std::smatch match;
 
   auto mesh = std::make_unique<Mesh>();
-
-  Vec3f colour{ 1, 1, 1 };
 
   while (!stream.eof()) {
     std::getline(stream, line);
@@ -100,7 +98,6 @@ MeshPtr loadMesh(const std::vector<char>& data)
         Vertex vertex{};
         vertex.pos = vertices[vertexIdx];
         vertex.normal = normals[normalIdx];
-        vertex.colour = colour;
         vertex.texCoord = uvCoords[uvCoordIdx];
 
         mesh->vertices.push_back(vertex);
@@ -147,7 +144,7 @@ TexturePtr loadTexture(const std::vector<char>& data)
   return texture;
 }
 
-MeshPtr cuboid(float_t W, float_t H, float_t D, const Vec3f& colour, const Vec2f& textureSize)
+MeshPtr cuboid(float_t W, float_t H, float_t D, const Vec2f& textureSize)
 {
   float_t w = W / 2.f;
   float_t h = H / 2.f;
@@ -165,40 +162,40 @@ MeshPtr cuboid(float_t W, float_t H, float_t D, const Vec3f& colour, const Vec2f
   //
   mesh->vertices = {
     // Bottom face
-    {{ -w, -h, -d }, { 0, -1, 0 }, colour, { 0, 0 }},         // A  0
-    {{ w, -h, -d }, { 0, -1, 0 }, colour, { W / u, 0 }},      // B  1
-    {{ w, -h, d }, { 0, -1, 0 }, colour, { W /u, D / v }},    // C  2
-    {{ -w, -h, d }, { 0, -1, 0 }, colour, { 0, D / v }},      // D  3
+    {{ -w, -h, -d }, { 0, -1, 0 }, { 0, 0 }},         // A  0
+    {{ w, -h, -d }, { 0, -1, 0 }, { W / u, 0 }},      // B  1
+    {{ w, -h, d }, { 0, -1, 0 }, { W /u, D / v }},    // C  2
+    {{ -w, -h, d }, { 0, -1, 0 }, { 0, D / v }},      // D  3
 
     // Top face
-    {{ -w, h, d }, { 0, 1, 0 }, colour, { 0, D / v }},        // D' 4
-    {{ w, h, d }, { 0, 1, 0 }, colour, { W / u, D / v }},     // C' 5
-    {{ w, h, -d }, { 0, 1, 0 }, colour, { W / u, 0 }},        // B' 6
-    {{ -w, h, -d }, { 0, 1, 0 }, colour, { 0, 0 }},           // A' 7
+    {{ -w, h, d }, { 0, 1, 0 }, { 0, D / v }},        // D' 4
+    {{ w, h, d }, { 0, 1, 0 }, { W / u, D / v }},     // C' 5
+    {{ w, h, -d }, { 0, 1, 0 }, { W / u, 0 }},        // B' 6
+    {{ -w, h, -d }, { 0, 1, 0 }, { 0, 0 }},           // A' 7
 
     // Right face
-    {{ w, -h, d }, { 1, 0, 0 }, colour, { D / u, 0 }},        // C  8
-    {{ w, -h, -d }, { 1, 0, 0 }, colour, { 0, 0 }},           // B  9
-    {{ w, h, -d }, { 1, 0, 0 }, colour, { 0, H / v }},        // B' 10
-    {{ w, h, d }, { 1, 0, 0 }, colour, { D / u, H / v }},     // C' 11
+    {{ w, -h, d }, { 1, 0, 0 }, { D / u, 0 }},        // C  8
+    {{ w, -h, -d }, { 1, 0, 0 }, { 0, 0 }},           // B  9
+    {{ w, h, -d }, { 1, 0, 0 }, { 0, H / v }},        // B' 10
+    {{ w, h, d }, { 1, 0, 0 }, { D / u, H / v }},     // C' 11
 
     // Left face
-    {{ -w, -h, -d }, { -1, 0, 0 }, colour, { 0, 0 }},         // A  12
-    {{ -w, -h, d }, { -1, 0, 0 }, colour, { D / u, 0 }},      // D  13
-    {{ -w, h, d }, { -1, 0, 0 }, colour, { D / u, H / v }},   // D' 14
-    {{ -w, h, -d }, { -1, 0, 0 }, colour, { 0, H / v }},      // A' 15
+    {{ -w, -h, -d }, { -1, 0, 0 }, { 0, 0 }},         // A  12
+    {{ -w, -h, d }, { -1, 0, 0 }, { D / u, 0 }},      // D  13
+    {{ -w, h, d }, { -1, 0, 0 }, { D / u, H / v }},   // D' 14
+    {{ -w, h, -d }, { -1, 0, 0 }, { 0, H / v }},      // A' 15
 
     // Far face
-    {{ -w, -h, -d }, { 0, 0, -1 }, colour, { 0, 0 }},         // A  16
-    {{ -w, h, -d }, { 0, 0, -1 }, colour, { 0, H / v }},      // A' 17
-    {{ w, h, -d }, { 0, 0, -1 }, colour, { W / u, H / v }},   // B' 18
-    {{ w, -h, -d }, { 0, 0, -1 }, colour, { W / u, 0 }},      // B  19
+    {{ -w, -h, -d }, { 0, 0, -1 }, { 0, 0 }},         // A  16
+    {{ -w, h, -d }, { 0, 0, -1 }, { 0, H / v }},      // A' 17
+    {{ w, h, -d }, { 0, 0, -1 }, { W / u, H / v }},   // B' 18
+    {{ w, -h, -d }, { 0, 0, -1 }, { W / u, 0 }},      // B  19
 
     // Near face
-    {{ -w, -h, d }, { 0, 0, 1 }, colour, { 0, 0 }},           // D  20
-    {{ w, -h, d }, { 0, 0, 1 }, colour, { W / u, 0 }},        // C  21
-    {{ w, h, d }, { 0, 0, 1 }, colour, { W / u, H / v }},     // C' 22
-    {{ -w, h, d }, { 0, 0, 1 }, colour, { 0, H / v }},        // D' 23
+    {{ -w, -h, d }, { 0, 0, 1 }, { 0, 0 }},           // D  20
+    {{ w, -h, d }, { 0, 0, 1 }, { W / u, 0 }},        // C  21
+    {{ w, h, d }, { 0, 0, 1 }, { W / u, H / v }},     // C' 22
+    {{ -w, h, d }, { 0, 0, 1 }, { 0, H / v }},        // D' 23
   };
   mesh->indices = {
     0, 1, 2, 0, 2, 3,         // Bottom face
