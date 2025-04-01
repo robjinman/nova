@@ -19,6 +19,6 @@
   </materials>
   <!-- glTF models. This will eventually replace meshes/materials/textures -->
   <models>
-    <model name="monkey2" file="resources/models/monkey.gltf" />
+    <model name="monkey2" file="resources/models/monkey.gltf" instanced="false" />
   </models>
 </resources>

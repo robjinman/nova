@@ -12,9 +12,11 @@ struct Vertex
 {
   Vec3f pos;
   Vec3f normal;
-  Vec3f colour;
+  Vec3f colour = { 1, 1, 1 }; // TODO: Remove per vertex colours
   Vec2f texCoord;
 };
+
+std::ostream& operator<<(std::ostream& stream, const Vertex& vertex);
 
 struct Texture
 {

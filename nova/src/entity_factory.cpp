@@ -124,6 +124,21 @@ void EntityFactoryImpl::loadMeshes(const XmlNode& root)
   }
 }
 
+void EntityFactoryImpl::loadModels(const XmlNode& root)
+{
+  // TODO
+
+  for (auto& node : root) {
+    ASSERT(node.name() == "model", "Expected 'model' node");
+    auto mesh = loadModel(m_fileSystem, node.attribute("file"));
+    mesh->isInstanced = node.attribute("instanced") == "true";
+    if (mesh->isInstanced) {
+      mesh->maxInstances = std::stoi(node.attribute("max-instances"));
+    }
+    m_meshes[node.attribute("name")] = m_renderSystem.addMesh(std::move(mesh));
+  }
+}
+
 void EntityFactoryImpl::loadMaterials(const XmlNode& root)
 {
   for (auto& node : root) {
@@ -135,16 +150,6 @@ void EntityFactoryImpl::loadMaterials(const XmlNode& root)
       material->normalMap = m_textures.at(node.attribute(normalMap));
     }
     m_materials[node.attribute("name")] = m_renderSystem.addMaterial(std::move(material));
-  }
-}
-
-void EntityFactoryImpl::loadModels(const XmlNode& root)
-{
-  // TODO
-
-  for (auto& node : root) {
-    auto meshId = m_renderSystem.addMesh(loadModel(m_fileSystem, node.attribute("file")));
-    m_meshes[node.attribute("name")] = meshId;
   }
 }
 
