@@ -24,10 +24,9 @@ layout(std140, set = 2, binding = 0) uniform LightingUbo
   Light lights[8];
 } lighting;
 
-layout(location = 0) in vec3 inColour;
-layout(location = 1) in vec2 inTexCoord;
-layout(location = 2) in vec3 inWorldPos;
-layout(location = 3) in vec3 inNormal;
+layout(location = 0) in vec2 inTexCoord;
+layout(location = 1) in vec3 inWorldPos;
+layout(location = 2) in vec3 inNormal;
 
 layout(location = 0) out vec4 outColour;
 
@@ -67,5 +66,5 @@ void main()
   vec3 light = computeLight();
   vec3 texel = computeTexel();
 
-  outColour = vec4(inColour * light * texel, 1.0);
+  outColour = vec4(light * texel, 1.0);
 }
