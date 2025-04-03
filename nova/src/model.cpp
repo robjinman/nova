@@ -187,6 +187,7 @@ MaterialPtr constructMaterial(const gltf::MaterialDesc& materialDesc)
 
   material->texture.fileName = materialDesc.baseColourTexture;
   material->normalMap.fileName = materialDesc.normalMap;
+  material->colour = materialDesc.baseColourFactor;
   // TODO: PBR attributes
 
   return material;

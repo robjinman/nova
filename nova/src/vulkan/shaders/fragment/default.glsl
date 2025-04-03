@@ -6,7 +6,7 @@ layout(set = 1, binding = 0) uniform sampler2D texSampler;
 
 layout(std140, set = 1, binding = 1) uniform MaterialUbo
 {
-  vec3 colour;
+  vec4 colour;
   bool hasTexture;
   //bool hasNormalMap;
 } material;
@@ -50,7 +50,9 @@ vec3 computeLight()
 
 vec3 computeTexel()
 {
-  vec3 texel = material.colour;
+  // TODO: Transparency
+
+  vec3 texel = material.colour.xyz;
 
   if (material.hasTexture) {
     texel = texel * texture(texSampler, inTexCoord).rgb;
