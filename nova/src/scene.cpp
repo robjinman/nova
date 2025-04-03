@@ -195,7 +195,7 @@ void SceneBuilder::constructSky()
 
 void SceneBuilder::constructOriginMarkers()
 {
-  auto construct = [this](float_t x, float_t z, const Vec3f& colour) {
+  auto construct = [this](float_t x, float_t z, const Vec4f& colour) {
     EntityId id = System::nextId();
 
     float_t w = metresToWorldUnits(1);
@@ -222,9 +222,9 @@ void SceneBuilder::constructOriginMarkers()
   };
 
   float_t distanceFromOrigin = metresToWorldUnits(5);
-  construct(0, 0, { 1, 0, 0 });
-  construct(distanceFromOrigin, 0, { 0, 1, 0 });
-  construct(0, distanceFromOrigin, { 0, 0, 1 });
+  construct(0, 0, { 1, 0, 0, 1 });
+  construct(distanceFromOrigin, 0, { 0, 1, 0, 1 });
+  construct(0, distanceFromOrigin, { 0, 0, 1, 1 });
 }
 
 void SceneBuilder::constructInstances(const ObjectData& objectData)

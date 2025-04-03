@@ -29,7 +29,7 @@ struct LightingUbo
 
 struct MaterialUbo
 {
-  Vec3f colour;
+  Vec4f colour;
   VkBool32 hasTexture;
 };
 

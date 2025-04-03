@@ -1,5 +1,6 @@
 #pragma once
 
+#include "math.hpp"
 #include <vector>
 
 namespace gltf
@@ -38,8 +39,9 @@ struct MaterialDesc
 {
   std::string baseColourTexture;
   std::string normalMap;
-  float metallicFactor;
-  float roughnessFactor;
+  Vec4f baseColourFactor = { 1, 1, 1, 1 };
+  float metallicFactor = 0.f;
+  float roughnessFactor = 0.f;
 };
 
 struct MeshDesc

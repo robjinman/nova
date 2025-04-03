@@ -33,7 +33,7 @@ struct MaterialResource
 
 struct Material
 {
-  Vec3f colour = { 1, 1, 1 };
+  Vec4f colour = { 1, 1, 1, 1 };
   MaterialResource texture;
   MaterialResource cubeMap;
   MaterialResource normalMap;

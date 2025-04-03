@@ -53,28 +53,40 @@ BufferDesc extractBufferDesc(const nlohmann::json& root, const std::string& attr
 
 MaterialDesc extractMaterialDesc(const nlohmann::json& root, unsigned long materialIndex)
 {
+  MaterialDesc materialDesc;
+
   auto& materials = root.at("materials");
-  auto& textures = root.at("textures");
-  auto& images = root.at("images");
+  auto iTextures = root.find("textures");
+  auto iImages = root.find("images");
   auto& material = materials[materialIndex];
   auto& pbr = material.at("pbrMetallicRoughness");
-  auto& baseColourTextureInfo = pbr.at("baseColorTexture");
-  auto baseColourTextureIndex = baseColourTextureInfo.at("index").get<unsigned long>();
-  auto& normalTextureInfo = material.at("normalTexture");
-  auto normalTextureIndex = normalTextureInfo.at("index").get<unsigned long>();
-  auto& normalTexture = textures[normalTextureIndex];
-  auto& baseColourTexture = textures[baseColourTextureIndex];
-  auto baseColourSourceIndex = baseColourTexture.at("source").get<unsigned long>();
-  auto normalSourceIndex = normalTexture.at("source").get<unsigned long>();
-  auto& baseColourImage = images[baseColourSourceIndex];
-  auto& normalImage = images[normalSourceIndex];
+  auto iBaseColourFactor = pbr.find("baseColorFactor");
+  if (iBaseColourFactor != pbr.end()) {
+    materialDesc.baseColourFactor[0] = (*iBaseColourFactor)[0].get<float>();
+    materialDesc.baseColourFactor[1] = (*iBaseColourFactor)[1].get<float>();
+    materialDesc.baseColourFactor[2] = (*iBaseColourFactor)[2].get<float>();
+    materialDesc.baseColourFactor[3] = (*iBaseColourFactor)[3].get<float>();
+  }
+  auto iBaseColourTextureInfo = pbr.find("baseColorTexture");
+  if (iBaseColourTextureInfo != pbr.end()) {
+    auto baseColourTextureIndex = iBaseColourTextureInfo->at("index").get<unsigned long>();
+    auto& baseColourTexture = (*iTextures)[baseColourTextureIndex];
+    auto baseColourSourceIndex = baseColourTexture.at("source").get<unsigned long>();
+    auto& baseColourImage = (*iImages)[baseColourSourceIndex];
+    materialDesc.baseColourTexture = baseColourImage.at("uri").get<std::string>();
+  }
+  auto iNormalTextureInfo = material.find("normalTexture");
+  if (iNormalTextureInfo != material.end()) {
+    auto normalTextureIndex = iNormalTextureInfo->at("index").get<unsigned long>();
+    auto& normalTexture = (*iTextures)[normalTextureIndex];
+    auto normalSourceIndex = normalTexture.at("source").get<unsigned long>();
+    auto& normalImage = (*iImages)[normalSourceIndex];
+    materialDesc.normalMap = normalImage.at("uri").get<std::string>();
+  }
+  materialDesc.metallicFactor = pbr.at("metallicFactor").get<float>();
+  materialDesc.roughnessFactor = pbr.at("roughnessFactor").get<float>();
 
-  return MaterialDesc{
-    .baseColourTexture = baseColourImage.at("uri").get<std::string>(),
-    .normalMap = normalImage.at("uri").get<std::string>(),
-    .metallicFactor = pbr.at("metallicFactor").get<float>(),
-    .roughnessFactor = pbr.at("roughnessFactor").get<float>()
-  };
+  return materialDesc;
 }
 
 ModelDesc extractModelDesc(const std::vector<char>& jsonData)

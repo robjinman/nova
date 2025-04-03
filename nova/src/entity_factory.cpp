@@ -122,9 +122,9 @@ void EntityFactoryImpl::loadModel(const std::string& name, bool isInstanced, int
     if (isInstanced) {
       submodel->mesh->maxInstances = maxInstances;
     }
-
-    m_models[name] = gpuLoadModel(std::move(model));
   }
+
+  m_models[name] = gpuLoadModel(std::move(model));
 }
 
 ModelResources EntityFactoryImpl::gpuLoadModel(ModelPtr model)
