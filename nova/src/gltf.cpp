@@ -5,6 +5,9 @@
 namespace gltf
 {
 
+namespace
+{
+
 ElementType parseElementType(const std::string& type)
 {
   if (type == "POSITION") return ElementType::Position;
@@ -83,11 +86,15 @@ MaterialDesc extractMaterialDesc(const nlohmann::json& root, unsigned long mater
     auto& normalImage = (*iImages)[normalSourceIndex];
     materialDesc.normalMap = normalImage.at("uri").get<std::string>();
   }
-  materialDesc.metallicFactor = pbr.at("metallicFactor").get<float>();
-  materialDesc.roughnessFactor = pbr.at("roughnessFactor").get<float>();
+
+  // TODO: Don't assume these are present
+  //materialDesc.metallicFactor = pbr.at("metallicFactor").get<float>();
+  //materialDesc.roughnessFactor = pbr.at("roughnessFactor").get<float>();
 
   return materialDesc;
 }
+
+} // namespace
 
 ModelDesc extractModelDesc(const std::vector<char>& jsonData)
 {
