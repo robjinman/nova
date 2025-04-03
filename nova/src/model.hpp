@@ -15,8 +15,6 @@ struct Vertex
   Vec2f texCoord;
 };
 
-std::ostream& operator<<(std::ostream& stream, const Vertex& vertex);
-
 struct Texture
 {
   uint32_t width = 0;
@@ -27,18 +25,26 @@ struct Texture
 
 using TexturePtr = std::unique_ptr<Texture>;
 
-using VertexList = std::vector<Vertex>;
-using IndexList = std::vector<uint16_t>;
+struct MaterialResource
+{
+  std::string fileName;
+  RenderItemId id = NULL_ID;
+};
 
 struct Material
 {
   Vec3f colour = { 1, 1, 1 };
-  RenderItemId texture = NULL_ID;
-  RenderItemId cubeMap = NULL_ID;
-  RenderItemId normalMap = NULL_ID;
+  MaterialResource texture;
+  MaterialResource cubeMap;
+  MaterialResource normalMap;
+  float_t metallicFactor = 0.f;
+  float_t roughnessFactor = 0.f;
 };
 
 using MaterialPtr = std::unique_ptr<Material>;
+
+using VertexList = std::vector<Vertex>;
+using IndexList = std::vector<uint16_t>;
 
 struct Mesh
 {
@@ -50,12 +56,24 @@ struct Mesh
 
 using MeshPtr = std::unique_ptr<Mesh>;
 
-MeshPtr loadMesh(const std::vector<char>& data);
-TexturePtr loadTexture(const std::vector<char>& data);
+struct Submodel
+{
+  MeshPtr mesh;
+  MaterialPtr material;
+};
+
+using SubmodelPtr = std::unique_ptr<Submodel>;
+
+struct Model
+{
+  std::vector<SubmodelPtr> submodels;
+};
+
+using ModelPtr = std::unique_ptr<Model>;
 
 class FileSystem;
-
-// TODO: Load glTF model
-MeshPtr loadModel(const FileSystem& fileSystem, const std::string& filePath);
-
+TexturePtr loadTexture(const std::vector<char>& data);
+ModelPtr loadModel(const FileSystem& fileSystem, const std::string& filePath);
 MeshPtr cuboid(float_t w, float_t h, float_t d, const Vec2f& textureSize);
+
+std::ostream& operator<<(std::ostream& stream, const Vertex& vertex);

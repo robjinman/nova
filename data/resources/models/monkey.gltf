@@ -18,6 +18,22 @@
 			"name":"Suzanne"
 		}
 	],
+	"materials":[
+		{
+			"doubleSided":true,
+			"name":"brick",
+			"normalTexture":{
+				"index":0
+			},
+			"pbrMetallicRoughness":{
+				"baseColorTexture":{
+					"index":1
+				},
+				"metallicFactor":0,
+				"roughnessFactor":0.5
+			}
+		}
+	],
 	"meshes":[
 		{
 			"name":"Suzanne",
@@ -28,16 +44,39 @@
 						"NORMAL":1,
 						"TEXCOORD_0":2
 					},
-					"indices":3
+					"indices":3,
+					"material":0
 				}
 			]
+		}
+	],
+	"textures":[
+		{
+			"sampler":0,
+			"source":0
+		},
+		{
+			"sampler":0,
+			"source":1
+		}
+	],
+	"images":[
+		{
+			"mimeType":"image/png",
+			"name":"bricks_normal",
+			"uri":"bricks_normal.png"
+		},
+		{
+			"mimeType":"image/png",
+			"name":"bricks_colour",
+			"uri":"bricks_colour.png"
 		}
 	],
 	"accessors":[
 		{
 			"bufferView":0,
 			"componentType":5126,
-			"count":2865,
+			"count":1966,
 			"max":[
 				1.3671875,
 				0.984375,
@@ -53,51 +92,57 @@
 		{
 			"bufferView":1,
 			"componentType":5126,
-			"count":2865,
+			"count":1966,
 			"type":"VEC3"
 		},
 		{
 			"bufferView":2,
 			"componentType":5126,
-			"count":2865,
+			"count":1966,
 			"type":"VEC2"
 		},
 		{
 			"bufferView":3,
 			"componentType":5123,
-			"count":2901,
+			"count":2904,
 			"type":"SCALAR"
 		}
 	],
 	"bufferViews":[
 		{
 			"buffer":0,
-			"byteLength":34380,
+			"byteLength":23592,
 			"byteOffset":0,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":34380,
-			"byteOffset":34380,
+			"byteLength":23592,
+			"byteOffset":23592,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":22920,
-			"byteOffset":68760,
+			"byteLength":15728,
+			"byteOffset":47184,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":5802,
-			"byteOffset":91680,
+			"byteLength":5808,
+			"byteOffset":62912,
 			"target":34963
+		}
+	],
+	"samplers":[
+		{
+			"magFilter":9729,
+			"minFilter":9987
 		}
 	],
 	"buffers":[
 		{
-			"byteLength":97484,
+			"byteLength":68720,
 			"uri":"monkey.bin"
 		}
 	]

@@ -8,7 +8,7 @@
    version="1.1"
    id="svg1"
    inkscape:version="1.4 (e7c3feb1, 2024-10-09)"
-   sodipodi:docname="map.svg"
+   sodipodi:docname="map1.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -25,12 +25,12 @@
      inkscape:document-units="mm"
      inkscape:zoom="2.4673516"
      inkscape:cx="98.28352"
-     inkscape:cy="414.20931"
-     inkscape:window-width="1200"
+     inkscape:cy="284.51559"
+     inkscape:window-width="1920"
      inkscape:window-height="965"
      inkscape:window-x="0"
      inkscape:window-y="25"
-     inkscape:window-maximized="0"
+     inkscape:window-maximized="1"
      inkscape:current-layer="g5"
      inkscape:pageshadow="2"
      showgrid="false"
@@ -55,7 +55,7 @@
        style="text-align:start;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect1);display:inline;fill:#000000"><tspan
          x="357.96094"
          y="880.56125"
-         id="tspan3">8</tspan></text>
+         id="tspan1">8</tspan></text>
     <g
        id="g5">
       <text
@@ -245,26 +245,6 @@
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
              y="26.306543">type=monkey</tspan></text>
-      </g>
-      <g
-         id="g4-5-3"
-         transform="translate(21.5403,19.958375)">
-        <path
-           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
-           d="m 27.325056,24.562198 -0.02074,-1.220512 -1.719575,0.645574 z"
-           id="path2-1-6"
-           sodipodi:nodetypes="cccc" />
-        <text
-           xml:space="preserve"
-           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
-           x="23.180428"
-           y="26.306543"
-           id="text3-3-7"><tspan
-             sodipodi:role="line"
-             id="tspan3-9-53"
-             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
-             x="23.180428"
-             y="26.306543">type=monkey2</tspan></text>
       </g>
       <g
          id="g4-5-3-1"
@@ -647,106 +627,6 @@
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.105963"
              x="24.980074"
              y="30.505844">height=2</tspan></text>
-      </g>
-      <g
-         id="g4-5-8-6-0-0"
-         transform="translate(-15.623138,31.805665)">
-        <path
-           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
-           d="m 26.172984,24.413155 1.055896,0.612506 0.335144,-1.805929 z"
-           id="path2-1-7-7-5-4"
-           sodipodi:nodetypes="cccc" />
-        <text
-           xml:space="preserve"
-           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
-           x="23.180428"
-           y="26.306543"
-           id="text3-3-1-9-2-4"><tspan
-             sodipodi:role="line"
-             id="tspan3-9-5-4-3-44"
-             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
-             x="23.180428"
-             y="26.306543">type=dinosaur</tspan></text>
-      </g>
-      <g
-         id="g4-5-8-6-0-893-2-3"
-         transform="translate(13.513044,99.509645)">
-        <path
-           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
-           d="m 27.161879,24.759967 0.687835,-1.008445 -1.776698,-0.465878 z"
-           id="path2-1-7-7-5-68-6-6"
-           sodipodi:nodetypes="cccc" />
-        <text
-           xml:space="preserve"
-           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
-           x="23.180428"
-           y="26.306543"
-           id="text3-3-1-9-2-02-5-7"><tspan
-             sodipodi:role="line"
-             id="tspan3-9-5-4-3-10-2-5"
-             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
-             x="23.180428"
-             y="26.306543">type=tree2</tspan></text>
-      </g>
-      <g
-         id="g4-5-8-6-0-893-2-3-3"
-         transform="translate(31.536262,103.68311)">
-        <path
-           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
-           d="m 27.161879,24.759967 0.687835,-1.008445 -1.776698,-0.465878 z"
-           id="path2-1-7-7-5-68-6-6-5"
-           sodipodi:nodetypes="cccc" />
-        <text
-           xml:space="preserve"
-           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
-           x="23.180428"
-           y="26.306543"
-           id="text3-3-1-9-2-02-5-7-6"><tspan
-             sodipodi:role="line"
-             id="tspan3-9-5-4-3-10-2-5-2"
-             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
-             x="23.180428"
-             y="26.306543">type=tree</tspan></text>
-      </g>
-      <g
-         id="g4329">
-        <path
-           style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-           d="m 15.075468,84.611638 -3.280984,27.717192 73.834765,6.59158 12.045434,-69.682169 -43.338729,0.48365 -1.406297,31.664814 z"
-           id="path1574" />
-        <text
-           xml:space="preserve"
-           style="font-style:normal;font-weight:normal;font-size:1.05478px;line-height:1.25;font-family:sans-serif;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-           x="23.663769"
-           y="87.966194"
-           id="text2304"><tspan
-             sodipodi:role="line"
-             id="tspan2302"
-             style="stroke-width:0.264583"
-             x="23.663769"
-             y="87.966194">type=zone</tspan></text>
-        <text
-           xml:space="preserve"
-           style="font-style:normal;font-weight:normal;font-size:1.05478px;line-height:1.25;font-family:sans-serif;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-           x="23.697046"
-           y="89.415619"
-           id="text2304-3"><tspan
-             sodipodi:role="line"
-             id="tspan2302-6"
-             style="stroke-width:0.264583"
-             x="23.697046"
-             y="89.415619">floor=0.1</tspan></text>
-        <text
-           xml:space="preserve"
-           style="font-style:normal;font-weight:normal;font-size:1.05478px;line-height:1.25;font-family:sans-serif;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-           x="23.628275"
-           y="90.779625"
-           id="text2304-3-7"><tspan
-             sodipodi:role="line"
-             id="tspan2302-6-5"
-             style="stroke-width:0.264583"
-             x="23.628275"
-             y="90.779625">fill=grass</tspan></text>
       </g>
     </g>
   </g>

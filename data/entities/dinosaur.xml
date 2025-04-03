@@ -5,8 +5,5 @@
       <ori x="0" y="0" z="0"/>
     </transform>
   </spatial-component>
-  <!-- TODO: Replace mesh/material pairs with single gltf model -->
-  <render-component type="regular">
-    <mesh mesh="dinosaur" material="dinosaur"/>
-  </render-component>
+  <render-component model="dinosaur" type="regular"/>
 </entity>

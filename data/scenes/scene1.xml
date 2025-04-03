@@ -1,0 +1,13 @@
+<scene map="maps/map1.svg">
+  <models>
+    <model name="monkey" instanced="false"/>
+<!--
+    <model name="grass" instanced="true" max-instances="1000"/>-->
+  </models>
+  <entities>
+    <entity name="light"/>
+    <entity name="monkey"/>
+<!--
+    <entity name="grass"/>-->
+  </entities>
+</scene>
