@@ -211,6 +211,7 @@ void RenderSystemImpl::update()
           break;
         }
         case CRenderType::Skybox: {
+          ASSERT(component.meshes.size() == 1, "Expected skybox to have exactly 1 mesh");
           m_renderer.drawSkybox(component.meshes[0].mesh, component.meshes[0].material);
           break;
         }

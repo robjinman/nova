@@ -9,6 +9,7 @@
 #include "units.hpp"
 #include "player.hpp"
 #include "file_system.hpp"
+#include "xml.hpp"
 #include <numeric>
 #include <array>
 #include <cassert>
@@ -123,7 +124,12 @@ SceneBuilder::SceneBuilder(EntityFactory& entityFactory, SpatialSystem& spatialS
 
 PlayerPtr SceneBuilder::createScene()
 {
-  auto objectData = m_mapParser.parseMapFile("map.svg");
+  auto scene = parseXml(m_fileSystem.readFile("scenes/scene1.xml"));
+
+  m_entityFactory.loadModels(*scene->child("models"));
+  m_entityFactory.loadEntityDefinitions(*scene->child("entities"));
+
+  auto objectData = m_mapParser.parseMapFile(scene->attribute("map"));
 
   auto bounds = computeBounds(objectData);
   bounds.first -= Vec2f{ 1.f, 1.f };
@@ -149,12 +155,12 @@ void SceneBuilder::createTerrainMaterials()
 {
   auto groundTexture = loadTexture(m_fileSystem.readFile("resources/textures/ground.png"));
   auto groundMaterial = std::make_unique<Material>();
-  groundMaterial->texture = m_renderSystem.addTexture(std::move(groundTexture));
+  groundMaterial->texture.id = m_renderSystem.addTexture(std::move(groundTexture));
   m_groundMaterial = m_renderSystem.addMaterial(std::move(groundMaterial));
 
   auto wallTexture = loadTexture(m_fileSystem.readFile("resources/textures/bricks.png"));
   auto wallMaterial = std::make_unique<Material>();
-  wallMaterial->texture = m_renderSystem.addTexture(std::move(wallTexture));
+  wallMaterial->texture.id = m_renderSystem.addTexture(std::move(wallTexture));
   m_wallMaterial = m_renderSystem.addMaterial(std::move(wallMaterial));
 }
 
@@ -174,9 +180,13 @@ void SceneBuilder::constructSky()
     loadTexture(m_fileSystem.readFile("resources/textures/skybox/back.png"))
   };
   auto material = std::make_unique<Material>();
-  material->cubeMap = m_renderSystem.addCubeMap(std::move(textures));
-  render->mesh = m_renderSystem.addMesh(std::move(mesh));
-  render->material = m_renderSystem.addMaterial(std::move(material));
+  material->cubeMap.id = m_renderSystem.addCubeMap(std::move(textures));
+  render->meshes = {
+    MeshMaterialPair{
+      .mesh = m_renderSystem.addMesh(std::move(mesh)),
+      .material = m_renderSystem.addMaterial(std::move(material))
+    }
+  };
   m_renderSystem.addComponent(std::move(render));
 
   CSpatialPtr spatial = std::make_unique<CSpatial>(entityId, identityMatrix<float_t, 4>(), 10000.f);
@@ -192,16 +202,18 @@ void SceneBuilder::constructOriginMarkers()
     float_t d = metresToWorldUnits(1);
     float_t h = metresToWorldUnits(20);
 
-    // TODO: Use colour
-
     MaterialPtr material = std::make_unique<Material>();
     material->colour = colour;
 
     MeshPtr mesh = cuboid(w, h, d, Vec2f{ 1, 1 });
     auto meshId = m_renderSystem.addMesh(std::move(mesh));
     CRenderPtr render = std::make_unique<CRender>(id, CRenderType::Regular);
-    render->mesh = meshId;
-    render->material = m_renderSystem.addMaterial(std::move(material));
+    render->meshes = {
+      MeshMaterialPair{
+        .mesh = meshId,
+        .material = m_renderSystem.addMaterial(std::move(material))
+      }
+    };
     m_renderSystem.addComponent(std::move(render));
 
     CSpatialPtr spatial = std::make_unique<CSpatial>(id, translationMatrix4x4(Vec3f{ x, 0, z }),
@@ -421,8 +433,12 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
   float_t radius = computeRadius(*mesh);
 
   CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::Regular);
-  render->mesh = m_renderSystem.addMesh(std::move(mesh));
-  render->material = m_groundMaterial;
+  render->meshes = {
+    MeshMaterialPair{
+      .mesh = m_renderSystem.addMesh(std::move(mesh)),
+      .material = m_groundMaterial
+    }
+  };
   m_renderSystem.addComponent(std::move(render));
 
   CSpatialPtr spatial = std::make_unique<CSpatial>(entityId, transform, radius);
@@ -483,8 +499,12 @@ void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTra
     CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::Regular);
     auto mesh = cuboid(wallThickness, wallHeight, distance, textureSize);
     float_t radius = computeRadius(*mesh);
-    render->mesh = m_renderSystem.addMesh(std::move(mesh));
-    render->material = m_wallMaterial;
+    render->meshes = {
+      MeshMaterialPair{
+        .mesh = m_renderSystem.addMesh(std::move(mesh)),
+        .material = m_wallMaterial
+      }
+    };
     m_renderSystem.addComponent(std::move(render));
 
     CSpatialPtr spatial = std::make_unique<CSpatial>(entityId,

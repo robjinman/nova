@@ -5,11 +5,14 @@
 #include <memory>
 #include <string>
 
+class XmlNode;
 struct ObjectData;
 
 class EntityFactory
 {
   public:
+    virtual void loadEntityDefinitions(const XmlNode& entities) = 0;
+    virtual void loadModels(const XmlNode& models) = 0;
     virtual EntityId constructEntity(const ObjectData& data, const Mat4x4f& transform) const = 0;
 
     virtual ~EntityFactory() {}

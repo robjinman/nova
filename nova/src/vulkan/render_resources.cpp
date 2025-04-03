@@ -382,12 +382,12 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
   auto materialData = std::make_unique<MaterialData>();
 
   // TODO
-  ASSERT(!(material->cubeMap != NULL_ID && material->texture != NULL_ID),
+  ASSERT(!(material->cubeMap.id != NULL_ID && material->texture.id != NULL_ID),
     "Currently, materials cannot have both a cube map and a texture");
 
-  RenderItemId textureId = material->texture;
+  RenderItemId textureId = material->texture.id;
   bool usingNullTexture = false;
-  bool usingCubeMap = material->cubeMap != NULL_ID;
+  bool usingCubeMap = material->cubeMap.id != NULL_ID;
 
   if (textureId == NULL_ID) {
     textureId = m_nullTextureId;
@@ -399,7 +399,7 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
     imageView = m_textures.at(textureId)->imageView;
   }
   else {
-    imageView = m_cubeMaps.at(material->cubeMap)->imageView;
+    imageView = m_cubeMaps.at(material->cubeMap.id)->imageView;
   }
   assert(imageView != VK_NULL_HANDLE);
 
@@ -1072,8 +1072,8 @@ void RenderResourcesImpl::createNullMaterial()
   m_nullTextureId = addTexture(std::move(texture));
 
   MaterialPtr material = std::make_unique<Material>();
-  material->texture = NULL_ID;
-  material->normalMap = NULL_ID;
+  material->texture.id = NULL_ID;
+  material->normalMap.id = NULL_ID;
 
   m_nullMaterialId = addMaterial(std::move(material));
 }

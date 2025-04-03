@@ -11,9 +11,15 @@
 #include "map_parser.hpp"
 #include <map>
 #include <regex>
+#include <format>
 
 namespace
 {
+
+struct ModelResources
+{
+  std::vector<MeshMaterialPair> submodels;
+};
 
 Vec3f parseVec3f(const std::string s)
 {
@@ -37,6 +43,8 @@ class EntityFactoryImpl : public EntityFactory
     EntityFactoryImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
       CollisionSystem& CollisionSystem, const FileSystem& fileSystem, Logger& logger);
 
+    void loadEntityDefinitions(const XmlNode& entities) override;
+    void loadModels(const XmlNode& models) override;
     EntityId constructEntity(const ObjectData& data, const Mat4x4f& transform) const override;
 
   private:
@@ -46,22 +54,17 @@ class EntityFactoryImpl : public EntityFactory
     RenderSystem& m_renderSystem;
     CollisionSystem& m_collisionSystem;
 
-    std::map<std::string, RenderItemId> m_textures;
-    std::map<std::string, RenderItemId> m_meshes;
-    std::map<std::string, RenderItemId> m_materials;
+    std::map<std::string, RenderItemId> m_materialResources;
+    std::map<std::string, ModelResources> m_models;
     std::map<std::string, XmlNodePtr> m_definitions;
 
-    void loadResources();
-    void loadTextures(const XmlNode& node);
-    void loadMeshes(const XmlNode& node);
-    void loadMaterials(const XmlNode& node);
-    void loadModels(const XmlNode& node);
-    void loadEntities();
-    void parseEntityFile(const std::filesystem::path& path);
+    void loadModel(const std::string& name, bool isInstanced, int maxInstances);
     void constructSpatialComponent(EntityId entityId, const XmlNode& node,
       const Mat4x4f& transform) const;
     void constructRenderComponent(EntityId entityId, const XmlNode& node,
       const ObjectData& data) const;
+    ModelResources gpuLoadModel(ModelPtr model);
+    RenderItemId gpuLoadMaterial(MaterialPtr material);
     void constructCollisionComponent(EntityId entityId, const XmlNode& node) const;
     Mat4x4f parseTransform(const XmlNode& node) const;
 };
@@ -74,102 +77,90 @@ EntityFactoryImpl::EntityFactoryImpl(SpatialSystem& spatialSystem, RenderSystem&
   , m_renderSystem(renderSystem)
   , m_collisionSystem(collisionSystem)
 {
-  loadResources(); // TODO: Move to resource manager?
-  loadEntities();
 }
 
-void EntityFactoryImpl::loadResources()
+void EntityFactoryImpl::loadEntityDefinitions(const XmlNode& entities)
 {
-  auto data = m_fileSystem.readFile("resources/manifest.xml");
-  XmlNodePtr root = parseXml(data);
+  ASSERT(entities.name() == "entities", "Expected element with name 'entities'");
 
-  ASSERT(root->name() == "resources", "Expected root node 'resources'");
+  for (auto& entity : entities) {
+    auto name = entity.attribute("name");
 
-  for (auto& node : *root) {
-    if (node.name() == "textures") {
-      loadTextures(node);
-    }
-    else if (node.name() == "meshes") {
-      loadMeshes(node);
-    }
-    else if (node.name() == "materials") {
-      loadMaterials(node);
-    }
-    else if (node.name() == "models") {
-      loadModels(node);
-    }
-    // ...
+    auto path = std::format("entities/{}.xml", name);
+    auto data = m_fileSystem.readFile(path);
+    XmlNodePtr root = parseXml(data);
+
+    ASSERT(root->name() == "entity", "Expected 'entity' node");
+
+    m_definitions[name] = std::move(root);
   }
 }
 
-void EntityFactoryImpl::loadTextures(const XmlNode& root)
+void EntityFactoryImpl::loadModels(const XmlNode& models)
 {
-  for (auto& node : root) {
-    ASSERT(node.name() == "texture", "Expected 'texture' node");
-    auto texture = loadTexture(m_fileSystem.readFile(node.attribute("file")));
-    m_textures[node.attribute("name")] = m_renderSystem.addTexture(std::move(texture));
-  }
-}
+  ASSERT(models.name() == "models", "Expected element with name 'models'");
 
-void EntityFactoryImpl::loadMeshes(const XmlNode& root)
-{
-  for (auto& node : root) {
-    ASSERT(node.name() == "mesh", "Expected 'mesh' node");
-    auto mesh = loadMesh(m_fileSystem.readFile(node.attribute("file")));
-    mesh->isInstanced = node.attribute("instanced") == "true";
-    if (mesh->isInstanced) {
-      mesh->maxInstances = std::stoi(node.attribute("max-instances"));
+  for (auto& model : models) {
+    auto name = model.attribute("name");
+    bool isInstanced = model.attribute("instanced") == "true";
+    int maxInstances = 0;
+    if (isInstanced) {
+      maxInstances = std::stoi(model.attribute("max-instances"));
     }
-    m_meshes[node.attribute("name")] = m_renderSystem.addMesh(std::move(mesh));
+
+    loadModel(name, isInstanced, maxInstances);
   }
 }
 
-void EntityFactoryImpl::loadModels(const XmlNode& root)
+void EntityFactoryImpl::loadModel(const std::string& name, bool isInstanced, int maxInstances)
 {
-  // TODO
+  auto path = std::format("resources/models/{}.gltf", name);
+  auto model = ::loadModel(m_fileSystem, path);
 
-  for (auto& node : root) {
-    ASSERT(node.name() == "model", "Expected 'model' node");
-    auto mesh = loadModel(m_fileSystem, node.attribute("file"));
-    mesh->isInstanced = node.attribute("instanced") == "true";
-    if (mesh->isInstanced) {
-      mesh->maxInstances = std::stoi(node.attribute("max-instances"));
+  for (auto& submodel : model->submodels) {
+    submodel->mesh->isInstanced = isInstanced;
+    if (isInstanced) {
+      submodel->mesh->maxInstances = maxInstances;
     }
-    m_meshes[node.attribute("name")] = m_renderSystem.addMesh(std::move(mesh));
+
+    m_models[name] = gpuLoadModel(std::move(model));
   }
 }
 
-void EntityFactoryImpl::loadMaterials(const XmlNode& root)
+ModelResources EntityFactoryImpl::gpuLoadModel(ModelPtr model)
 {
-  for (auto& node : root) {
-    ASSERT(node.name() == "material", "Expected 'material' node");
-    auto material = std::make_unique<Material>();
-    material->texture = m_textures.at(node.attribute("texture"));
-    auto normalMap = node.attribute("normal-map");
-    if (!normalMap.empty()) {
-      material->normalMap = m_textures.at(node.attribute(normalMap));
+  ModelResources resources;
+
+  for (auto& submodel : model->submodels) {
+    MeshMaterialPair pair;
+    pair.mesh = m_renderSystem.addMesh(std::move(submodel->mesh));
+    pair.material = gpuLoadMaterial(std::move(submodel->material));
+
+    resources.submodels.push_back(pair);
+  }
+
+  return resources;
+}
+
+RenderItemId EntityFactoryImpl::gpuLoadMaterial(MaterialPtr material)
+{
+  auto textureFileName = material->texture.fileName;
+  if (textureFileName != "") {
+    auto texturePath = std::format("resources/textures/{}", textureFileName);
+
+    auto i = m_materialResources.find(textureFileName);
+    if (i == m_materialResources.end()) {
+      auto texture = loadTexture(m_fileSystem.readFile(texturePath));
+      material->texture.id = m_renderSystem.addTexture(std::move(texture));
+      m_materialResources[textureFileName] = material->texture.id;
     }
-    m_materials[node.attribute("name")] = m_renderSystem.addMaterial(std::move(material));
+    else {
+      material->texture.id = i->second;
+    }
   }
-}
+  // TODO: Repeat the above for cube maps and normal maps
 
-void EntityFactoryImpl::loadEntities()
-{
-  auto directory = m_fileSystem.directory("entities");
-  for (auto file : *directory) {
-    parseEntityFile(file);
-  }
-}
-
-void EntityFactoryImpl::parseEntityFile(const std::filesystem::path& path)
-{
-  auto data = m_fileSystem.readFile(path);
-  XmlNodePtr root = parseXml(data);
-
-  ASSERT(root->name() == "entity", "Expected root node 'entity'");
-
-  std::string entityName = root->attribute("name");
-  m_definitions[entityName] = std::move(root);
+  return m_renderSystem.addMaterial(std::move(material));
 }
 
 EntityId EntityFactoryImpl::constructEntity(const ObjectData& data, const Mat4x4f& transform) const
@@ -237,10 +228,10 @@ void EntityFactoryImpl::constructSpatialComponent(EntityId entityId, const XmlNo
 
 CRenderType parseCRenderType(const std::string& type)
 {
-  if (type == "regular")        return CRenderType::Regular;
-  else if (type == "instance")  return CRenderType::Instance;
-  else if (type == "light")     return CRenderType::Light;
-  else if (type == "skybox")    return CRenderType::Skybox;
+  if (type == "regular") return CRenderType::Regular;
+  else if (type == "instance") return CRenderType::Instance;
+  else if (type == "light") return CRenderType::Light;
+  else if (type == "skybox") return CRenderType::Skybox;
   else EXCEPTION(STR("Unrecognised render component type '" << type << "'"));
 }
 
@@ -249,7 +240,7 @@ void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNod
 {
   auto type = parseCRenderType(node.attribute("type"));
 
-  CRenderPtr render;
+  CRenderPtr render = nullptr;
   if (type == CRenderType::Light) {
     auto light = std::make_unique<CRenderLight>(entityId);
     light->colour = parseVec3f(data.values.at("colour"));
@@ -260,17 +251,13 @@ void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNod
     render = std::make_unique<CRender>(entityId, type);
   }
 
-  auto mesh = node.attribute("mesh");
-  if (!mesh.empty()) {
-    render->mesh = m_meshes.at(mesh);
-  }
-  auto material = node.attribute("material");
-  if (!material.empty()) {
-    render->material = m_materials.at(material);
-  }
   auto model = node.attribute("model");
   if (!model.empty()) {
-    // TODO
+    auto& resources = m_models.at(model);
+
+    for (auto& submodel : resources.submodels) {
+      render->meshes.push_back(submodel);
+    }
   }
 
   m_renderSystem.addComponent(std::move(render));
