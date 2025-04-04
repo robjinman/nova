@@ -8,6 +8,8 @@
 using RenderItemId = long;
 const RenderItemId NULL_ID = -1;
 
+// TODO: Support meshes with different set of vertex attributes
+//       Struct of arrays instead of array of structs?
 struct Vertex
 {
   Vec3f pos;
@@ -64,9 +66,46 @@ struct Submodel
 
 using SubmodelPtr = std::unique_ptr<Submodel>;
 
+const size_t JOINT_MAX_CHILDREN = 8;
+
+struct Joint
+{
+  Mat4x4f transform;
+  std::array<uint32_t, JOINT_MAX_CHILDREN> children;
+};
+
+enum class TransformationType
+{
+  Rotation,
+  Translation,
+  Scale
+};
+
+struct AnimationChannel
+{
+  size_t joint;
+  TransformationType type;
+  std::vector<float_t> times;
+  std::vector<Vec4f> values;
+};
+
+struct Animation
+{
+  std::vector<AnimationChannel> channels;
+};
+
+struct Armature
+{
+  std::vector<Joint> joints;
+  std::vector<Animation> animations;
+};
+
+using ArmaturePtr = std::unique_ptr<Armature>;
+
 struct Model
 {
   std::vector<SubmodelPtr> submodels;
+  ArmaturePtr armature;
 };
 
 using ModelPtr = std::unique_ptr<Model>;

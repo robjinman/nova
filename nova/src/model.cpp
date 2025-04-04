@@ -152,15 +152,16 @@ MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
 
   auto getOffset = [](gltf::ElementType type) {
     switch (type) {
-      case gltf::ElementType::Position: return offsetof(Vertex, pos);
-      case gltf::ElementType::Normal: return offsetof(Vertex, normal);
-      case gltf::ElementType::TexCoord: return offsetof(Vertex, texCoord);
+      case gltf::ElementType::AttrPosition: return offsetof(Vertex, pos);
+      case gltf::ElementType::AttrNormal: return offsetof(Vertex, normal);
+      case gltf::ElementType::AttrTexCoord: return offsetof(Vertex, texCoord);
+      // TODO: Joints and weights
       default: return 0ul;
     }
   };
 
   for (const auto& bufferDesc : meshDesc.buffers) {
-    if (bufferDesc.type == gltf::ElementType::Index) {
+    if (bufferDesc.type == gltf::ElementType::VertexIndex) {
       mesh->indices.resize(bufferDesc.size);
       copyToBuffer<uint16_t>(dataBuffers, reinterpret_cast<char*>(mesh->indices.data()),
         sizeof(uint16_t), 0, bufferDesc);
@@ -195,7 +196,7 @@ MaterialPtr constructMaterial(const gltf::MaterialDesc& materialDesc)
 
 ModelPtr loadModel(const FileSystem& fileSystem, const std::string& filePath)
 {
-  auto modelDesc = gltf::extractModelDesc(fileSystem.readFile(filePath));
+  auto modelDesc = gltf::extractModel(fileSystem.readFile(filePath));
 
   std::vector<std::vector<char>> dataBuffers;
   for (const auto& buffer : modelDesc.buffers) {

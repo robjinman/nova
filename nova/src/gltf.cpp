@@ -10,10 +10,10 @@ namespace
 
 ElementType parseElementType(const std::string& type)
 {
-  if (type == "POSITION") return ElementType::Position;
-  else if (type == "NORMAL") return ElementType::Normal;
-  else if (type == "TEXCOORD_0") return ElementType::TexCoord;
-  else if (type == "INDEX") return ElementType::Index;
+  if (type == "POSITION") return ElementType::AttrPosition;
+  else if (type == "NORMAL") return ElementType::AttrNormal;
+  else if (type == "TEXCOORD_0") return ElementType::AttrTexCoord;
+  else if (type == "INDEX") return ElementType::VertexIndex;
   else EXCEPTION("Unknown attribute type '" << type << "'");
 }
 
@@ -25,11 +25,11 @@ uint32_t dimensions(const std::string& type)
   else EXCEPTION("Unknown element type '" << type << "'");
 }
 
-BufferDesc extractBufferDesc(const nlohmann::json& root, const std::string& attributeName,
-  unsigned long attributeIndex)
+BufferDesc extractBuffer(const nlohmann::json& root, unsigned long accessorIndex,
+  ElementType elementType)
 {
   auto& accessors = root.at("accessors");
-  auto& accessor = accessors[attributeIndex];
+  auto& accessor = accessors[accessorIndex];
   auto& bufferViews = root.at("bufferViews");
 
   auto numElements = accessor.at("count").get<unsigned long>();
@@ -44,7 +44,7 @@ BufferDesc extractBufferDesc(const nlohmann::json& root, const std::string& attr
   auto byteOffset = bufferView.at("byteOffset").get<unsigned long>();
 
   return BufferDesc{
-    .type = parseElementType(attributeName),
+    .type = elementType,
     .dimensions = dimensions(type),
     .componentType = static_cast<ComponentType>(componentType),
     .size = numElements,
@@ -54,7 +54,7 @@ BufferDesc extractBufferDesc(const nlohmann::json& root, const std::string& attr
   };
 }
 
-MaterialDesc extractMaterialDesc(const nlohmann::json& root, unsigned long materialIndex)
+MaterialDesc extractMaterial(const nlohmann::json& root, unsigned long materialIndex)
 {
   MaterialDesc materialDesc;
 
@@ -94,51 +94,166 @@ MaterialDesc extractMaterialDesc(const nlohmann::json& root, unsigned long mater
   return materialDesc;
 }
 
+void extractMeshHierarchy(const nlohmann::json& root, unsigned long nodeIndex,
+  std::vector<MeshDesc>& meshDescs)
+{
+  auto& nodes = root.at("nodes");
+  auto& node = nodes[nodeIndex];
+
+  // TODO: Use these
+  auto iRotation = node.find("rotation");
+  auto iScale = node.find("scale");
+  auto iTranslation = node.find("translation");
+
+  auto iMeshIndex = node.find("mesh");
+  if (iMeshIndex != node.end()) {
+    auto& meshes = root.at("meshes");
+    auto& mesh = meshes[iMeshIndex->get<unsigned long>()];
+    auto& meshPrimitives = mesh.at("primitives");
+
+    for (auto& meshPrimitive : meshPrimitives) {
+      MeshDesc meshDesc;
+
+      auto& meshAttributes = meshPrimitive.at("attributes");
+
+      for (const auto& [ attributeName, accessorIndex ] : meshAttributes.items()) {
+        auto index = accessorIndex.get<unsigned long>();
+        auto bufferDesc = extractBuffer(root, index, parseElementType(attributeName));
+        meshDesc.buffers.push_back(bufferDesc);
+      }
+
+      auto indexBufferIndex = meshPrimitive.at("indices").get<unsigned long>();
+      meshDesc.buffers.push_back(extractBuffer(root, indexBufferIndex, ElementType::VertexIndex));
+
+      auto materialIndex = meshPrimitive.at("material").get<unsigned long>();
+      meshDesc.material = extractMaterial(root, materialIndex);
+
+      meshDescs.push_back(meshDesc);
+    }
+  }
+
+  auto iSkin = node.find("skin");
+  if (iSkin != node.end()) {
+    auto skinIndex = iSkin->get<unsigned long>();
+    ASSERT(skinIndex == 0, "Currently, only models with a single skin are supported");
+  }
+
+  auto iChildren = node.find("children");
+  if (iChildren != node.end()) {
+    auto& children = *iChildren;
+    for (auto& child : children) {
+      auto index = child.get<unsigned long>();
+      extractMeshHierarchy(root, index, meshDescs);
+    }
+  }
+}
+
+JointDesc extractJointHierarchy(const nlohmann::json& nodes, unsigned long nodeIndex)
+{
+  auto& node = nodes[nodeIndex];
+
+  auto iRotation = node.find("rotation");
+  auto iScale = node.find("scale");
+  auto iTranslation = node.find("translation");
+
+  Mat4x4f S = identityMatrix<float_t, 4>();
+  Mat4x4f R = identityMatrix<float_t, 4>();
+  Mat4x4f T = identityMatrix<float_t, 4>();
+
+  if (iScale != node.end()) {
+    auto& scale = *iScale;
+    S.set(0, 0, scale[0]);
+    S.set(1, 1, scale[1]);
+    S.set(2, 2, scale[2]);
+  }
+
+  if (iRotation != node.end()) {
+    auto& rotation = *iRotation;
+    R = rotationMatrix4x4(Vec4f{
+      rotation[0],
+      rotation[1],
+      rotation[2],
+      rotation[3]
+    });
+  }
+
+  if (iTranslation != node.end()) {
+    auto& translation = *iTranslation;
+    T = translationMatrix4x4(Vec3f{
+      translation[0],
+      translation[1],
+      translation[2]
+    });
+  }
+
+  JointDesc jointDesc;
+  jointDesc.nodeIndex = nodeIndex;
+  jointDesc.transform = T * R * S;
+
+  auto iChildren = node.find("children");
+  if (iChildren != node.end()) {
+    auto& children = *iChildren;
+    for (auto index : children) {
+      jointDesc.children.push_back(extractJointHierarchy(nodes, index));
+    }
+  }
+
+  return jointDesc;
+}
+
+std::vector<AnimationDesc> extractAnimations(const nlohmann::json& root)
+{
+  // TODO
+}
+
+ArmatureDesc extractArmature(const nlohmann::json& root, unsigned long rootNodeIndex)
+{
+  auto& nodes = root.at("nodes");
+
+  ArmatureDesc armatureDesc;
+  armatureDesc.root = extractJointHierarchy(nodes, rootNodeIndex);
+
+  auto iSkins = root.find("skins");
+  if (iSkins != root.end()) {
+    auto& skins = *iSkins;
+    ASSERT(skins.size() == 1, "Currently, only models with a single skin are supported");
+
+    auto skinIndex = skins[0].get<unsigned long>();
+    auto& skin = nodes[skinIndex];
+
+    auto inverseBindMatricesIndex = skin.at("inverseBindMatrices").get<unsigned long>();
+    armatureDesc.skin.inverseBindMatricesBuffer = extractBuffer(root, inverseBindMatricesIndex,
+      ElementType::JointInvertedBindMatrices);
+
+    armatureDesc.animations = extractAnimations(root);
+  }
+
+  return armatureDesc;
+}
+
 } // namespace
 
-ModelDesc extractModelDesc(const std::vector<char>& jsonData)
+ModelDesc extractModel(const std::vector<char>& jsonData)
 {
   auto root = nlohmann::json::parse(jsonData);
   auto& scenes = root.at("scenes");
-  auto& nodes = root.at("nodes");
   auto sceneIndex = root.at("scene").get<unsigned long>();
   auto& scene = scenes[sceneIndex];
   auto& sceneNodes = scene.at("nodes");
+  // TODO
   ASSERT(sceneNodes.size() == 1,
     "Expected scene to contain 1 root node, found " << sceneNodes.size());
   auto rootNodeIndex = sceneNodes[0].get<unsigned long>();
-  auto& rootNode = nodes[rootNodeIndex];
-  auto meshIndex = rootNode.at("mesh").get<unsigned long>();
-  auto& buffers = root.at("buffers");
-  auto& meshes = root.at("meshes");
-  auto& mesh = meshes[meshIndex];
-  auto& meshPrimitives = mesh.at("primitives");
 
   ModelDesc modelDesc;
 
+  auto& buffers = root.at("buffers");
   for (auto& buffer : buffers) {
     modelDesc.buffers.push_back(buffer.at("uri").get<std::string>());
   }
 
-  for (auto& meshPrimitive : meshPrimitives) {
-    MeshDesc meshDesc;
-
-    auto& meshAttributes = meshPrimitive.at("attributes");
-
-    for (const auto& [ attributeName, attributeIndex ] : meshAttributes.items()) {
-      auto index = attributeIndex.get<unsigned long>();
-      auto bufferDesc = extractBufferDesc(root, attributeName, index);
-      meshDesc.buffers.push_back(bufferDesc);
-    }
-
-    auto indexBufferIndex = meshPrimitive.at("indices").get<unsigned long>();
-    meshDesc.buffers.push_back(extractBufferDesc(root, "INDEX", indexBufferIndex));
-
-    auto materialIndex = meshPrimitive.at("material").get<unsigned long>();
-    meshDesc.material = extractMaterialDesc(root, materialIndex);
-
-    modelDesc.meshes.push_back(meshDesc);
-  }
+  extractMeshHierarchy(root, rootNodeIndex, modelDesc.meshes);
+  modelDesc.armature = extractArmature(root, rootNodeIndex);
 
   return modelDesc;
 }
