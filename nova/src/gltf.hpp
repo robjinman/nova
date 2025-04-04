@@ -18,10 +18,18 @@ enum class ComponentType : unsigned long
 
 enum class ElementType
 {
-  Position,
-  Normal,
-  TexCoord,
-  Index
+  AttrPosition,
+  AttrNormal,
+  AttrTexCoord,
+  AttrJointIndex,
+  AttrJointWeight,
+
+  VertexIndex,
+
+  JointInvertedBindMatrices,
+  JointTranslation,
+  JointRotation,
+  JointScale
 };
 
 struct BufferDesc
@@ -50,9 +58,50 @@ struct MeshDesc
   MaterialDesc material;
 };
 
+struct JointDesc
+{
+  unsigned long nodeIndex;
+  Mat4x4f transform;
+  std::vector<JointDesc> children;
+};
+
+enum class TransformationType
+{
+  Rotation,
+  Translation,
+  Scale
+};
+
+struct AnimationChannelDesc
+{
+  size_t joint;
+  TransformationType type;
+  std::vector<float> times;
+  std::vector<Vec4f> values;
+};
+
+struct AnimationDesc
+{
+  std::vector<AnimationChannelDesc> channels;
+};
+
+struct SkinDesc
+{
+  std::vector<unsigned long> joints;
+  BufferDesc inverseBindMatricesBuffer;
+};
+
+struct ArmatureDesc
+{
+  JointDesc root;
+  std::vector<AnimationDesc> animations;
+  SkinDesc skin;
+};
+
 struct ModelDesc
 {
   std::vector<MeshDesc> meshes;
+  ArmatureDesc armature;
   std::vector<std::string> buffers;
 };
 
@@ -68,6 +117,6 @@ inline size_t getSize(ComponentType type)
   }
 }
 
-ModelDesc extractModelDesc(const std::vector<char>& jsonData);
+ModelDesc extractModel(const std::vector<char>& jsonData);
 
 } // namespace gltf

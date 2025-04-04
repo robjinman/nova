@@ -23,9 +23,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="4.9347032"
-     inkscape:cx="287.25132"
-     inkscape:cy="337.8116"
+     inkscape:zoom="2.4673516"
+     inkscape:cx="193.93264"
+     inkscape:cy="249.6604"
      inkscape:window-width="1920"
      inkscape:window-height="965"
      inkscape:window-x="0"
@@ -55,7 +55,7 @@
        style="text-align:start;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect1);display:inline;fill:#000000"><tspan
          x="357.96094"
          y="880.56125"
-         id="tspan1">8</tspan></text>
+         id="tspan3">8</tspan></text>
     <g
        id="g5">
       <text
@@ -248,7 +248,7 @@
       </g>
       <g
          id="g4-5-3"
-         transform="translate(21.5403,19.958375)">
+         transform="translate(18.537755,20.065609)">
         <path
            style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
            d="m 27.325056,24.562198 -0.02074,-1.220512 -1.719575,0.645574 z"
@@ -408,7 +408,7 @@
       </g>
       <g
          id="g4-7-6"
-         transform="translate(14.568097,54.091803)"
+         transform="translate(0.73494489,21.921682)"
          inkscape:transform-center-x="0.44292273"
          inkscape:transform-center-y="0.15714354">
         <path
