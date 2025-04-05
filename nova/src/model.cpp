@@ -7,15 +7,93 @@
 #include <stb_image.h>
 #include <fstream>
 #include <cassert>
-#include <iostream> // TODO
 
-std::ostream& operator<<(std::ostream& stream, const Vertex& vertex)
+namespace
 {
-  stream << "Vertex{ pos: (" << vertex.pos << "), normal: (" << vertex.normal << "), tex coord: ("
-    << vertex.texCoord << ") }";
 
-  return stream;
+template<typename T>
+T convert(const char* value, gltf::ComponentType dataType)
+{
+  switch (dataType) {
+    case gltf::ComponentType::SignedByte:
+      return static_cast<T>(*reinterpret_cast<const int8_t*>(value));
+    case gltf::ComponentType::UnsignedByte:
+      return static_cast<T>(*reinterpret_cast<const uint8_t*>(value));
+    case gltf::ComponentType::SignedShort:
+      return static_cast<T>(*reinterpret_cast<const int16_t*>(value));
+    case gltf::ComponentType::UnsignedShort:
+      return static_cast<T>(*reinterpret_cast<const uint16_t*>(value));
+    case gltf::ComponentType::UnsignedInt:
+      return static_cast<T>(*reinterpret_cast<const uint32_t*>(value));
+    case gltf::ComponentType::Float:
+      return static_cast<T>(*reinterpret_cast<const float*>(value));
+  }
 }
+
+template<typename T>
+void convert(const char* src, gltf::ComponentType srcType, uint32_t n, T* dest)
+{
+  for (uint32_t i = 0; i < n; ++i) {
+    *(dest + i) = convert<T>(src + i * getSize(srcType), srcType);
+  }
+}
+
+BufferUsage getUsage(gltf::ElementType type)
+{
+  switch (type) {
+    case gltf::ElementType::AttrPosition: return BufferUsage::AttrPosition;
+    case gltf::ElementType::AttrNormal: return BufferUsage::AttrNormal;
+    case gltf::ElementType::AttrTexCoord: return BufferUsage::AttrTexCoord;
+    // TODO
+    default: EXCEPTION("Error converting ElementType to BufferUsage");
+  }
+}
+
+// TODO: Use convert functions?
+MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
+  const std::vector<std::vector<char>>& dataBuffers)
+{
+  auto mesh = std::make_unique<Mesh>();
+
+  for (const auto& bufferDesc : meshDesc.buffers) {
+    if (bufferDesc.type == gltf::ElementType::VertexIndex) {
+      mesh->indexBuffer = Buffer{
+        .info = BufferInfo{
+          .usage = BufferUsage::Index,
+          .elementSize = sizeof(uint16_t)
+        },
+        .data = dataBuffers[bufferDesc.index]
+      };
+    }
+    else {
+      mesh->attributeBuffers.push_back(
+        Buffer{
+          .info = BufferInfo{
+            .usage = getUsage(bufferDesc.type),
+            .elementSize = getSize(bufferDesc.componentType)
+          },
+          .data = dataBuffers[bufferDesc.index]
+        }
+      );
+    }
+  }
+
+  return mesh;
+}
+
+MaterialPtr constructMaterial(const gltf::MaterialDesc& materialDesc)
+{
+  auto material = std::make_unique<Material>();
+
+  material->texture.fileName = materialDesc.baseColourTexture;
+  material->normalMap.fileName = materialDesc.normalMap;
+  material->colour = materialDesc.baseColourFactor;
+  // TODO: PBR attributes
+
+  return material;
+}
+
+} // namespace
 
 TexturePtr loadTexture(const std::vector<char>& data)
 {
@@ -57,146 +135,153 @@ MeshPtr cuboid(float_t W, float_t H, float_t D, const Vec2f& textureSize)
   //   |   |
   // D +---+ C
   //
-  mesh->vertices = {
-    // Bottom face
-    {{ -w, -h, -d }, { 0, -1, 0 }, { 0, 0 }},         // A  0
-    {{ w, -h, -d }, { 0, -1, 0 }, { W / u, 0 }},      // B  1
-    {{ w, -h, d }, { 0, -1, 0 }, { W /u, D / v }},    // C  2
-    {{ -w, -h, d }, { 0, -1, 0 }, { 0, D / v }},      // D  3
+  mesh->attributeBuffers = {
+    Buffer{
+      .info = BufferInfo{
+        .usage = BufferUsage::AttrPosition,
+        .elementSize = sizeof(Vec3f)
+      },
+      .data = getBytes(std::vector<Vec3f>{
+        // Bottom face
+        { -w, -h, -d }, // A  0
+        { w, -h, -d },  // B  1
+        { w, -h, d },   // C  2
+        { -w, -h, d },  // D  3
 
-    // Top face
-    {{ -w, h, d }, { 0, 1, 0 }, { 0, D / v }},        // D' 4
-    {{ w, h, d }, { 0, 1, 0 }, { W / u, D / v }},     // C' 5
-    {{ w, h, -d }, { 0, 1, 0 }, { W / u, 0 }},        // B' 6
-    {{ -w, h, -d }, { 0, 1, 0 }, { 0, 0 }},           // A' 7
+        // Top face
+        { -w, h, d },   // D' 4
+        { w, h, d },    // C' 5
+        { w, h, -d },   // B' 6
+        { -w, h, -d },  // A' 7
 
-    // Right face
-    {{ w, -h, d }, { 1, 0, 0 }, { D / u, 0 }},        // C  8
-    {{ w, -h, -d }, { 1, 0, 0 }, { 0, 0 }},           // B  9
-    {{ w, h, -d }, { 1, 0, 0 }, { 0, H / v }},        // B' 10
-    {{ w, h, d }, { 1, 0, 0 }, { D / u, H / v }},     // C' 11
+        // Right face
+        { w, -h, d },   // C  8
+        { w, -h, -d },  // B  9
+        { w, h, -d },   // B' 10
+        { w, h, d },    // C' 11
 
-    // Left face
-    {{ -w, -h, -d }, { -1, 0, 0 }, { 0, 0 }},         // A  12
-    {{ -w, -h, d }, { -1, 0, 0 }, { D / u, 0 }},      // D  13
-    {{ -w, h, d }, { -1, 0, 0 }, { D / u, H / v }},   // D' 14
-    {{ -w, h, -d }, { -1, 0, 0 }, { 0, H / v }},      // A' 15
+        // Left face
+        { -w, -h, -d }, // A  12
+        { -w, -h, d },  // D  13
+        { -w, h, d },   // D' 14
+        { -w, h, -d },  // A' 15
 
-    // Far face
-    {{ -w, -h, -d }, { 0, 0, -1 }, { 0, 0 }},         // A  16
-    {{ -w, h, -d }, { 0, 0, -1 }, { 0, H / v }},      // A' 17
-    {{ w, h, -d }, { 0, 0, -1 }, { W / u, H / v }},   // B' 18
-    {{ w, -h, -d }, { 0, 0, -1 }, { W / u, 0 }},      // B  19
+        // Far face
+        { -w, -h, -d }, // A  16
+        { -w, h, -d },  // A' 17
+        { w, h, -d },   // B' 18
+        { w, -h, -d },  // B  19
 
-    // Near face
-    {{ -w, -h, d }, { 0, 0, 1 }, { 0, 0 }},           // D  20
-    {{ w, -h, d }, { 0, 0, 1 }, { W / u, 0 }},        // C  21
-    {{ w, h, d }, { 0, 0, 1 }, { W / u, H / v }},     // C' 22
-    {{ -w, h, d }, { 0, 0, 1 }, { 0, H / v }},        // D' 23
+        // Near face
+        { -w, -h, d },  // D  20
+        { w, -h, d },   // C  21
+        { w, h, d },    // C' 22
+        { -w, h, d }    // D' 23
+      })
+    },
+    Buffer{
+      .info = BufferInfo{
+        .usage = BufferUsage::AttrNormal,
+        .elementSize = sizeof(Vec3f)
+      },
+      .data = getBytes(std::vector<Vec3f>{
+        // Bottom face
+        { 0, -1, 0 },   // A  0
+        { 0, -1, 0 },   // B  1
+        { 0, -1, 0 },   // C  2
+        { 0, -1, 0 },   // D  3
+
+        // Top face
+        { 0, 1, 0 },    // D' 4
+        { 0, 1, 0 },    // C' 5
+        { 0, 1, 0 },    // B' 6
+        { 0, 1, 0 },    // A' 7
+
+        // Right face
+        { 1, 0, 0 },    // C  8
+        { 1, 0, 0 },    // B  9
+        { 1, 0, 0 },    // B' 10
+        { 1, 0, 0 },    // C' 11
+
+        // Left face
+        { -1, 0, 0 },   // A  12
+        { -1, 0, 0 },   // D  13
+        { -1, 0, 0 },   // D' 14
+        { -1, 0, 0 },   // A' 15
+
+        // Far face
+        { 0, 0, -1 },   // A  16
+        { 0, 0, -1 },   // A' 17
+        { 0, 0, -1 },   // B' 18
+        { 0, 0, -1 },   // B  19
+
+        // Near face
+        { 0, 0, 1 },    // D  20
+        { 0, 0, 1 },    // C  21
+        { 0, 0, 1 },    // C' 22
+        { 0, 0, 1 }     // D' 23
+      })
+    },
+    Buffer{
+      .info = BufferInfo{
+        .usage = BufferUsage::AttrTexCoord,
+        .elementSize = sizeof(Vec2f)
+      },
+      .data = getBytes(std::vector<Vec2f>{
+        // Bottom face
+        { 0, 0 },         // A  0
+        { W / u, 0 },     // B  1
+        { W /u, D / v },  // C  2
+        { 0, D / v },     // D  3
+
+        // Top face
+        { 0, D / v },     // D' 4
+        { W / u, D / v }, // C' 5
+        { W / u, 0 },     // B' 6
+        { 0, 0 },         // A' 7
+
+        // Right face
+        { D / u, 0 },     // C  8
+        { 0, 0 },         // B  9
+        { 0, H / v },     // B' 10
+        { D / u, H / v }, // C' 11
+
+        // Left face
+        { 0, 0 },         // A  12
+        { D / u, 0 },     // D  13
+        { D / u, H / v }, // D' 14
+        { 0, H / v },     // A' 15
+
+        // Far face
+        { 0, 0 },         // A  16
+        { 0, H / v },     // A' 17
+        { W / u, H / v }, // B' 18
+        { W / u, 0 },     // B  19
+
+        // Near face
+        { 0, 0 },         // D  20
+        { W / u, 0 },     // C  21
+        { W / u, H / v }, // C' 22
+        { 0, H / v }      // D' 23
+      })
+    }
   };
-  mesh->indices = {
-    0, 1, 2, 0, 2, 3,         // Bottom face
-    4, 5, 6, 4, 6, 7,         // Top face
-    8, 9, 10, 8, 10, 11,      // Left face
-    12, 13, 14, 12, 14, 15,   // Right face
-    16, 17, 18, 16, 18, 19,   // Near face
-    20, 21, 22, 20, 22, 23,   // Far face
+  mesh->indexBuffer = Buffer{
+    .info = BufferInfo{
+      .usage = BufferUsage::Index,
+      .elementSize = sizeof(uint16_t)
+    },
+    .data = getBytes(std::vector<uint16_t>{
+      0, 1, 2, 0, 2, 3,         // Bottom face
+      4, 5, 6, 4, 6, 7,         // Top face
+      8, 9, 10, 8, 10, 11,      // Left face
+      12, 13, 14, 12, 14, 15,   // Right face
+      16, 17, 18, 16, 18, 19,   // Near face
+      20, 21, 22, 20, 22, 23    // Far face
+    })
   };
 
   return mesh;
-}
-
-template<typename T>
-T convert(const char* value, gltf::ComponentType dataType)
-{
-  switch (dataType) {
-    case gltf::ComponentType::SignedByte:
-      return static_cast<T>(*reinterpret_cast<const int8_t*>(value));
-    case gltf::ComponentType::UnsignedByte:
-      return static_cast<T>(*reinterpret_cast<const uint8_t*>(value));
-    case gltf::ComponentType::SignedShort:
-      return static_cast<T>(*reinterpret_cast<const int16_t*>(value));
-    case gltf::ComponentType::UnsignedShort:
-      return static_cast<T>(*reinterpret_cast<const uint16_t*>(value));
-    case gltf::ComponentType::UnsignedInt:
-      return static_cast<T>(*reinterpret_cast<const uint32_t*>(value));
-    case gltf::ComponentType::Float:
-      return static_cast<T>(*reinterpret_cast<const float*>(value));
-  }
-}
-
-template<typename T>
-void convert(const char* src, gltf::ComponentType srcType, uint32_t n, T* dest)
-{
-  for (uint32_t i = 0; i < n; ++i) {
-    *(dest + i) = convert<T>(src + i * getSize(srcType), srcType);
-  }
-}
-
-template<typename T>
-void copyToBuffer(const std::vector<std::vector<char>>& srcBuffers, char* dstBuffer,
-  size_t structSize, size_t offsetIntoStruct, const gltf::BufferDesc& desc)
-{
-  const char* src = srcBuffers[desc.index].data() + desc.offset;
-  for (unsigned long i = 0; i < desc.size; ++i) {
-    size_t srcElemSize = getSize(desc.componentType) * desc.dimensions;
-    T* dstPtr = reinterpret_cast<T*>(dstBuffer + i * structSize + offsetIntoStruct);
-    convert<T>(src + i * srcElemSize, desc.componentType, desc.dimensions, dstPtr);
-  }
-}
-
-MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
-  const std::vector<std::vector<char>>& dataBuffers)
-{
-  auto mesh = std::make_unique<Mesh>();
-
-  auto getOffset = [](gltf::ElementType type) {
-    switch (type) {
-      case gltf::ElementType::AttrPosition: return offsetof(Vertex, pos);
-      case gltf::ElementType::AttrNormal: return offsetof(Vertex, normal);
-      case gltf::ElementType::AttrTexCoord: return offsetof(Vertex, texCoord);
-      // TODO: Joints and weights
-      default: EXCEPTION("Vertex struct doesn't contain attribute for type");
-    }
-  };
-
-  for (const auto& bufferDesc : meshDesc.buffers) {
-    if (bufferDesc.type == gltf::ElementType::VertexIndex) {
-      mesh->indices.resize(bufferDesc.size);
-      copyToBuffer<uint16_t>(dataBuffers, reinterpret_cast<char*>(mesh->indices.data()),
-        sizeof(uint16_t), 0, bufferDesc);
-    }
-    else {
-      // TODO
-      if (bufferDesc.type == gltf::ElementType::AttrJointIndex || bufferDesc.type == gltf::ElementType::AttrJointWeight) {
-        continue;
-      }
-
-      if (mesh->vertices.size() == 0) {
-        mesh->vertices.resize(bufferDesc.size);
-      }
-      else {
-        ASSERT(mesh->vertices.size() == bufferDesc.size,
-          "Expected mesh to contain same number of each attribute");
-      }
-      copyToBuffer<float_t>(dataBuffers, reinterpret_cast<char*>(mesh->vertices.data()),
-        sizeof(Vertex), getOffset(bufferDesc.type), bufferDesc);
-    }
-  }
-
-  return mesh;
-}
-
-MaterialPtr constructMaterial(const gltf::MaterialDesc& materialDesc)
-{
-  auto material = std::make_unique<Material>();
-
-  material->texture.fileName = materialDesc.baseColourTexture;
-  material->normalMap.fileName = materialDesc.normalMap;
-  material->colour = materialDesc.baseColourFactor;
-  // TODO: PBR attributes
-
-  return material;
 }
 
 ModelPtr loadModel(const FileSystem& fileSystem, const std::string& filePath)

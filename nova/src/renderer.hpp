@@ -22,6 +22,11 @@ class Renderer
     virtual void onResize() = 0;
     virtual const ViewParams& getViewParams() const = 0;
 
+    // Initialisation
+    //
+    virtual void compileShader(const MeshFeatureSet& meshFeatures,
+      const MaterialFeatureSet& materialFeatures) = 0;
+
     // Resources
     //
     virtual RenderItemId addTexture(TexturePtr texture) = 0;

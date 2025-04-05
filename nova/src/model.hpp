@@ -8,14 +8,13 @@
 using RenderItemId = long;
 const RenderItemId NULL_ID = -1;
 
-// TODO: Support meshes with different set of vertex attributes
-//       Struct of arrays instead of array of structs?
-struct Vertex
+template<typename T>
+std::vector<char> getBytes(const std::vector<T>& data)
 {
-  Vec3f pos;
-  Vec3f normal;
-  Vec2f texCoord;
-};
+  const char* p = reinterpret_cast<const char*>(data.data());
+  size_t n = data.size() * sizeof(T);
+  return std::vector<char>(p, p + n);
+}
 
 struct Texture
 {
@@ -33,8 +32,16 @@ struct MaterialResource
   RenderItemId id = NULL_ID;
 };
 
+struct MaterialFeatureSet
+{
+  bool hasTransparency = false;
+  bool hasTexture = false;
+  bool hasNormalMap = false;
+};
+
 struct Material
 {
+  MaterialFeatureSet featureSet;
   Vec4f colour = { 1, 1, 1, 1 };
   MaterialResource texture;
   MaterialResource cubeMap;
@@ -45,15 +52,39 @@ struct Material
 
 using MaterialPtr = std::unique_ptr<Material>;
 
-using VertexList = std::vector<Vertex>;
-using IndexList = std::vector<uint16_t>;
+enum class BufferUsage : int
+{
+  AttrPosition,
+  AttrNormal,
+  AttrTexCoord,
+  Index
+};
+
+struct BufferInfo
+{
+  BufferUsage usage;
+  size_t elementSize;
+};
+
+struct Buffer
+{
+  BufferInfo info;
+  std::vector<char> data;
+};
+
+struct MeshFeatureSet
+{
+  bool isInstanced = false;
+  bool isSkybox = false;
+  bool isAnimated = false;
+  uint32_t maxInstances = 0;
+};
 
 struct Mesh
 {
-  VertexList vertices;
-  IndexList indices;
-  bool isInstanced = false;
-  size_t maxInstances = 1;
+  MeshFeatureSet featureSet;
+  std::vector<Buffer> attributeBuffers;
+  Buffer indexBuffer;
 };
 
 using MeshPtr = std::unique_ptr<Mesh>;
@@ -114,5 +145,3 @@ class FileSystem;
 TexturePtr loadTexture(const std::vector<char>& data);
 ModelPtr loadModel(const FileSystem& fileSystem, const std::string& filePath);
 MeshPtr cuboid(float_t w, float_t h, float_t d, const Vec2f& textureSize);
-
-std::ostream& operator<<(std::ostream& stream, const Vertex& vertex);

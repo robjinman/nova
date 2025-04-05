@@ -75,6 +75,7 @@ class RenderResourcesImpl : public RenderResources
     void removeMesh(RenderItemId id) override;
     MeshBuffers getMeshBuffers(RenderItemId id) const override;
     void updateMeshInstances(RenderItemId id, const std::vector<MeshInstance>& instances) override;
+    const MeshFeatureSet& getMeshFeatures(RenderItemId id) const override;
 
     // Materials
     //
@@ -82,6 +83,7 @@ class RenderResourcesImpl : public RenderResources
     void removeMaterial(RenderItemId id) override;
     VkDescriptorSetLayout getMaterialDescriptorSetLayout() const override;
     VkDescriptorSet getMaterialDescriptorSet(RenderItemId id) const override;
+    const MaterialFeatureSet& getMaterialFeatures(RenderItemId id) const override;
 
     // Matrices
     //
@@ -133,11 +135,12 @@ class RenderResourcesImpl : public RenderResources
       VkDeviceSize bufferOffset, uint32_t layer);
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
       VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-    VkBuffer createVertexBuffer(const VertexList& vertices, VkDeviceMemory& vertexBufferMemory);
+    VkBuffer createVertexBuffer(const std::vector<Buffer>& attributeBuffers,
+      VkDeviceMemory& vertexBufferMemory);
     VkBuffer createInstanceBuffer(size_t maxInstances, VkDeviceMemory& instanceBufferMemory);
     void updateInstanceBuffer(const std::vector<MeshInstance>& instanceData, VkBuffer buffer);
     void createTextureSampler();
-    VkBuffer createIndexBuffer(const IndexList& indices, VkDeviceMemory& indexBufferMemory);
+    VkBuffer createIndexBuffer(const Buffer& indexBuffer, VkDeviceMemory& indexBufferMemory);
     void createUniformBuffers();
     void createPerFrameUbos(size_t size, std::vector<VkBuffer>& buffers,
       std::vector<VkDeviceMemory>& memory, std::vector<void*>& mappings);
@@ -314,10 +317,10 @@ RenderItemId RenderResourcesImpl::addMesh(MeshPtr mesh)
 
   auto data = std::make_unique<MeshData>();
   data->mesh = std::move(mesh);
-  data->vertexBuffer = createVertexBuffer(data->mesh->vertices, data->vertexBufferMemory);
-  data->indexBuffer = createIndexBuffer(data->mesh->indices, data->indexBufferMemory);
-  if (data->mesh->isInstanced) {
-    data->instanceBuffer = createInstanceBuffer(data->mesh->maxInstances,
+  data->vertexBuffer = createVertexBuffer(data->mesh->attributeBuffers, data->vertexBufferMemory);
+  data->indexBuffer = createIndexBuffer(data->mesh->indexBuffer, data->indexBufferMemory);
+  if (data->mesh->featureSet.isInstanced) {
+    data->instanceBuffer = createInstanceBuffer(data->mesh->featureSet.maxInstances,
       data->instanceBufferMemory);
   }
 
@@ -354,7 +357,7 @@ MeshBuffers RenderResourcesImpl::getMeshBuffers(RenderItemId id) const
     .vertexBuffer = mesh->vertexBuffer,
     .indexBuffer = mesh->indexBuffer,
     .instanceBuffer = mesh->instanceBuffer,
-    .numIndices = static_cast<uint32_t>(mesh->mesh->indices.size()),
+    .numIndices = static_cast<uint32_t>(mesh->mesh->indexBuffer.data.size() / sizeof(uint16_t)),
     .numInstances = mesh->numInstances
   };
 }
@@ -365,11 +368,17 @@ void RenderResourcesImpl::updateMeshInstances(RenderItemId id,
   DBG_TRACE(m_logger);
 
   auto& mesh = m_meshes.at(id);
-  ASSERT(mesh->mesh->isInstanced, "Can't instance a non-instanced mesh");
-  ASSERT(instances.size() <= mesh->mesh->maxInstances, "Max instances exceeded for this mesh");
+  ASSERT(mesh->mesh->featureSet.isInstanced, "Can't instance a non-instanced mesh");
+  ASSERT(instances.size() <= mesh->mesh->featureSet.maxInstances,
+    "Max instances exceeded for this mesh");
 
   mesh->numInstances = static_cast<uint32_t>(instances.size());
   updateInstanceBuffer(instances, mesh->instanceBuffer);
+}
+
+const MeshFeatureSet& RenderResourcesImpl::getMeshFeatures(RenderItemId id) const
+{
+  return m_meshes.at(id)->mesh->featureSet;
 }
 
 RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
@@ -495,6 +504,11 @@ VkDescriptorSetLayout RenderResourcesImpl::getMaterialDescriptorSetLayout() cons
 VkDescriptorSet RenderResourcesImpl::getMaterialDescriptorSet(RenderItemId id) const
 {
   return m_materials.at(id == NULL_ID ? m_nullMaterialId : id)->descriptorSet;
+}
+
+const MaterialFeatureSet& RenderResourcesImpl::getMaterialFeatures(RenderItemId id) const
+{
+  return m_materials.at(id)->material->featureSet;
 }
 
 void RenderResourcesImpl::updateMatricesUbo(const MatricesUbo& ubo, size_t currentFrame)
@@ -630,12 +644,76 @@ void RenderResourcesImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usa
   vkBindBufferMemory(m_device, buffer, bufferMemory, 0);
 }
 
-VkBuffer RenderResourcesImpl::createVertexBuffer(const VertexList& vertices,
+std::vector<char> createVertexArray(const std::vector<Buffer>& attributeBuffers)
+{
+  const size_t maxAttributes = 3;
+
+  static std::array<int, maxAttributes> attributeOrder = []() {
+    std::array<int, maxAttributes> order;
+    order[static_cast<int>(BufferUsage::AttrPosition)] = 0;
+    order[static_cast<int>(BufferUsage::AttrNormal)] = 1;
+    order[static_cast<int>(BufferUsage::AttrTexCoord)] = 2;
+    return order;
+  }();
+
+  std::array<const Buffer*, maxAttributes> sortedBuffers{};
+
+  for (auto& buffer : attributeBuffers) {
+    sortedBuffers[attributeOrder[static_cast<int>(buffer.info.usage)]] = &buffer;
+  }
+
+  auto calcOffset = [&](const Buffer& buffer) -> size_t {
+    size_t sum = 0;
+    for (auto ptr : sortedBuffers) {
+      if (ptr == &buffer) {
+        return sum;
+      }
+      if (ptr != nullptr) {
+        sum += ptr->info.elementSize;
+      }
+    }
+    EXCEPTION("Error calculating attribute offset");
+  };
+
+  auto calcNumVertices = [](const Buffer& buffer) {
+    return buffer.data.size() / buffer.info.elementSize;
+  };
+
+  ASSERT(attributeBuffers.size() > 0, "Expected at least 1 attribute buffer");
+
+  size_t numVertices = calcNumVertices(attributeBuffers[0]);
+  size_t vertexSize = 0;
+  for (auto& buffer : attributeBuffers) {
+    vertexSize += buffer.info.elementSize;
+
+    ASSERT(calcNumVertices(buffer) == numVertices,
+      "Expected all attribute buffers to have same length");
+  }
+
+  std::vector<char> array(numVertices * vertexSize);
+
+  for (auto& buffer : attributeBuffers) {
+    const char* srcPtr = buffer.data.data();
+    char* destPtr = array.data();
+    for (size_t i = 0; i < numVertices; ++i) {
+      memcpy(destPtr + calcOffset(buffer), srcPtr, buffer.info.elementSize);
+
+      srcPtr += buffer.info.elementSize;
+      destPtr += vertexSize;
+    }
+  }
+
+  return array;
+}
+
+VkBuffer RenderResourcesImpl::createVertexBuffer(const std::vector<Buffer>& attributeBuffers,
   VkDeviceMemory& vertexBufferMemory)
 {
   DBG_TRACE(m_logger);
 
-  VkDeviceSize size = sizeof(vertices[0]) * vertices.size();
+  std::vector<char> vertices = createVertexArray(attributeBuffers);
+
+  VkDeviceSize size = vertices.size();
 
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
@@ -660,12 +738,12 @@ VkBuffer RenderResourcesImpl::createVertexBuffer(const VertexList& vertices,
   return vertexBuffer;
 }
 
-VkBuffer RenderResourcesImpl::createIndexBuffer(const IndexList& indices,
+VkBuffer RenderResourcesImpl::createIndexBuffer(const Buffer& indexBuffer,
   VkDeviceMemory& indexBufferMemory)
 {
   DBG_TRACE(m_logger);
 
-  VkDeviceSize size = sizeof(indices[0]) * indices.size();
+  VkDeviceSize size = indexBuffer.data.size();
 
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
@@ -675,19 +753,19 @@ VkBuffer RenderResourcesImpl::createIndexBuffer(const IndexList& indices,
 
   void* data = nullptr;
   vkMapMemory(m_device, stagingBufferMemory, 0, size, 0, &data);
-  memcpy(data, indices.data(), size);
+  memcpy(data, indexBuffer.data.data(), size);
   vkUnmapMemory(m_device, stagingBufferMemory);
 
-  VkBuffer indexBuffer = VK_NULL_HANDLE;
+  VkBuffer buffer = VK_NULL_HANDLE;
   createBuffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
+    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, indexBufferMemory);
 
-  copyBuffer(stagingBuffer, indexBuffer, size);
-  
+  copyBuffer(stagingBuffer, buffer, size);
+
   vkDestroyBuffer(m_device, stagingBuffer, nullptr);
   vkFreeMemory(m_device, stagingBufferMemory, nullptr);
 
-  return indexBuffer;
+  return buffer;
 }
 
 VkBuffer RenderResourcesImpl::createInstanceBuffer(size_t maxInstances,

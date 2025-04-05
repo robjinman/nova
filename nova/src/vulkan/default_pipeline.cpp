@@ -6,13 +6,30 @@
 #include "model.hpp"
 #include <array>
 
-DefaultPipeline::DefaultPipeline(const FileSystem& fileSystem, VkDevice device,
+DefaultPipeline::DefaultPipeline(const MeshFeatureSet& meshFeatures,
+  const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem, VkDevice device,
   VkExtent2D swapchainExtent, VkRenderPass renderPass, const RenderResources& renderResources)
   : m_device(device)
   , m_renderResources(renderResources)
 {
-  auto vertShaderCode = fileSystem.readFile("shaders/vertex/default.spv");
-  auto fragShaderCode = fileSystem.readFile("shaders/fragment/default.spv");
+  std::vector<char> vertShaderCode;
+  std::vector<char> fragShaderCode;
+
+  // TODO: Use material features
+  // TODO: Generate and compile shaders dynamically
+
+  if (meshFeatures.isInstanced) {
+    vertShaderCode = fileSystem.readFile("shaders/vertex/instanced.spv");
+    fragShaderCode = fileSystem.readFile("shaders/fragment/default.spv");
+  }
+  else if (meshFeatures.isSkybox) {
+    vertShaderCode = fileSystem.readFile("shaders/vertex/skybox.spv");
+    fragShaderCode = fileSystem.readFile("shaders/fragment/skybox.spv");
+  }
+  else {
+    vertShaderCode = fileSystem.readFile("shaders/vertex/default.spv");
+    fragShaderCode = fileSystem.readFile("shaders/fragment/default.spv");
+  }
 
   VkShaderModule vertShaderModule = createShaderModule(m_device, vertShaderCode);
   VkShaderModule fragShaderModule = createShaderModule(m_device, fragShaderCode);
@@ -37,6 +54,7 @@ DefaultPipeline::DefaultPipeline(const FileSystem& fileSystem, VkDevice device,
     .pSpecializationInfo = nullptr
   };
 
+  // TODO
   auto vertexBindingDescription = defaultVertexBindingDescription();
   auto attributeDescriptions = defaultAttributeDescriptions();
 

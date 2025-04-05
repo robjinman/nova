@@ -9,9 +9,23 @@ struct DefaultModelNode : public RenderNode
     : RenderNode(RenderNodeType::DefaultModel)
   {}
 
-  RenderItemId mesh;
-  RenderItemId material;
   Mat4x4f modelMatrix;
+};
+
+struct InstancedModelNode : public RenderNode
+{
+  InstancedModelNode()
+    : RenderNode(RenderNodeType::InstancedModel)
+  {}
+
+  std::vector<MeshInstance> instances;
+};
+
+struct SkyboxNode : public RenderNode
+{
+  SkyboxNode()
+    : RenderNode(RenderNodeType::Skybox)
+  {}
 };
 
 class FileSystem;
@@ -19,7 +33,8 @@ class FileSystem;
 class DefaultPipeline : public Pipeline
 {
   public:
-    DefaultPipeline(const FileSystem& fileSystem, VkDevice device, VkExtent2D swapchainExtent,
+    DefaultPipeline(const MeshFeatureSet& meshFeatures, const MaterialFeatureSet& materialFeatures,
+      const FileSystem& fileSystem, VkDevice device, VkExtent2D swapchainExtent,
       VkRenderPass renderPass, const RenderResources& renderResources);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,

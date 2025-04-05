@@ -1,7 +1,7 @@
 #include "vulkan/vulkan_utils.hpp"
 #include "vulkan/default_pipeline.hpp"
-#include "vulkan/instanced_pipeline.hpp"
-#include "vulkan/skybox_pipeline.hpp"
+//#include "vulkan/instanced_pipeline.hpp"
+//#include "vulkan/skybox_pipeline.hpp"
 #include "vulkan/render_resources.hpp"
 #include "vulkan/vulkan_window_delegate.hpp"
 #include "renderer.hpp"
@@ -39,13 +39,13 @@ const std::vector<const char*> DeviceExtensions = {
   "VK_KHR_portability_subset",
 #endif
 };
-
+/*
 enum class PipelineName : RenderGraphKey
 {
   DefaultModel,
   InstancedModel,
   Skybox
-};
+};*/
 
 struct QueueFamilyIndices
 {
@@ -74,6 +74,11 @@ class RendererImpl : public Renderer
     void onResize() override;
     double frameRate() const override;
     const ViewParams& getViewParams() const override;
+
+    // Initialisation
+    //
+    void compileShader(const MeshFeatureSet& meshFeatures,
+      const MaterialFeatureSet& materialFeatures) override;
 
     // Resources
     //
@@ -132,7 +137,7 @@ class RendererImpl : public Renderer
     void createRenderPass();
     void createFramebuffers();
     void createCommandPool();
-    void createPipelines();
+    //void createPipelines();
     void createDepthResources();
     void createCommandBuffers();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
@@ -143,6 +148,7 @@ class RendererImpl : public Renderer
     VkFormat findDepthFormat() const;
     void renderLoop();
     void cleanUp();
+    RenderGraph::Key generateRenderGraphKey(RenderItemId meshId, RenderItemId materialId) const;
 
     ViewParams m_viewParams;
     const FileSystem& m_fileSystem;
@@ -190,7 +196,8 @@ class RendererImpl : public Renderer
     BindState m_bindState{};
   
     RenderResourcesPtr m_resources;
-    std::map<PipelineName, PipelinePtr> m_pipelines;
+    //std::map<PipelineName, PipelinePtr> m_pipelines;
+    std::unordered_map<PipelineKey, PipelinePtr> m_pipelines;
 
     Timer m_timer;
     std::atomic<double> m_frameRate;
@@ -233,7 +240,7 @@ RendererImpl::RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& w
     createCommandPool();
     m_resources = createRenderResources(m_physicalDevice, m_device, m_graphicsQueue, m_commandPool,
       m_logger);
-    createPipelines();
+    //createPipelines();
     createDepthResources();
     createFramebuffers();
     createCommandBuffers();
@@ -264,19 +271,54 @@ const ViewParams& RendererImpl::getViewParams() const
   return m_viewParams;
 }
 
+RenderGraph::Key RendererImpl::generateRenderGraphKey(RenderItemId meshId,
+  RenderItemId materialId) const
+{
+  auto& meshFeatures = m_resources->getMeshFeatures(meshId);
+  auto& materialFeatures = m_resources->getMaterialFeatures(materialId);
+
+  // TODO: Don't build this every time
+  PipelineKey pipelineKey{ meshFeatures, materialFeatures };
+  auto pipelineHash = std::hash<PipelineKey>{}(pipelineKey);
+
+  if (meshFeatures.isInstanced) {
+    return RenderGraph::Key{
+      static_cast<RenderGraphKey>(pipelineHash),
+      static_cast<RenderGraphKey>(meshId),
+      static_cast<RenderGraphKey>(materialId)
+    };
+  }
+  else if (meshFeatures.isSkybox) {
+    return RenderGraph::Key{
+      static_cast<RenderGraphKey>(pipelineHash)
+    };
+  }
+  else {
+    static RenderGraphKey nextId = 0;
+
+    return RenderGraph::Key{
+      static_cast<RenderGraphKey>(pipelineHash),
+      static_cast<RenderGraphKey>(meshId),
+      static_cast<RenderGraphKey>(materialId),
+      nextId++
+    };
+  }
+}
+
 void RendererImpl::drawInstance(RenderItemId meshId, RenderItemId materialId,
   const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
-  
+
   RenderState& state = m_renderStates.getWritable();
   RenderGraph& renderGraph = state.graph;
-
+/*
   RenderGraph::Key key{
     static_cast<RenderGraphKey>(PipelineName::InstancedModel),
     static_cast<RenderGraphKey>(meshId),
     static_cast<RenderGraphKey>(materialId)
-  };
+  };*/
+  auto key = generateRenderGraphKey(meshId, materialId);
   InstancedModelNode* node = nullptr;
   auto i = state.lookup.find(key);
   if (i != state.lookup.end()) {
@@ -293,26 +335,28 @@ void RendererImpl::drawInstance(RenderItemId meshId, RenderItemId materialId,
   node->instances.push_back(MeshInstance{transform});
 }
 
-void RendererImpl::drawModel(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform)
+void RendererImpl::drawModel(RenderItemId meshId, RenderItemId materialId, const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
 
-  static RenderGraphKey nextId = 0;
+  //static RenderGraphKey nextId = 0;
 
   RenderState& state = m_renderStates.getWritable();
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<DefaultModelNode>();
-  node->mesh = mesh;
-  node->material = material;
+  node->mesh = meshId;
+  node->material = materialId;
   node->modelMatrix = transform;
 
+  auto key = generateRenderGraphKey(meshId, materialId);
+/*
   RenderGraph::Key key{
     static_cast<RenderGraphKey>(PipelineName::DefaultModel),
     static_cast<RenderGraphKey>(mesh),
     static_cast<RenderGraphKey>(material),
     nextId++
-  };
+  };*/
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
@@ -329,7 +373,7 @@ void RendererImpl::drawLight(const Vec3f& colour, float_t ambient, const Vec3f& 
   light.worldPos = worldPos;
 }
 
-void RendererImpl::drawSkybox(RenderItemId mesh, RenderItemId material)
+void RendererImpl::drawSkybox(RenderItemId meshId, RenderItemId materialId)
 {
   //DBG_TRACE(m_logger);
 
@@ -337,10 +381,11 @@ void RendererImpl::drawSkybox(RenderItemId mesh, RenderItemId material)
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<SkyboxNode>();
-  node->mesh = mesh;
-  node->material = material;
+  node->mesh = meshId;
+  node->material = materialId;
 
-  RenderGraph::Key key{ static_cast<RenderGraphKey>(PipelineName::Skybox) };
+  //RenderGraph::Key key{ static_cast<RenderGraphKey>(PipelineName::Skybox) };
+  auto key = generateRenderGraphKey(meshId, materialId);
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
@@ -668,7 +713,7 @@ void RendererImpl::recreateSwapChain()
   cleanupSwapChain();
   createSwapChain();
   createImageViews();
-  createPipelines();
+  //createPipelines();
   createDepthResources();
   createFramebuffers();
 
@@ -1041,20 +1086,27 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
 
   vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-  auto choosePipeline = [](RenderNodeType nodeType) {
+  auto choosePipeline = [this](const RenderNode& node) -> Pipeline& {
+/*
     switch (nodeType) {
       case RenderNodeType::DefaultModel:    return PipelineName::DefaultModel;
       case RenderNodeType::InstancedModel:  return PipelineName::InstancedModel;
       case RenderNodeType::Skybox:          return PipelineName::Skybox;
       default:                              return PipelineName::DefaultModel;
-    }
+    }*/
+
+    PipelineKey key{
+      node.mesh,
+      node.material
+    };
+    return *m_pipelines.at(key);
   };
 
   auto& state = m_renderStates.getReadable();
   const auto& renderGraph = state.graph;
   for (auto& node : renderGraph) {
-    auto& pipeline = m_pipelines.at(choosePipeline(node->type));
-    pipeline->recordCommandBuffer(commandBuffer, *node, m_bindState, m_currentFrame);
+    auto& pipeline = choosePipeline(*node);
+    pipeline.recordCommandBuffer(commandBuffer, *node, m_bindState, m_currentFrame);
   }
 
   vkCmdEndRenderPass(commandBuffer);
@@ -1187,18 +1239,18 @@ void RendererImpl::createDepthResources()
   m_depthImageView = createImageView(m_device, m_depthImage, depthFormat,
     VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
 }
-
+/*
 void RendererImpl::createPipelines()
 {
   DBG_TRACE(m_logger);
 
   m_pipelines[PipelineName::DefaultModel] = std::make_unique<DefaultPipeline>(m_fileSystem,
     m_device, m_swapchainExtent, m_renderPass, *m_resources);
-  m_pipelines[PipelineName::InstancedModel] = std::make_unique<InstancedPipeline>(m_fileSystem,
-    m_device, m_swapchainExtent, m_renderPass, *m_resources);
-  m_pipelines[PipelineName::Skybox] = std::make_unique<SkyboxPipeline>(m_fileSystem, m_device,
-    m_swapchainExtent, m_renderPass, *m_resources);
-}
+  //m_pipelines[PipelineName::InstancedModel] = std::make_unique<InstancedPipeline>(m_fileSystem,
+  //  m_device, m_swapchainExtent, m_renderPass, *m_resources);
+  //m_pipelines[PipelineName::Skybox] = std::make_unique<SkyboxPipeline>(m_fileSystem, m_device,
+  //  m_swapchainExtent, m_renderPass, *m_resources);
+}*/
 
 void RendererImpl::pickPhysicalDevice()
 {
