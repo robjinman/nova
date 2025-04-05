@@ -5,6 +5,7 @@
     <model name="grass" instanced="true" max-instances="10000"/>
     <model name="dinosaur" instanced="false"/>
     <model name="cottage" instanced="false"/>
+    <model name="bendy" instanced="false"/>
   </models>
   <entities>
     <entity name="light"/>
@@ -13,5 +14,6 @@
     <entity name="grass"/>
     <entity name="dinosaur"/>
     <entity name="cottage"/>
+    <entity name="bendy"/>
   </entities>
 </scene>
