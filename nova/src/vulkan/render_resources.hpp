@@ -65,6 +65,7 @@ class RenderResources
     virtual MeshBuffers getMeshBuffers(RenderItemId id) const = 0;
     virtual void updateMeshInstances(RenderItemId id,
       const std::vector<MeshInstance>& instances) = 0;
+    virtual const MeshFeatureSet& getMeshFeatures(RenderItemId id) const = 0;
 
     // Materials
     //
@@ -72,6 +73,7 @@ class RenderResources
     virtual void removeMaterial(RenderItemId id) = 0;
     virtual VkDescriptorSetLayout getMaterialDescriptorSetLayout() const = 0;
     virtual VkDescriptorSet getMaterialDescriptorSet(RenderItemId id) const = 0;
+    virtual const MaterialFeatureSet& getMaterialFeatures(RenderItemId id) const = 0;
 
     // Matrices
     //

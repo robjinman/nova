@@ -118,10 +118,8 @@ void EntityFactoryImpl::loadModel(const std::string& name, bool isInstanced, int
   auto model = ::loadModel(m_fileSystem, path);
 
   for (auto& submodel : model->submodels) {
-    submodel->mesh->isInstanced = isInstanced;
-    if (isInstanced) {
-      submodel->mesh->maxInstances = maxInstances;
-    }
+    submodel->mesh->featureSet.isInstanced = isInstanced;
+    submodel->mesh->featureSet.maxInstances = maxInstances;
   }
 
   m_models[name] = gpuLoadModel(std::move(model));
