@@ -156,7 +156,7 @@ MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
       case gltf::ElementType::AttrNormal: return offsetof(Vertex, normal);
       case gltf::ElementType::AttrTexCoord: return offsetof(Vertex, texCoord);
       // TODO: Joints and weights
-      default: return 0ul;
+      default: EXCEPTION("Vertex struct doesn't contain attribute for type");
     }
   };
 
@@ -167,6 +167,11 @@ MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
         sizeof(uint16_t), 0, bufferDesc);
     }
     else {
+      // TODO
+      if (bufferDesc.type == gltf::ElementType::AttrJointIndex || bufferDesc.type == gltf::ElementType::AttrJointWeight) {
+        continue;
+      }
+
       if (mesh->vertices.size() == 0) {
         mesh->vertices.resize(bufferDesc.size);
       }

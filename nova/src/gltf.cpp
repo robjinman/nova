@@ -14,6 +14,8 @@ ElementType parseElementType(const std::string& type)
   else if (type == "NORMAL") return ElementType::AttrNormal;
   else if (type == "TEXCOORD_0") return ElementType::AttrTexCoord;
   else if (type == "INDEX") return ElementType::VertexIndex;
+  else if (type == "JOINTS_0") return ElementType::AttrJointIndex;
+  else if (type == "WEIGHTS_0") return ElementType::AttrJointWeight;
   else EXCEPTION("Unknown attribute type '" << type << "'");
 }
 
@@ -22,6 +24,8 @@ uint32_t dimensions(const std::string& type)
   if (type == "SCALAR") return 1;
   else if (type == "VEC2") return 2;
   else if (type == "VEC3") return 3;
+  else if (type == "VEC4") return 4;
+  else if (type == "MAT4") return 16;
   else EXCEPTION("Unknown element type '" << type << "'");
 }
 
@@ -203,7 +207,11 @@ JointDesc extractJointHierarchy(const nlohmann::json& nodes, unsigned long nodeI
 
 std::vector<AnimationDesc> extractAnimations(const nlohmann::json& root)
 {
+  std::vector<AnimationDesc> animationDescs;
+
   // TODO
+
+  return animationDescs;
 }
 
 ArmatureDesc extractArmature(const nlohmann::json& root, unsigned long rootNodeIndex)
@@ -218,8 +226,7 @@ ArmatureDesc extractArmature(const nlohmann::json& root, unsigned long rootNodeI
     auto& skins = *iSkins;
     ASSERT(skins.size() == 1, "Currently, only models with a single skin are supported");
 
-    auto skinIndex = skins[0].get<unsigned long>();
-    auto& skin = nodes[skinIndex];
+    auto& skin = skins[0];
 
     auto inverseBindMatricesIndex = skin.at("inverseBindMatrices").get<unsigned long>();
     armatureDesc.skin.inverseBindMatricesBuffer = extractBuffer(root, inverseBindMatricesIndex,
