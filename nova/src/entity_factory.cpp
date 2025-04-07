@@ -11,7 +11,6 @@
 #include "map_parser.hpp"
 #include <map>
 #include <regex>
-#include <format>
 
 namespace
 {
@@ -86,7 +85,7 @@ void EntityFactoryImpl::loadEntityDefinitions(const XmlNode& entities)
   for (auto& entity : entities) {
     auto name = entity.attribute("name");
 
-    auto path = std::format("entities/{}.xml", name);
+    auto path = STR("entities/" << name << ".xml");
     auto data = m_fileSystem.readFile(path);
     XmlNodePtr root = parseXml(data);
 
@@ -114,7 +113,7 @@ void EntityFactoryImpl::loadModels(const XmlNode& models)
 
 void EntityFactoryImpl::loadModel(const std::string& name, bool isInstanced, int maxInstances)
 {
-  auto path = std::format("resources/models/{}.gltf", name);
+  auto path = STR("resources/models/" << name << ".gltf");
   auto model = ::loadModel(m_fileSystem, path);
 
   for (auto& submodel : model->submodels) {
@@ -130,6 +129,8 @@ ModelResources EntityFactoryImpl::gpuLoadModel(ModelPtr model)
   ModelResources resources;
 
   for (auto& submodel : model->submodels) {
+    m_renderSystem.compileShader(submodel->mesh->featureSet, submodel->material->featureSet);
+
     MeshMaterialPair pair;
     pair.mesh = m_renderSystem.addMesh(std::move(submodel->mesh));
     pair.material = gpuLoadMaterial(std::move(submodel->material));
@@ -144,7 +145,7 @@ RenderItemId EntityFactoryImpl::gpuLoadMaterial(MaterialPtr material)
 {
   auto textureFileName = material->texture.fileName;
   if (textureFileName != "") {
-    auto texturePath = std::format("resources/textures/{}", textureFileName);
+    auto texturePath = STR("resources/textures/" << textureFileName);
 
     auto i = m_materialResources.find(textureFileName);
     if (i == m_materialResources.end()) {

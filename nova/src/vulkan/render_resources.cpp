@@ -135,8 +135,7 @@ class RenderResourcesImpl : public RenderResources
       VkDeviceSize bufferOffset, uint32_t layer);
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
       VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-    VkBuffer createVertexBuffer(const std::vector<Buffer>& attributeBuffers,
-      VkDeviceMemory& vertexBufferMemory);
+    VkBuffer createVertexBuffer(const Mesh& mesh, VkDeviceMemory& vertexBufferMemory);
     VkBuffer createInstanceBuffer(size_t maxInstances, VkDeviceMemory& instanceBufferMemory);
     void updateInstanceBuffer(const std::vector<MeshInstance>& instanceData, VkBuffer buffer);
     void createTextureSampler();
@@ -317,7 +316,7 @@ RenderItemId RenderResourcesImpl::addMesh(MeshPtr mesh)
 
   auto data = std::make_unique<MeshData>();
   data->mesh = std::move(mesh);
-  data->vertexBuffer = createVertexBuffer(data->mesh->attributeBuffers, data->vertexBufferMemory);
+  data->vertexBuffer = createVertexBuffer(*data->mesh, data->vertexBufferMemory);
   data->indexBuffer = createIndexBuffer(data->mesh->indexBuffer, data->indexBufferMemory);
   if (data->mesh->featureSet.isInstanced) {
     data->instanceBuffer = createInstanceBuffer(data->mesh->featureSet.maxInstances,
@@ -644,74 +643,12 @@ void RenderResourcesImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usa
   vkBindBufferMemory(m_device, buffer, bufferMemory, 0);
 }
 
-std::vector<char> createVertexArray(const std::vector<Buffer>& attributeBuffers)
-{
-  const size_t maxAttributes = 3;
-
-  static std::array<int, maxAttributes> attributeOrder = []() {
-    std::array<int, maxAttributes> order;
-    order[static_cast<int>(BufferUsage::AttrPosition)] = 0;
-    order[static_cast<int>(BufferUsage::AttrNormal)] = 1;
-    order[static_cast<int>(BufferUsage::AttrTexCoord)] = 2;
-    return order;
-  }();
-
-  std::array<const Buffer*, maxAttributes> sortedBuffers{};
-
-  for (auto& buffer : attributeBuffers) {
-    sortedBuffers[attributeOrder[static_cast<int>(buffer.info.usage)]] = &buffer;
-  }
-
-  auto calcOffset = [&](const Buffer& buffer) -> size_t {
-    size_t sum = 0;
-    for (auto ptr : sortedBuffers) {
-      if (ptr == &buffer) {
-        return sum;
-      }
-      if (ptr != nullptr) {
-        sum += ptr->info.elementSize;
-      }
-    }
-    EXCEPTION("Error calculating attribute offset");
-  };
-
-  auto calcNumVertices = [](const Buffer& buffer) {
-    return buffer.data.size() / buffer.info.elementSize;
-  };
-
-  ASSERT(attributeBuffers.size() > 0, "Expected at least 1 attribute buffer");
-
-  size_t numVertices = calcNumVertices(attributeBuffers[0]);
-  size_t vertexSize = 0;
-  for (auto& buffer : attributeBuffers) {
-    vertexSize += buffer.info.elementSize;
-
-    ASSERT(calcNumVertices(buffer) == numVertices,
-      "Expected all attribute buffers to have same length");
-  }
-
-  std::vector<char> array(numVertices * vertexSize);
-
-  for (auto& buffer : attributeBuffers) {
-    const char* srcPtr = buffer.data.data();
-    char* destPtr = array.data();
-    for (size_t i = 0; i < numVertices; ++i) {
-      memcpy(destPtr + calcOffset(buffer), srcPtr, buffer.info.elementSize);
-
-      srcPtr += buffer.info.elementSize;
-      destPtr += vertexSize;
-    }
-  }
-
-  return array;
-}
-
-VkBuffer RenderResourcesImpl::createVertexBuffer(const std::vector<Buffer>& attributeBuffers,
+VkBuffer RenderResourcesImpl::createVertexBuffer(const Mesh& mesh,
   VkDeviceMemory& vertexBufferMemory)
 {
   DBG_TRACE(m_logger);
 
-  std::vector<char> vertices = createVertexArray(attributeBuffers);
+  std::vector<char> vertices = createVertexArray(mesh);
 
   VkDeviceSize size = vertices.size();
 
@@ -1149,7 +1086,11 @@ void RenderResourcesImpl::createNullMaterial()
   texture->data = { 0, 0, 0, 0 };
   m_nullTextureId = addTexture(std::move(texture));
 
-  MaterialPtr material = std::make_unique<Material>();
+  MaterialPtr material = std::make_unique<Material>(MaterialFeatureSet{
+    .hasTransparency = false,
+    .hasTexture = true,
+    .hasNormalMap = false
+  });
   material->texture.id = NULL_ID;
   material->normalMap.id = NULL_ID;
 

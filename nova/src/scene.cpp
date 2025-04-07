@@ -17,16 +17,16 @@
 namespace
 {
 
-float_t computeRadius(const Mesh& mesh)
+float_t computeRadius(const std::span<const Vec3f>& positions)
 {
   float_t furthestX = std::numeric_limits<float_t>::lowest();
   float_t furthestZ = std::numeric_limits<float_t>::lowest();
-  for (const auto& v : mesh.vertices) {
-    if (fabs(v.pos[0]) > furthestX) {
-      furthestX = fabs(v.pos[0]);
+  for (const auto& pos : positions) {
+    if (fabs(pos[0]) > furthestX) {
+      furthestX = fabs(pos[0]);
     }
-    if (fabs(v.pos[2]) > furthestZ) {
-      furthestZ = fabs(v.pos[2]);
+    if (fabs(pos[2]) > furthestZ) {
+      furthestZ = fabs(pos[2]);
     }
   }
   return sqrt(furthestX * furthestX + furthestZ * furthestZ);
@@ -142,7 +142,7 @@ PlayerPtr SceneBuilder::createScene()
   createTerrainMaterials();
   constructInstances(objectData);
   constructSky();
-  constructOriginMarkers();
+  //constructOriginMarkers();
 
   ASSERT(m_player != nullptr, "Map does not contain player");
   PlayerPtr player = std::move(m_player);
@@ -153,13 +153,33 @@ PlayerPtr SceneBuilder::createScene()
 
 void SceneBuilder::createTerrainMaterials()
 {
+  // TODO: Move this
+  MeshFeatureSet meshFeatures{
+    .vertexLayout = {
+      BufferUsage::AttrPosition,
+      BufferUsage::AttrNormal,
+      BufferUsage::AttrTexCoord
+    },
+    .isInstanced = false,
+    .isSkybox = false,
+    .isAnimated = false,
+    .maxInstances = 0
+  };
+  MaterialFeatureSet materialFeatures{
+    .hasTransparency = false,
+    .hasTexture = true,
+    .hasNormalMap = false
+  };
+
+  m_renderSystem.compileShader(meshFeatures, materialFeatures);
+
   auto groundTexture = loadTexture(m_fileSystem.readFile("resources/textures/ground.png"));
-  auto groundMaterial = std::make_unique<Material>();
+  auto groundMaterial = std::make_unique<Material>(materialFeatures);
   groundMaterial->texture.id = m_renderSystem.addTexture(std::move(groundTexture));
   m_groundMaterial = m_renderSystem.addMaterial(std::move(groundMaterial));
 
   auto wallTexture = loadTexture(m_fileSystem.readFile("resources/textures/bricks.png"));
-  auto wallMaterial = std::make_unique<Material>();
+  auto wallMaterial = std::make_unique<Material>(materialFeatures);
   wallMaterial->texture.id = m_renderSystem.addTexture(std::move(wallTexture));
   m_wallMaterial = m_renderSystem.addMaterial(std::move(wallMaterial));
 }
@@ -170,7 +190,9 @@ void SceneBuilder::constructSky()
 
   auto render = std::make_unique<CRender>(entityId, CRenderType::Skybox);
   auto mesh = cuboid(10000, 10000, 10000, Vec2f{ 1, 1 });
-  std::reverse(mesh->indices.begin(), mesh->indices.end());
+  mesh->featureSet.isSkybox = true;
+  uint16_t* indexData = reinterpret_cast<uint16_t*>(mesh->indexBuffer.data.data());
+  std::reverse(indexData, indexData + mesh->indexBuffer.data.size() / sizeof(uint16_t));
   std::array<TexturePtr, 6> textures{
     loadTexture(m_fileSystem.readFile("resources/textures/skybox/right.png")),
     loadTexture(m_fileSystem.readFile("resources/textures/skybox/left.png")),
@@ -179,8 +201,13 @@ void SceneBuilder::constructSky()
     loadTexture(m_fileSystem.readFile("resources/textures/skybox/front.png")),
     loadTexture(m_fileSystem.readFile("resources/textures/skybox/back.png"))
   };
-  auto material = std::make_unique<Material>();
+  auto material = std::make_unique<Material>(MaterialFeatureSet{
+    .hasTransparency = false,
+    .hasTexture = true,
+    .hasNormalMap = false
+  });
   material->cubeMap.id = m_renderSystem.addCubeMap(std::move(textures));
+  m_renderSystem.compileShader(mesh->featureSet, material->featureSet);
   render->meshes = {
     MeshMaterialPair{
       .mesh = m_renderSystem.addMesh(std::move(mesh)),
@@ -202,11 +229,16 @@ void SceneBuilder::constructOriginMarkers()
     float_t d = metresToWorldUnits(1);
     float_t h = metresToWorldUnits(20);
 
-    MaterialPtr material = std::make_unique<Material>();
+    MaterialPtr material = std::make_unique<Material>(MaterialFeatureSet{
+      .hasTransparency = false,
+      .hasTexture = false,
+      .hasNormalMap = false
+    });
     material->colour = colour;
 
     MeshPtr mesh = cuboid(w, h, d, Vec2f{ 1, 1 });
     auto meshId = m_renderSystem.addMesh(std::move(mesh));
+    m_renderSystem.compileShader(mesh->featureSet, material->featureSet);
     CRenderPtr render = std::make_unique<CRender>(id, CRenderType::Regular);
     render->meshes = {
       MeshMaterialPair{
@@ -288,36 +320,40 @@ void SceneBuilder::constructPlayer(const ObjectData& obj, const Mat4x4f& parentT
   m_player->setPosition({ x, y, z });
 }
 
-MeshPtr mergeMeshes(const Mesh& A, const Mesh& B)
-{
-  MeshPtr mesh = std::make_unique<Mesh>();
-
-  mesh->vertices.insert(mesh->vertices.end(), A.vertices.begin(), A.vertices.end());
-  mesh->vertices.insert(mesh->vertices.end(), B.vertices.begin(), B.vertices.end());
-  mesh->indices.insert(mesh->indices.end(), A.indices.begin(), A.indices.end());
-  uint16_t n = static_cast<uint16_t>(A.vertices.size());
-  std::transform(B.indices.begin(), B.indices.end(), std::back_inserter(mesh->indices),
-    [n](uint16_t i) { return i + n; });
-
-  return mesh;
-}
-
 MeshPtr createBottomFace(const std::vector<Vec4f>& points)
 {
-  MeshPtr mesh = std::make_unique<Mesh>();
+  MeshPtr mesh = std::make_unique<Mesh>(MeshFeatureSet{
+    .vertexLayout = {
+      BufferUsage::AttrPosition,
+      BufferUsage::AttrNormal,
+      BufferUsage::AttrTexCoord
+    },
+    .isInstanced = false,
+    .isSkybox = false,
+    .isAnimated = false,
+    .maxInstances = 0
+  });
 
   Vec2f textureSize = metresToWorldUnits(Vec2f{ 4, 4 });
 
-  std::vector<Vec4f> vertices;
+  std::vector<Vec3f> positions;
+  std::vector<Vec3f> normals;
+  std::vector<Vec2f> texCoords;
+
   for (auto i = points.rbegin(); i != points.rend(); ++i) {
     auto& p = *i;
-    vertices.push_back(p);
-    Vec2f uv{ p[0] / textureSize[0], p[2] / textureSize[1] };
-    Vertex vertex{ p.sub<3>(), Vec3f{ 0, -1, 0 }, uv };
-    mesh->vertices.push_back(vertex);
+    positions.push_back(p.sub<3>());
+    normals.push_back(Vec3f{ 0, -1, 0 });
+    texCoords.push_back(Vec2f{ p[0] / textureSize[0], p[2] / textureSize[1] });
   }
 
-  mesh->indices = triangulatePoly(vertices);
+  mesh->attributeBuffers = {
+    createBuffer(positions, BufferUsage::AttrPosition),
+    createBuffer(normals, BufferUsage::AttrNormal),
+    createBuffer(texCoords, BufferUsage::AttrTexCoord)
+  };
+
+  mesh->indexBuffer = createBuffer(triangulatePoly(positions), BufferUsage::Index);
 
   return mesh;
 }
@@ -327,62 +363,77 @@ MeshPtr createTopFace(const std::vector<Vec4f>& points, float_t height)
   auto mesh = createBottomFace(points);
   Vec3f normal{ 0, 1, 0 };
 
-  for (auto& p : mesh->vertices) {
-    p.pos[1] += height;
-    p.normal = normal;
+  auto positions = getAttrBufferData<Vec3f>(*mesh, 0, BufferUsage::AttrPosition);
+  auto normals = getAttrBufferData<Vec3f>(*mesh, 1, BufferUsage::AttrNormal);
+  auto indices = getIndexBufferData(*mesh);
+
+  assert(positions.size() == normals.size());
+
+  for (size_t i = 0; i < positions.size(); ++i) {
+    positions[i][1] += height;
+    normals[i] = normal;
   }
 
-  std::reverse(mesh->indices.begin(), mesh->indices.end());
+  std::reverse(indices.begin(), indices.end());
 
   return mesh;
 }
 
 void createSideFaces(Mesh& mesh)
 {
-  assert(mesh.vertices.size() % 2 == 0);
+  auto positions = fromBytes<Vec3f>(mesh.attributeBuffers[0].data);
+  auto normals = fromBytes<Vec3f>(mesh.attributeBuffers[1].data);
+  auto texCoords = fromBytes<Vec2f>(mesh.attributeBuffers[2].data);
+  auto indices = fromBytes<uint16_t>(mesh.indexBuffer.data);
 
   Vec2f textureSize = metresToWorldUnits(Vec2f{ 4, 4 });
 
-  uint16_t n = static_cast<uint16_t>(mesh.vertices.size() / 2);
+  assert(positions.size() % 2 == 0);
+  size_t n = static_cast<uint16_t>(positions.size() / 2);
+
   float_t distance = 0.f;
-  for (uint16_t i = 0; i < n; ++i) {
-    uint16_t j = n + i;
-    uint16_t nextI = (i + 1) % n;
-    uint16_t nextJ = n + nextI;
+  for (size_t i = 0; i < n; ++i) {
+    size_t j = n + i;
+    size_t nextI = (i + 1) % n;
+    size_t nextJ = n + nextI;
 
     // Face
-    Vertex A = mesh.vertices[i];
-    Vertex B = mesh.vertices[nextI];
-    Vertex C = mesh.vertices[j];
-    Vertex D = mesh.vertices[nextJ];
+    const Vec3f& A = positions[i];
+    const Vec3f& B = positions[nextI];
+    const Vec3f& C = positions[j];
+    const Vec3f& D = positions[nextJ];
 
-    Vec3f normal = -(A.pos - B.pos).cross(A.pos - C.pos).normalise();
-    A.normal = normal;
-    B.normal = normal;
-    C.normal = normal;
-    D.normal = normal;
+    Vec3f normal = -(A - B).cross(A - C).normalise();
 
-    float_t edgeLength = (B.pos - A.pos).magnitude();
-    float_t height = C.pos[1] - A.pos[1];
+    float_t edgeLength = (B - A).magnitude();
+    float_t height = C[1] - A[1];
 
-    A.texCoord = Vec2f{ distance / textureSize[0], height / textureSize[1] };
-    B.texCoord = Vec2f{ (distance + edgeLength) / textureSize[0], height / textureSize[1] };
-    C.texCoord = Vec2f{ distance / textureSize[0], 0 };
-    D.texCoord = Vec2f{ (distance + edgeLength) / textureSize[0], 0 };
+    Vec2f uvA{ distance / textureSize[0], height / textureSize[1] };
+    Vec2f uvB{ (distance + edgeLength) / textureSize[0], height / textureSize[1] };
+    Vec2f uvC{ distance / textureSize[0], 0 };
+    Vec2f uvD{ (distance + edgeLength) / textureSize[0], 0 };
 
     distance += edgeLength;
 
-    uint16_t idx = static_cast<uint16_t>(mesh.vertices.size());
-    mesh.vertices.insert(mesh.vertices.end(), { A, B, C, D });
+    uint16_t idx = static_cast<uint16_t>(positions.size());
 
-    mesh.indices.push_back(idx);      // A
-    mesh.indices.push_back(idx + 2);  // C
-    mesh.indices.push_back(idx + 1);  // B
+    positions.insert(positions.end(), { A, B, C, D });
+    normals.insert(normals.end(), { normal, normal, normal, normal });
+    texCoords.insert(texCoords.end(), { uvA, uvB, uvC, uvD });
 
-    mesh.indices.push_back(idx + 1);  // B
-    mesh.indices.push_back(idx + 2);  // C
-    mesh.indices.push_back(idx + 3);  // D
+    indices.push_back(idx);      // A
+    indices.push_back(idx + 2);  // C
+    indices.push_back(idx + 1);  // B
+
+    indices.push_back(idx + 1);  // B
+    indices.push_back(idx + 2);  // C
+    indices.push_back(idx + 3);  // D
   }
+
+  mesh.attributeBuffers[0].data = toBytes(positions);
+  mesh.attributeBuffers[1].data = toBytes(normals);
+  mesh.attributeBuffers[2].data = toBytes(texCoords);
+  mesh.indexBuffer.data = toBytes(indices);
 }
 
 void SceneBuilder::fillArea(const ObjectData& area, const Mat4x4f& transform, float_t height,
@@ -430,7 +481,8 @@ Mat4x4f SceneBuilder::constructZone(const ObjectData& obj, const Mat4x4f& parent
 
   auto mesh = mergeMeshes(*bottomFace, *topFace);
   createSideFaces(*mesh);
-  float_t radius = computeRadius(*mesh);
+  auto positions = getConstAttrBufferData<Vec3f>(*mesh, 0, BufferUsage::AttrPosition);
+  float_t radius = computeRadius(positions);
 
   CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::Regular);
   render->meshes = {
@@ -498,7 +550,8 @@ void SceneBuilder::constructWall(const ObjectData& obj, const Mat4x4f& parentTra
 
     CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::Regular);
     auto mesh = cuboid(wallThickness, wallHeight, distance, textureSize);
-    float_t radius = computeRadius(*mesh);
+    auto positions = getConstAttrBufferData<Vec3f>(*mesh, 0, BufferUsage::AttrPosition);
+    float_t radius = computeRadius(positions);
     render->meshes = {
       MeshMaterialPair{
         .mesh = m_renderSystem.addMesh(std::move(mesh)),

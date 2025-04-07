@@ -1,7 +1,5 @@
 #include "vulkan/vulkan_utils.hpp"
-#include "vulkan/default_pipeline.hpp"
-//#include "vulkan/instanced_pipeline.hpp"
-//#include "vulkan/skybox_pipeline.hpp"
+#include "vulkan/pipeline.hpp"
 #include "vulkan/render_resources.hpp"
 #include "vulkan/vulkan_window_delegate.hpp"
 #include "renderer.hpp"
@@ -39,13 +37,6 @@ const std::vector<const char*> DeviceExtensions = {
   "VK_KHR_portability_subset",
 #endif
 };
-/*
-enum class PipelineName : RenderGraphKey
-{
-  DefaultModel,
-  InstancedModel,
-  Skybox
-};*/
 
 struct QueueFamilyIndices
 {
@@ -74,6 +65,7 @@ class RendererImpl : public Renderer
     void onResize() override;
     double frameRate() const override;
     const ViewParams& getViewParams() const override;
+    void checkError() const override;
 
     // Initialisation
     //
@@ -137,7 +129,6 @@ class RendererImpl : public Renderer
     void createRenderPass();
     void createFramebuffers();
     void createCommandPool();
-    //void createPipelines();
     void createDepthResources();
     void createCommandBuffers();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
@@ -196,7 +187,6 @@ class RendererImpl : public Renderer
     BindState m_bindState{};
   
     RenderResourcesPtr m_resources;
-    //std::map<PipelineName, PipelinePtr> m_pipelines;
     std::unordered_map<PipelineKey, PipelinePtr> m_pipelines;
 
     Timer m_timer;
@@ -204,6 +194,9 @@ class RendererImpl : public Renderer
 
     Thread m_thread;
     std::atomic<bool> m_running;
+    mutable std::mutex m_errorMutex;
+    bool m_hasError;
+    std::string m_error;
 };
 
 RendererImpl::RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& window,
@@ -240,7 +233,6 @@ RendererImpl::RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& w
     createCommandPool();
     m_resources = createRenderResources(m_physicalDevice, m_device, m_graphicsQueue, m_commandPool,
       m_logger);
-    //createPipelines();
     createDepthResources();
     createFramebuffers();
     createCommandBuffers();
@@ -254,6 +246,31 @@ void RendererImpl::start()
   m_thread.run<void>([&]() {
     renderLoop();
   });
+}
+
+void RendererImpl::checkError() const
+{
+  std::lock_guard lock(m_errorMutex);
+
+  if (m_hasError) {
+    EXCEPTION(m_error);
+  }
+}
+
+void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
+  const MaterialFeatureSet& materialFeatures)
+{
+  PipelineKey key{
+    .meshFeatures = meshFeatures,
+    .materialFeatures = materialFeatures
+  };
+
+  if (!m_pipelines.contains(key)) {
+    auto pipeline = std::make_unique<Pipeline>(meshFeatures, materialFeatures, m_fileSystem,
+      m_device, m_swapchainExtent, m_renderPass, *m_resources);
+
+    m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
+  }
 }
 
 double RendererImpl::frameRate() const
@@ -274,6 +291,7 @@ const ViewParams& RendererImpl::getViewParams() const
 RenderGraph::Key RendererImpl::generateRenderGraphKey(RenderItemId meshId,
   RenderItemId materialId) const
 {
+  // TODO: Potentially slow
   auto& meshFeatures = m_resources->getMeshFeatures(meshId);
   auto& materialFeatures = m_resources->getMaterialFeatures(materialId);
 
@@ -404,39 +422,48 @@ void RendererImpl::beginFrame(const Camera& camera)
 
 void RendererImpl::renderLoop()
 {
-  while (m_running) {
-    VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
-      "Error waiting for fence");
+  try {
+    while (m_running) {
+      VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
+        "Error waiting for fence");
 
-    VkResult acqImgResult = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX,
-      m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_imageIndex);
+      VkResult acqImgResult = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX,
+        m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_imageIndex);
 
-    if (acqImgResult == VK_ERROR_OUT_OF_DATE_KHR) {
-      recreateSwapChain();
-      return;
+      if (acqImgResult == VK_ERROR_OUT_OF_DATE_KHR) {
+        recreateSwapChain();
+        return;
+      }
+      else if (acqImgResult != VK_SUCCESS && acqImgResult != VK_SUBOPTIMAL_KHR) {
+        EXCEPTION("Error obtaining image from swap chain");
+      }
+
+      VK_CHECK(vkResetFences(m_device, 1, &m_inFlightFences[m_currentFrame]),
+        "Error resetting fence");
+
+      vkResetCommandBuffer(m_commandBuffers[m_imageIndex], 0);
+
+      auto& state = m_renderStates.getReadable();
+
+      updateMatricesUbo(state.cameraMatrix);
+      m_resources->updateLightingUbo(state.lighting, m_currentFrame);
+
+      updateResources();
+      recordCommandBuffer(m_commandBuffers[m_imageIndex], m_imageIndex);
+      finishFrame();
+
+      m_renderStates.readComplete();
+
+      m_frameRate = 1.0 / m_timer.elapsed();
+      m_timer.reset();
     }
-    else if (acqImgResult != VK_SUCCESS && acqImgResult != VK_SUBOPTIMAL_KHR) {
-      EXCEPTION("Error obtaining image from swap chain");
-    }
+  }
+  catch (const std::exception& e) {
+    std::lock_guard lock(m_errorMutex);
 
-    VK_CHECK(vkResetFences(m_device, 1, &m_inFlightFences[m_currentFrame]),
-      "Error resetting fence");
-
-    vkResetCommandBuffer(m_commandBuffers[m_imageIndex], 0);
-
-    auto& state = m_renderStates.getReadable();
-
-    updateMatricesUbo(state.cameraMatrix);
-    m_resources->updateLightingUbo(state.lighting, m_currentFrame);
-
-    updateResources();
-    recordCommandBuffer(m_commandBuffers[m_imageIndex], m_imageIndex);
-    finishFrame();
-
-    m_renderStates.readComplete();
-
-    m_frameRate = 1.0 / m_timer.elapsed();
-    m_timer.reset();
+    m_hasError = true;
+    m_error = e.what();
+    m_running = false;
   }
 
   cleanUp();
@@ -1087,19 +1114,16 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
   vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
   auto choosePipeline = [this](const RenderNode& node) -> Pipeline& {
-/*
-    switch (nodeType) {
-      case RenderNodeType::DefaultModel:    return PipelineName::DefaultModel;
-      case RenderNodeType::InstancedModel:  return PipelineName::InstancedModel;
-      case RenderNodeType::Skybox:          return PipelineName::Skybox;
-      default:                              return PipelineName::DefaultModel;
-    }*/
-
+    // TODO: These lookups could get expensive
     PipelineKey key{
-      node.mesh,
-      node.material
+      .meshFeatures = m_resources->getMeshFeatures(node.mesh),
+      .materialFeatures = m_resources->getMaterialFeatures(node.material)
     };
-    return *m_pipelines.at(key);
+    auto i = m_pipelines.find(key);
+    if (i == m_pipelines.end()) {
+      EXCEPTION("No shader has been compiled for this combination of mesh/material features");
+    }
+    return *i->second;
   };
 
   auto& state = m_renderStates.getReadable();
@@ -1239,18 +1263,6 @@ void RendererImpl::createDepthResources()
   m_depthImageView = createImageView(m_device, m_depthImage, depthFormat,
     VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
 }
-/*
-void RendererImpl::createPipelines()
-{
-  DBG_TRACE(m_logger);
-
-  m_pipelines[PipelineName::DefaultModel] = std::make_unique<DefaultPipeline>(m_fileSystem,
-    m_device, m_swapchainExtent, m_renderPass, *m_resources);
-  //m_pipelines[PipelineName::InstancedModel] = std::make_unique<InstancedPipeline>(m_fileSystem,
-  //  m_device, m_swapchainExtent, m_renderPass, *m_resources);
-  //m_pipelines[PipelineName::Skybox] = std::make_unique<SkyboxPipeline>(m_fileSystem, m_device,
-  //  m_swapchainExtent, m_renderPass, *m_resources);
-}*/
 
 void RendererImpl::pickPhysicalDevice()
 {

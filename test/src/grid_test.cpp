@@ -70,7 +70,6 @@ TEST_F(GridTest, gridCellsBetweenPoints_vertical_line)
   EXPECT_EQ(expected, cells);
 }
 
-
 TEST_F(GridTest, gridCellsBetweenPoints_out_of_bounds)
 {
   Grid<char, 10, 10> grid(Vec2f{ 0.f, 0.f }, Vec2f{ 10.f, 10.f });
