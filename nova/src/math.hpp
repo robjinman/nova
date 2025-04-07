@@ -587,4 +587,4 @@ bool lineIntersect(const Line& l1, const Line& l2, Vec2f& p);
 Vec2f projectionOntoLine(const Line& line, const Vec2f& p);
 bool lineSegmentCircleIntersect(const LineSegment& lseg, const Vec2f& centre, float_t radius);
 bool pointIsInsidePoly(const Vec2f& p, const std::vector<Vec2f>& poly);
-std::vector<uint16_t> triangulatePoly(const std::vector<Vec4f>& vertices);
+std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices);

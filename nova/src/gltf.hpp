@@ -32,6 +32,20 @@ enum class ElementType
   JointScale
 };
 
+inline bool isAttribute(ElementType type)
+{
+  switch (type) {
+    case ElementType::AttrPosition:
+    case ElementType::AttrNormal:
+    case ElementType::AttrTexCoord:
+    case ElementType::AttrJointIndex:
+    case ElementType::AttrJointWeight:
+      return true;
+    default:
+      return false;
+  }
+}
+
 struct BufferDesc
 {
   ElementType type;
@@ -114,6 +128,7 @@ inline size_t getSize(ComponentType type)
     case ComponentType::UnsignedShort: return 2;
     case ComponentType::UnsignedInt: return 4;
     case ComponentType::Float: return 4;
+    default: EXCEPTION("Cannot get size of unknown type");
   }
 }
 

@@ -27,6 +27,7 @@ T convert(const char* value, gltf::ComponentType dataType)
       return static_cast<T>(*reinterpret_cast<const uint32_t*>(value));
     case gltf::ComponentType::Float:
       return static_cast<T>(*reinterpret_cast<const float*>(value));
+    default: EXCEPTION("Cannot convert data type");
   }
 }
 
@@ -36,6 +37,21 @@ void convert(const char* src, gltf::ComponentType srcType, uint32_t n, T* dest)
   for (uint32_t i = 0; i < n; ++i) {
     *(dest + i) = convert<T>(src + i * getSize(srcType), srcType);
   }
+}
+
+template<typename T>
+void copyToBuffer(const std::vector<std::vector<char>>& srcBuffers, char* dstBuffer,
+  const gltf::BufferDesc desc)
+{
+  const char* src = srcBuffers[desc.index].data() + desc.offset;
+/*
+  size_t srcElemSize = gltf::getSize(desc.componentType) * desc.dimensions;
+  for (unsigned long i = 0; i < desc.size; ++i) {
+    T* dstPtr = reinterpret_cast<T*>(dstBuffer) + i * desc.dimensions;
+    convert<float_t>(src + i * srcElemSize, desc.componentType, desc.dimensions, dstPtr);
+  }*/
+
+  memcpy(dstBuffer, srcBuffers[desc.index].data() + desc.offset, desc.byteLength);
 }
 
 BufferUsage getUsage(gltf::ElementType type)
@@ -49,32 +65,60 @@ BufferUsage getUsage(gltf::ElementType type)
   }
 }
 
-// TODO: Use convert functions?
+std::vector<BufferUsage> getVertexLayout(const gltf::MeshDesc& meshDesc)
+{
+  std::vector<BufferUsage> layout;
+
+  for (auto& b : meshDesc.buffers) {
+    if (gltf::isAttribute(b.type)) {
+      layout.push_back(getUsage(b.type));
+    }
+  }
+
+  return layout;
+}
+
+MeshFeatureSet createMeshFeatureSet(const gltf::MeshDesc& meshDesc)
+{
+  return MeshFeatureSet{
+    .vertexLayout = getVertexLayout(meshDesc),
+    .isInstanced = false, // TODO
+    .isSkybox = false,
+    .isAnimated = false, // TODO
+    .maxInstances = 0 // TODO
+  };
+}
+
+MaterialFeatureSet createMaterialFeatureSet(const gltf::MaterialDesc& materialDesc)
+{
+  return MaterialFeatureSet{
+    .hasTransparency = false, // TODO
+    .hasTexture = !materialDesc.baseColourTexture.empty(),
+    .hasNormalMap = !materialDesc.normalMap.empty()
+  };
+}
+
 MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
   const std::vector<std::vector<char>>& dataBuffers)
 {
-  auto mesh = std::make_unique<Mesh>();
+  auto mesh = std::make_unique<Mesh>(createMeshFeatureSet(meshDesc));
 
   for (const auto& bufferDesc : meshDesc.buffers) {
     if (bufferDesc.type == gltf::ElementType::VertexIndex) {
-      mesh->indexBuffer = Buffer{
-        .info = BufferInfo{
-          .usage = BufferUsage::Index,
-          .elementSize = sizeof(uint16_t)
-        },
-        .data = dataBuffers[bufferDesc.index]
-      };
+      mesh->indexBuffer.usage = BufferUsage::Index;
+      mesh->indexBuffer.data.resize(bufferDesc.byteLength);
+      copyToBuffer<float_t>(dataBuffers, mesh->indexBuffer.data.data(), bufferDesc);
     }
     else {
-      mesh->attributeBuffers.push_back(
-        Buffer{
-          .info = BufferInfo{
-            .usage = getUsage(bufferDesc.type),
-            .elementSize = getSize(bufferDesc.componentType)
-          },
-          .data = dataBuffers[bufferDesc.index]
-        }
-      );
+      auto usage = getUsage(bufferDesc.type);
+      Buffer buffer;
+      buffer.usage = usage;
+      buffer.data.resize(bufferDesc.byteLength);
+
+      copyToBuffer<float_t>(dataBuffers, buffer.data.data(), bufferDesc);
+
+      mesh->attributeBuffers.push_back(std::move(buffer));
+      mesh->featureSet.vertexLayout.push_back(usage);
     }
   }
 
@@ -83,7 +127,7 @@ MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
 
 MaterialPtr constructMaterial(const gltf::MaterialDesc& materialDesc)
 {
-  auto material = std::make_unique<Material>();
+  auto material = std::make_unique<Material>(createMaterialFeatureSet(materialDesc));
 
   material->texture.fileName = materialDesc.baseColourTexture;
   material->normalMap.fileName = materialDesc.normalMap;
@@ -128,7 +172,13 @@ MeshPtr cuboid(float_t W, float_t H, float_t D, const Vec2f& textureSize)
   float_t u = textureSize[0];
   float_t v = textureSize[1];
 
-  MeshPtr mesh = std::make_unique<Mesh>();
+  MeshPtr mesh = std::make_unique<Mesh>(MeshFeatureSet{
+    .vertexLayout = {
+      BufferUsage::AttrPosition,
+      BufferUsage::AttrNormal,
+      BufferUsage::AttrTexCoord
+    }
+  });
   // Viewed from above
   //
   // A +---+ B
@@ -137,11 +187,8 @@ MeshPtr cuboid(float_t W, float_t H, float_t D, const Vec2f& textureSize)
   //
   mesh->attributeBuffers = {
     Buffer{
-      .info = BufferInfo{
-        .usage = BufferUsage::AttrPosition,
-        .elementSize = sizeof(Vec3f)
-      },
-      .data = getBytes(std::vector<Vec3f>{
+      .usage = BufferUsage::AttrPosition,
+      .data = toBytes(std::vector<Vec3f>{
         // Bottom face
         { -w, -h, -d }, // A  0
         { w, -h, -d },  // B  1
@@ -180,11 +227,8 @@ MeshPtr cuboid(float_t W, float_t H, float_t D, const Vec2f& textureSize)
       })
     },
     Buffer{
-      .info = BufferInfo{
-        .usage = BufferUsage::AttrNormal,
-        .elementSize = sizeof(Vec3f)
-      },
-      .data = getBytes(std::vector<Vec3f>{
+      .usage = BufferUsage::AttrNormal,
+      .data = toBytes(std::vector<Vec3f>{
         // Bottom face
         { 0, -1, 0 },   // A  0
         { 0, -1, 0 },   // B  1
@@ -223,11 +267,8 @@ MeshPtr cuboid(float_t W, float_t H, float_t D, const Vec2f& textureSize)
       })
     },
     Buffer{
-      .info = BufferInfo{
-        .usage = BufferUsage::AttrTexCoord,
-        .elementSize = sizeof(Vec2f)
-      },
-      .data = getBytes(std::vector<Vec2f>{
+      .usage = BufferUsage::AttrTexCoord,
+      .data = toBytes(std::vector<Vec2f>{
         // Bottom face
         { 0, 0 },         // A  0
         { W / u, 0 },     // B  1
@@ -267,11 +308,8 @@ MeshPtr cuboid(float_t W, float_t H, float_t D, const Vec2f& textureSize)
     }
   };
   mesh->indexBuffer = Buffer{
-    .info = BufferInfo{
-      .usage = BufferUsage::Index,
-      .elementSize = sizeof(uint16_t)
-    },
-    .data = getBytes(std::vector<uint16_t>{
+    .usage = BufferUsage::Index,
+    .data = toBytes(std::vector<uint16_t>{
       0, 1, 2, 0, 2, 3,         // Bottom face
       4, 5, 6, 4, 6, 7,         // Top face
       8, 9, 10, 8, 10, 11,      // Left face
@@ -305,4 +343,70 @@ ModelPtr loadModel(const FileSystem& fileSystem, const std::string& filePath)
   }
 
   return model;
+}
+
+MeshPtr mergeMeshes(const Mesh& A, const Mesh& B)
+{
+  DBG_ASSERT(A.featureSet == B.featureSet, "Cannot merge meshes with different feature sets");
+  DBG_ASSERT(A.attributeBuffers.size() == B.attributeBuffers.size(),
+    "Cannot merge meshes with different number of attribute buffers");
+
+  MeshPtr mesh = std::make_unique<Mesh>(A.featureSet);
+
+  size_t n = A.attributeBuffers.size();
+  for (size_t i = 0; i < n; ++i) {
+    auto& bufA = A.attributeBuffers[i];
+    auto& bufB = B.attributeBuffers[i];
+
+    DBG_ASSERT(bufA.usage == bufB.usage, "Expected equal buffer type");
+
+    mesh->attributeBuffers.push_back(Buffer{
+      .usage = bufA.usage,
+      .data = {}
+    });
+    auto& buf = mesh->attributeBuffers.back().data;
+    buf.insert(buf.end(), bufA.data.begin(), bufA.data.end());
+    buf.insert(buf.end(), bufB.data.begin(), bufB.data.end());
+  }
+
+  auto indices = fromBytes<uint16_t>(A.indexBuffer.data);
+  auto indicesB = fromBytes<uint16_t>(B.indexBuffer.data);
+
+  std::transform(indicesB.begin(), indicesB.end(), std::back_inserter(indices),
+    [n](uint16_t i) { return i + n; });
+
+  mesh->indexBuffer = createBuffer(indices, BufferUsage::Index);
+
+  return mesh;
+}
+
+std::vector<char> createVertexArray(const Mesh& mesh)
+{
+  ASSERT(mesh.attributeBuffers.size() > 0, "Expected at least 1 attribute buffer");
+
+  size_t numVertices = mesh.attributeBuffers[0].numElements();
+  size_t vertexSize = 0;
+  for (auto& buffer : mesh.attributeBuffers) {
+    vertexSize += getAttributeSize(buffer.usage);
+
+    ASSERT(buffer.numElements() == numVertices,
+      "Expected all attribute buffers to have same length");
+  }
+
+  std::vector<char> array(numVertices * vertexSize);
+
+  for (auto& buffer : mesh.attributeBuffers) {
+    const char* srcPtr = buffer.data.data();
+    char* destPtr = array.data();
+    for (size_t i = 0; i < numVertices; ++i) {
+      size_t offset = calcOffsetInVertex(mesh.featureSet.vertexLayout, buffer.usage);
+      size_t attributeSize = getAttributeSize(buffer.usage);
+      memcpy(destPtr + offset, srcPtr, attributeSize);
+
+      srcPtr += attributeSize;
+      destPtr += vertexSize;
+    }
+  }
+
+  return array;
 }

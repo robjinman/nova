@@ -21,6 +21,7 @@ class Renderer
     virtual double frameRate() const = 0;
     virtual void onResize() = 0;
     virtual const ViewParams& getViewParams() const = 0;
+    virtual void checkError() const = 0;
 
     // Initialisation
     //

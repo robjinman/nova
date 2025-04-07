@@ -1,10 +1,8 @@
 #pragma once
 
+#include "vulkan/pipeline.hpp"
+#include "vulkan/render_resources.hpp"
 #include "tree_set.hpp"
-#include "model.hpp"
-#include <vulkan/vulkan.h>
-#include <memory>
-#include <vector>
 
 enum class RenderNodeType
 {
@@ -47,39 +45,55 @@ struct std::hash<PipelineKey>
   }
 };
 
-// TODO: Move bindstate into Pipeline class when we only have a single Pipeline class
+struct DefaultModelNode : public RenderNode
+{
+  DefaultModelNode()
+    : RenderNode(RenderNodeType::DefaultModel)
+  {}
+
+  Mat4x4f modelMatrix;
+};
+
+struct InstancedModelNode : public RenderNode
+{
+  InstancedModelNode()
+    : RenderNode(RenderNodeType::InstancedModel)
+  {}
+
+  std::vector<MeshInstance> instances;
+};
+
+struct SkyboxNode : public RenderNode
+{
+  SkyboxNode()
+    : RenderNode(RenderNodeType::Skybox)
+  {}
+};
+
 struct BindState
 {
   VkPipeline pipeline;
 };
 
+class FileSystem;
+
 class Pipeline
 {
   public:
-    virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
-      BindState& bindState, size_t currentFrame) = 0;
+    Pipeline(const MeshFeatureSet& meshFeatures, const MaterialFeatureSet& materialFeatures,
+      const FileSystem& fileSystem, VkDevice device, VkExtent2D swapchainExtent,
+      VkRenderPass renderPass, const RenderResources& renderResources);
 
-    virtual ~Pipeline() = default;
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
+      BindState& bindState, size_t currentFrame);
+
+    ~Pipeline();
+
+  private:
+    VkDevice m_device;
+    const RenderResources& m_renderResources;
+    VkPipeline m_pipeline;
+    VkPipelineLayout m_layout;
 };
 
 using PipelinePtr = std::unique_ptr<Pipeline>;
-
-VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code);
-
-VkVertexInputBindingDescription defaultVertexBindingDescription();
-
-std::vector<VkVertexInputAttributeDescription> defaultAttributeDescriptions();
-
-VkPipelineInputAssemblyStateCreateInfo defaultInputAssemblyState();
-
-VkPipelineViewportStateCreateInfo defaultViewportState(VkViewport& viewport, VkRect2D& scissor,
-  VkExtent2D swapchainExtent);
-
-VkPipelineRasterizationStateCreateInfo defaultRasterizationState();
-
-VkPipelineMultisampleStateCreateInfo defaultMultisamplingState();
-
-VkPipelineColorBlendStateCreateInfo
-defaultColourBlendState(VkPipelineColorBlendAttachmentState& colourBlendAttachment);
-
-VkPipelineDepthStencilStateCreateInfo defaultDepthStencilState();

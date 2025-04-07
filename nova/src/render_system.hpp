@@ -54,6 +54,11 @@ class RenderSystem : public System
     CRender& getComponent(EntityId entityId) override = 0;
     const CRender& getComponent(EntityId entityId) const override = 0;
 
+    // Initialisation
+    //
+    virtual void compileShader(const MeshFeatureSet& meshFeatures,
+      const MaterialFeatureSet& materialFeatures) = 0;
+
     // Resources
     //
     virtual RenderItemId addTexture(TexturePtr texture) = 0;
