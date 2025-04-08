@@ -144,9 +144,9 @@ Application::Application()
   glfwGetWindowPos(m_window, &m_initialWindowState.posX, &m_initialWindowState.posY);
   glfwGetWindowSize(m_window, &m_initialWindowState.width, &m_initialWindowState.height);
 
-  if (glfwJoystickPresent(GLFW_JOYSTICK_1)) {
-    m_controlMode = ControlMode::Gamepad;
-  }
+  m_controlMode = glfwJoystickPresent(GLFW_JOYSTICK_1) ?
+    ControlMode::Gamepad :
+    ControlMode::KeyboardMouse;
 
   m_fileSystem = createDefaultFileSystem(std::filesystem::current_path() / "data");
   m_windowDelegate = createWindowDelegate(*m_window);

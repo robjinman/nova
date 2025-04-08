@@ -23,6 +23,7 @@ template<typename T>
 std::vector<T> fromBytes(const std::vector<char>& data)
 {
   const T* p = reinterpret_cast<const T*>(data.data());
+  DBG_ASSERT(data.size() % sizeof(T) == 0, "Cannot convert vector");
   size_t n = data.size() / sizeof(T);
   return std::vector<T>(p, p + n);
 }
@@ -48,6 +49,8 @@ enum class BufferUsage : int
   AttrPosition,
   AttrNormal,
   AttrTexCoord,
+  AttrJointIndices,
+  AttrJointWeights,
   Index
 };
 
@@ -57,6 +60,8 @@ inline size_t getAttributeSize(BufferUsage usage)
     case BufferUsage::AttrPosition: return sizeof(Vec3f);
     case BufferUsage::AttrNormal: return sizeof(Vec3f);
     case BufferUsage::AttrTexCoord: return sizeof(Vec2f);
+    case BufferUsage::AttrJointIndices: return sizeof(uint8_t) * 4;
+    case BufferUsage::AttrJointWeights: return sizeof(float_t) * 4;
     case BufferUsage::Index: return sizeof(uint16_t);
   }
   EXCEPTION("Error getting element size");
@@ -149,10 +154,12 @@ Buffer createBuffer(const std::vector<T>& data, BufferUsage usage)
 
 inline size_t calcOffsetInVertex(const std::vector<BufferUsage>& layout, BufferUsage attribute)
 {
-  const static std::array<BufferUsage, 3> attributeOrder{ // TODO: Move this
+  const static std::array<BufferUsage, 5> attributeOrder{ // TODO: Move this
     BufferUsage::AttrPosition,
     BufferUsage::AttrNormal,
-    BufferUsage::AttrTexCoord
+    BufferUsage::AttrTexCoord,
+    BufferUsage::AttrJointIndices,
+    BufferUsage::AttrJointWeights
   };
 
   auto isBefore = [&](BufferUsage a, BufferUsage b) {

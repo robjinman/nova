@@ -194,7 +194,7 @@ class RendererImpl : public Renderer
     Thread m_thread;
     std::atomic<bool> m_running;
     mutable std::mutex m_errorMutex;
-    bool m_hasError;
+    bool m_hasError = false;
     std::string m_error;
 };
 

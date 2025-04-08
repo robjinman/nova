@@ -33,6 +33,8 @@ VkFormat attributeFormat(BufferUsage usage)
     case BufferUsage::AttrPosition: return VK_FORMAT_R32G32B32_SFLOAT;
     case BufferUsage::AttrNormal: return VK_FORMAT_R32G32B32_SFLOAT;
     case BufferUsage::AttrTexCoord: return VK_FORMAT_R32G32_SFLOAT;
+    case BufferUsage::AttrJointIndices: return VK_FORMAT_R8G8B8A8_UINT;
+    case BufferUsage::AttrJointWeights: return VK_FORMAT_R32G32B32A32_SFLOAT;
     default: EXCEPTION("Buffer type is not a vertex attribute");
   }
 }
