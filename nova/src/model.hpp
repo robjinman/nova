@@ -67,6 +67,7 @@ inline size_t getAttributeSize(BufferUsage usage)
   EXCEPTION("Error getting element size");
 }
 
+// TODO: Make these more compact with bitfields
 struct MeshFeatureSet
 {
   std::vector<BufferUsage> vertexLayout;
@@ -85,6 +86,18 @@ struct MaterialFeatureSet
   bool hasNormalMap = false;
 
   bool operator==(const MaterialFeatureSet& rhs) const = default;
+};
+
+struct MeshHandle
+{
+  RenderItemId id = NULL_ID;
+  MeshFeatureSet features;
+};
+
+struct MaterialHandle
+{
+  RenderItemId id = NULL_ID;
+  MaterialFeatureSet features;
 };
 
 template<>

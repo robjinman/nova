@@ -38,22 +38,22 @@ class Renderer
 
     // Meshes
     //
-    virtual RenderItemId addMesh(MeshPtr mesh) = 0;
+    virtual MeshHandle addMesh(MeshPtr mesh) = 0;
     virtual void removeMesh(RenderItemId id) = 0;
 
     // Materials
     //
-    virtual RenderItemId addMaterial(MaterialPtr material) = 0;
+    virtual MaterialHandle addMaterial(MaterialPtr material) = 0;
     virtual void removeMaterial(RenderItemId id) = 0;
 
     // Per frame draw functions
     //
     virtual void beginFrame(const Camera& camera) = 0;
-    virtual void drawModel(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform) = 0;
-    virtual void drawInstance(RenderItemId mesh, RenderItemId material,
+    virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) = 0;
+    virtual void drawInstance(MeshHandle mesh, MaterialHandle material,
       const Mat4x4f& transform) = 0;
     virtual void drawLight(const Vec3f& colour, float_t ambient, const Vec3f& worldPos) = 0;
-    virtual void drawSkybox(RenderItemId mesh, RenderItemId cubeMap) = 0;
+    virtual void drawSkybox(MeshHandle mesh, MaterialHandle cubeMap) = 0;
     virtual void endFrame() = 0;
 
     virtual ~Renderer() {}

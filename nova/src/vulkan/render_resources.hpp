@@ -60,7 +60,7 @@ class RenderResources
 
     // Meshes
     //
-    virtual RenderItemId addMesh(MeshPtr mesh) = 0;
+    virtual MeshHandle addMesh(MeshPtr mesh) = 0;
     virtual void removeMesh(RenderItemId id) = 0;
     virtual MeshBuffers getMeshBuffers(RenderItemId id) const = 0;
     virtual void updateMeshInstances(RenderItemId id,
@@ -69,7 +69,7 @@ class RenderResources
 
     // Materials
     //
-    virtual RenderItemId addMaterial(MaterialPtr material) = 0;
+    virtual MaterialHandle addMaterial(MaterialPtr material) = 0;
     virtual void removeMaterial(RenderItemId id) = 0;
     virtual VkDescriptorSetLayout getMaterialDescriptorSetLayout() const = 0;
     virtual VkDescriptorSet getMaterialDescriptorSet(RenderItemId id) const = 0;

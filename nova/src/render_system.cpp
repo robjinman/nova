@@ -42,12 +42,12 @@ class RenderSystemImpl : public RenderSystem
 
     // Meshes
     //
-    RenderItemId addMesh(MeshPtr mesh) override;
+    MeshHandle addMesh(MeshPtr mesh) override;
     void removeMesh(RenderItemId id) override;
 
     // Materials
     //
-    RenderItemId addMaterial(MaterialPtr material) override;
+    MaterialHandle addMaterial(MaterialPtr material) override;
     void removeMaterial(RenderItemId id) override;
 
     Camera& camera() override;
@@ -154,12 +154,12 @@ RenderItemId RenderSystemImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
   return m_renderer.addCubeMap(std::move(textures));
 }
 
-RenderItemId RenderSystemImpl::addMaterial(MaterialPtr material)
+MaterialHandle RenderSystemImpl::addMaterial(MaterialPtr material)
 {
   return m_renderer.addMaterial(std::move(material));
 }
 
-RenderItemId RenderSystemImpl::addMesh(MeshPtr mesh)
+MeshHandle RenderSystemImpl::addMesh(MeshPtr mesh)
 {
   return m_renderer.addMesh(std::move(mesh));
 }
