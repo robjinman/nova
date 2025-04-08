@@ -1,6 +1,7 @@
 #pragma once
 
 #include "math.hpp"
+#include "hash.hpp"
 #include <memory>
 #include <vector>
 #include <string>
@@ -42,32 +43,6 @@ struct MaterialResource
   RenderItemId id = NULL_ID;
 };
 
-struct MaterialFeatureSet
-{
-  bool hasTransparency = false;
-  bool hasTexture = false;
-  bool hasNormalMap = false;
-
-  bool operator==(const MaterialFeatureSet& rhs) const = default;
-};
-
-struct Material
-{
-  Material(const MaterialFeatureSet& features)
-    : featureSet(features)
-  {}
-
-  MaterialFeatureSet featureSet;
-  Vec4f colour = { 1, 1, 1, 1 };
-  MaterialResource texture;
-  MaterialResource cubeMap;
-  MaterialResource normalMap;
-  float_t metallicFactor = 0.f;
-  float_t roughnessFactor = 0.f;
-};
-
-using MaterialPtr = std::unique_ptr<Material>;
-
 enum class BufferUsage : int
 {
   AttrPosition,
@@ -86,6 +61,71 @@ inline size_t getAttributeSize(BufferUsage usage)
   }
   EXCEPTION("Error getting element size");
 }
+
+struct MeshFeatureSet
+{
+  std::vector<BufferUsage> vertexLayout;
+  bool isInstanced = false;
+  bool isSkybox = false;
+  bool isAnimated = false;
+  uint32_t maxInstances = 0;
+
+  bool operator==(const MeshFeatureSet& rhs) const = default;
+};
+
+struct MaterialFeatureSet
+{
+  bool hasTransparency = false;
+  bool hasTexture = false;
+  bool hasNormalMap = false;
+
+  bool operator==(const MaterialFeatureSet& rhs) const = default;
+};
+
+template<>
+struct std::hash<MeshFeatureSet>
+{
+  size_t operator()(const MeshFeatureSet& x) const noexcept
+  {
+    return hashAll(
+      x.vertexLayout,
+      x.isInstanced,
+      x.isSkybox,
+      x.isAnimated,
+      x.maxInstances
+    );
+  }
+};
+
+template<>
+struct std::hash<MaterialFeatureSet>
+{
+  size_t operator()(const MaterialFeatureSet& x) const noexcept
+  {
+    return hashAll(
+      x.hasTransparency,
+      x.hasTexture,
+      x.hasNormalMap
+    );
+  }
+};
+
+struct Material
+{
+  Material(const MaterialFeatureSet& features)
+    : featureSet(features)
+  {}
+
+  MaterialFeatureSet featureSet;
+  Vec4f colour = { 1, 1, 1, 1 };
+  MaterialResource texture;
+  MaterialResource cubeMap;
+  MaterialResource normalMap;
+  float_t metallicFactor = 0.f;
+  float_t roughnessFactor = 0.f;
+};
+
+using MaterialPtr = std::unique_ptr<Material>;
 
 struct Buffer
 {
@@ -109,7 +149,7 @@ Buffer createBuffer(const std::vector<T>& data, BufferUsage usage)
 
 inline size_t calcOffsetInVertex(const std::vector<BufferUsage>& layout, BufferUsage attribute)
 {
-  const static std::array<BufferUsage, 3> attributeOrder{
+  const static std::array<BufferUsage, 3> attributeOrder{ // TODO: Move this
     BufferUsage::AttrPosition,
     BufferUsage::AttrNormal,
     BufferUsage::AttrTexCoord
@@ -138,17 +178,6 @@ inline size_t calcOffsetInVertex(const std::vector<BufferUsage>& layout, BufferU
   }
   return sum;
 }
-
-struct MeshFeatureSet
-{
-  std::vector<BufferUsage> vertexLayout;
-  bool isInstanced = false;
-  bool isSkybox = false;
-  bool isAnimated = false;
-  uint32_t maxInstances = 0;
-
-  bool operator==(const MeshFeatureSet& rhs) const = default;
-};
 
 struct Mesh
 {

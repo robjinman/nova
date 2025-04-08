@@ -13,7 +13,6 @@
 #include "triple_buffer.hpp"
 #include "trace.hpp"
 #include <array>
-#include <iostream>
 #include <vector>
 #include <algorithm>
 #include <cstring>
@@ -23,6 +22,7 @@
 #include <set>
 #include <map>
 #include <cassert>
+#include <iostream>
 
 namespace
 {
@@ -184,7 +184,6 @@ class RendererImpl : public Renderer
     };
 
     TripleBuffer<RenderState> m_renderStates;
-    BindState m_bindState{};
   
     RenderResourcesPtr m_resources;
     std::unordered_map<PipelineKey, PipelinePtr> m_pipelines;
@@ -260,17 +259,21 @@ void RendererImpl::checkError() const
 void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
   const MaterialFeatureSet& materialFeatures)
 {
-  PipelineKey key{
-    .meshFeatures = meshFeatures,
-    .materialFeatures = materialFeatures
-  };
+  ASSERT(!m_running, "Renderer already started");
 
-  if (!m_pipelines.contains(key)) {
-    auto pipeline = std::make_unique<Pipeline>(meshFeatures, materialFeatures, m_fileSystem,
-      m_device, m_swapchainExtent, m_renderPass, *m_resources);
-
-    m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
-  }
+  return m_thread.run<void>([&, this]() {
+    PipelineKey key{
+      .meshFeatures = meshFeatures,
+      .materialFeatures = materialFeatures
+    };
+  
+    if (!m_pipelines.contains(key)) {
+      auto pipeline = std::make_unique<Pipeline>(meshFeatures, materialFeatures, m_fileSystem,
+        m_device, m_swapchainExtent, m_renderPass, *m_resources);
+  
+      m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
+    }
+  }).get();
 }
 
 double RendererImpl::frameRate() const
@@ -291,7 +294,7 @@ const ViewParams& RendererImpl::getViewParams() const
 RenderGraph::Key RendererImpl::generateRenderGraphKey(RenderItemId meshId,
   RenderItemId materialId) const
 {
-  // TODO: Potentially slow
+  // TODO: REMOVE! We're on main thread
   auto& meshFeatures = m_resources->getMeshFeatures(meshId);
   auto& materialFeatures = m_resources->getMaterialFeatures(materialId);
 
@@ -471,6 +474,8 @@ void RendererImpl::renderLoop()
 
 void RendererImpl::updateResources()
 {
+  // TODO: Move this into recordCommandBuffer?
+
   auto& renderGraph = m_renderStates.getReadable().graph;
 
   for (auto& node : renderGraph) {
@@ -1128,9 +1133,10 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
 
   auto& state = m_renderStates.getReadable();
   const auto& renderGraph = state.graph;
+  BindState bindState{};
   for (auto& node : renderGraph) {
     auto& pipeline = choosePipeline(*node);
-    pipeline.recordCommandBuffer(commandBuffer, *node, m_bindState, m_currentFrame);
+    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
   }
 
   vkCmdEndRenderPass(commandBuffer);
@@ -1160,7 +1166,7 @@ RenderItemId RendererImpl::addTexture(TexturePtr texture)
 {
   DBG_TRACE(m_logger);
 
-  ASSERT(!m_running, "Renderer already started"); // TODO
+  ASSERT(!m_running, "Renderer already started");
   return m_thread.run<RenderItemId>([&, this]() {
     return m_resources->addTexture(std::move(texture));
   }).get();
@@ -1170,7 +1176,7 @@ RenderItemId RendererImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
 {
   DBG_TRACE(m_logger);
 
-  ASSERT(!m_running, "Renderer already started"); // TODO
+  ASSERT(!m_running, "Renderer already started");
   return m_thread.run<RenderItemId>([&, this]() {
     return m_resources->addCubeMap(std::move(textures));
   }).get();
@@ -1180,7 +1186,7 @@ RenderItemId RendererImpl::addMaterial(MaterialPtr material)
 {
   DBG_TRACE(m_logger);
 
-  ASSERT(!m_running, "Renderer already started"); // TODO
+  ASSERT(!m_running, "Renderer already started");
   return m_thread.run<RenderItemId>([&, this]() {
     return m_resources->addMaterial(std::move(material));
   }).get();
@@ -1190,7 +1196,7 @@ RenderItemId RendererImpl::addMesh(MeshPtr mesh)
 {
   DBG_TRACE(m_logger);
 
-  ASSERT(!m_running, "Renderer already started"); // TODO
+  ASSERT(!m_running, "Renderer already started");
   return m_thread.run<RenderItemId>([&, this]() {
     return m_resources->addMesh(std::move(mesh));
   }).get();

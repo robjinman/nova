@@ -40,8 +40,7 @@ struct std::hash<PipelineKey>
 {
   std::size_t operator()(const PipelineKey& key) const noexcept
   {
-    std::string_view stringView{reinterpret_cast<const char*>(&key), sizeof(PipelineKey)};
-    return std::hash<std::string_view>{}(stringView);
+    return hashAll(key.meshFeatures, key.materialFeatures);
   }
 };
 

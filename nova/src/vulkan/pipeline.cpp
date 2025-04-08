@@ -290,7 +290,7 @@ Pipeline::Pipeline(const MeshFeatureSet& meshFeatures, const MaterialFeatureSet&
   };
 
   std::vector<VkPushConstantRange> pushConstantRanges;
-  if (!meshFeatures.isInstanced) {
+  if (!meshFeatures.isInstanced && !meshFeatures.isSkybox) {
     pushConstantRanges = {
       VkPushConstantRange{
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
@@ -346,11 +346,9 @@ Pipeline::Pipeline(const MeshFeatureSet& meshFeatures, const MaterialFeatureSet&
   vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
 }
 
-void Pipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node_,
+void Pipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
   BindState& bindState, size_t currentFrame)
 {
-  auto& node = dynamic_cast<const DefaultModelNode&>(node_);
-
   // TODO: These frequent lookups could be expensive
   auto& meshFeatures = m_renderResources.getMeshFeatures(node.mesh);
 
@@ -379,9 +377,11 @@ void Pipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNo
   }
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
     descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-  if (!meshFeatures.isInstanced) {
+  if (!meshFeatures.isInstanced && !meshFeatures.isSkybox) {
+    auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
+
     vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4x4f),
-      &node.modelMatrix);
+      &defaultNode.modelMatrix);
   }
   if (meshFeatures.isInstanced) {
     vkCmdDrawIndexed(commandBuffer, buffers.numIndices, buffers.numInstances, 0, 0, 0);

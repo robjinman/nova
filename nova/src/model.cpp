@@ -7,6 +7,8 @@
 #include <stb_image.h>
 #include <fstream>
 #include <cassert>
+#include <set>
+#include <iostream>
 
 namespace
 {
@@ -42,15 +44,17 @@ void convert(const char* src, gltf::ComponentType srcType, uint32_t n, T* dest)
 template<typename T>
 void copyToBuffer(const std::vector<std::vector<char>>& srcBuffers, char* dstBuffer,
   const gltf::BufferDesc desc)
-{
+{/*
   const char* src = srcBuffers[desc.index].data() + desc.offset;
-/*
+  // TODO: Do we need this?
+
   size_t srcElemSize = gltf::getSize(desc.componentType) * desc.dimensions;
+
   for (unsigned long i = 0; i < desc.size; ++i) {
     T* dstPtr = reinterpret_cast<T*>(dstBuffer) + i * desc.dimensions;
-    convert<float_t>(src + i * srcElemSize, desc.componentType, desc.dimensions, dstPtr);
-  }*/
-
+    convert<T>(src + i * srcElemSize, desc.componentType, desc.dimensions, dstPtr);
+  }
+*/
   memcpy(dstBuffer, srcBuffers[desc.index].data() + desc.offset, desc.byteLength);
 }
 
@@ -74,6 +78,8 @@ std::vector<BufferUsage> getVertexLayout(const gltf::MeshDesc& meshDesc)
       layout.push_back(getUsage(b.type));
     }
   }
+
+  std::sort(layout.begin(), layout.end());
 
   return layout;
 }
@@ -103,13 +109,25 @@ MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
 {
   auto mesh = std::make_unique<Mesh>(createMeshFeatureSet(meshDesc));
 
+  std::set<gltf::ElementType> attributes;
+  for (const auto& bufferDesc : meshDesc.buffers) {
+    if (gltf::isAttribute(bufferDesc.type)) {
+      DBG_ASSERT(!attributes.contains(bufferDesc.type),
+        "Model contains multiple attribute buffers of same type");
+
+      attributes.insert(bufferDesc.type);
+    }
+  }
+
+  mesh->attributeBuffers.resize(attributes.size());
+
   for (const auto& bufferDesc : meshDesc.buffers) {
     if (bufferDesc.type == gltf::ElementType::VertexIndex) {
       mesh->indexBuffer.usage = BufferUsage::Index;
       mesh->indexBuffer.data.resize(bufferDesc.byteLength);
-      copyToBuffer<float_t>(dataBuffers, mesh->indexBuffer.data.data(), bufferDesc);
+      copyToBuffer<uint16_t>(dataBuffers, mesh->indexBuffer.data.data(), bufferDesc);
     }
-    else {
+    else if (gltf::isAttribute(bufferDesc.type)) {
       auto usage = getUsage(bufferDesc.type);
       Buffer buffer;
       buffer.usage = usage;
@@ -117,8 +135,12 @@ MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
 
       copyToBuffer<float_t>(dataBuffers, buffer.data.data(), bufferDesc);
 
-      mesh->attributeBuffers.push_back(std::move(buffer));
-      mesh->featureSet.vertexLayout.push_back(usage);
+      size_t index = std::distance(attributes.begin(), attributes.find(bufferDesc.type));
+      mesh->attributeBuffers[index] = std::move(buffer);
+    }
+    else {
+      // TODO
+      EXCEPTION("Not implemented");
     }
   }
 
@@ -353,8 +375,10 @@ MeshPtr mergeMeshes(const Mesh& A, const Mesh& B)
 
   MeshPtr mesh = std::make_unique<Mesh>(A.featureSet);
 
-  size_t n = A.attributeBuffers.size();
-  for (size_t i = 0; i < n; ++i) {
+  size_t numBuffers = A.attributeBuffers.size();
+  DBG_ASSERT(numBuffers > 0, "Cannot merge meshes with no attribute buffers");
+
+  for (size_t i = 0; i < numBuffers; ++i) {
     auto& bufA = A.attributeBuffers[i];
     auto& bufB = B.attributeBuffers[i];
 
@@ -372,6 +396,7 @@ MeshPtr mergeMeshes(const Mesh& A, const Mesh& B)
   auto indices = fromBytes<uint16_t>(A.indexBuffer.data);
   auto indicesB = fromBytes<uint16_t>(B.indexBuffer.data);
 
+  size_t n = A.attributeBuffers[0].numElements();
   std::transform(indicesB.begin(), indicesB.end(), std::back_inserter(indices),
     [n](uint16_t i) { return i + n; });
 
