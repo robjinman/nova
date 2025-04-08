@@ -333,12 +333,7 @@ void RendererImpl::drawInstance(RenderItemId meshId, RenderItemId materialId,
 
   RenderState& state = m_renderStates.getWritable();
   RenderGraph& renderGraph = state.graph;
-/*
-  RenderGraph::Key key{
-    static_cast<RenderGraphKey>(PipelineName::InstancedModel),
-    static_cast<RenderGraphKey>(meshId),
-    static_cast<RenderGraphKey>(materialId)
-  };*/
+
   auto key = generateRenderGraphKey(meshId, materialId);
   InstancedModelNode* node = nullptr;
   auto i = state.lookup.find(key);
@@ -360,8 +355,6 @@ void RendererImpl::drawModel(RenderItemId meshId, RenderItemId materialId, const
 {
   //DBG_TRACE(m_logger);
 
-  //static RenderGraphKey nextId = 0;
-
   RenderState& state = m_renderStates.getWritable();
   RenderGraph& renderGraph = state.graph;
 
@@ -371,13 +364,6 @@ void RendererImpl::drawModel(RenderItemId meshId, RenderItemId materialId, const
   node->modelMatrix = transform;
 
   auto key = generateRenderGraphKey(meshId, materialId);
-/*
-  RenderGraph::Key key{
-    static_cast<RenderGraphKey>(PipelineName::DefaultModel),
-    static_cast<RenderGraphKey>(mesh),
-    static_cast<RenderGraphKey>(material),
-    nextId++
-  };*/
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
@@ -405,7 +391,6 @@ void RendererImpl::drawSkybox(RenderItemId meshId, RenderItemId materialId)
   node->mesh = meshId;
   node->material = materialId;
 
-  //RenderGraph::Key key{ static_cast<RenderGraphKey>(PipelineName::Skybox) };
   auto key = generateRenderGraphKey(meshId, materialId);
 
   state.lookup.insert({ key, node.get() });

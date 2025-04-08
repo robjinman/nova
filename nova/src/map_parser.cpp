@@ -321,6 +321,21 @@ Mat4x4f transformFromTriangle(const Path& path)
   return transform(Vec3f{ centre[0], 0, centre[2] }, Vec3f{ 0, a, 0 });
 }
 
+std::pair<Vec2f, Vec2f> computeBounds(const ObjectData& root)
+{
+  ASSERT(root.name == "zone", "Expected root object to be a zone");
+
+  Vec2f pathMin{ std::numeric_limits<float_t>::max(), std::numeric_limits<float_t>::max() };
+  Vec2f pathMax{ std::numeric_limits<float_t>::lowest(), std::numeric_limits<float_t>::lowest() };
+
+  for (auto& p : root.path.points) {
+    pathMin = { std::min(pathMin[0], p[0]), std::min(pathMin[1], p[2]) };
+    pathMax = { std::max(pathMax[0], p[0]), std::max(pathMax[1], p[2]) };
+  }
+
+  return { pathMin, pathMax };
+}
+
 MapParserPtr createMapParser(FileSystem& fileSystem, Logger& logger)
 {
   return std::make_unique<MapParserImpl>(fileSystem, logger);

@@ -24,6 +24,7 @@ struct ObjectData
 };
 
 Mat4x4f transformFromTriangle(const Path& path);
+std::pair<Vec2f, Vec2f> computeBounds(const ObjectData& root);
 
 class MapParser
 {
