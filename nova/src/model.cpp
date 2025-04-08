@@ -34,28 +34,45 @@ T convert(const char* value, gltf::ComponentType dataType)
 }
 
 template<typename T>
-void convert(const char* src, gltf::ComponentType srcType, uint32_t n, T* dest)
+size_t convert(const char* src, gltf::ComponentType srcType, uint32_t n, char* dest)
 {
   for (uint32_t i = 0; i < n; ++i) {
-    *(dest + i) = convert<T>(src + i * getSize(srcType), srcType);
+    *(reinterpret_cast<T*>(dest) + i) = convert<T>(src + i * getSize(srcType), srcType);
+  }
+  return sizeof(T) * n;
+}
+
+// Map gltf types to engine types
+size_t convert(const char* src, gltf::ElementType elementType, gltf::ComponentType srcType,
+  uint32_t n, char* dest)
+{
+  switch (elementType) {
+    case gltf::ElementType::AttrPosition:
+    case gltf::ElementType::AttrNormal:
+    case gltf::ElementType::AttrTexCoord:
+    case gltf::ElementType::AttrJointWeights:
+      return convert<float_t>(src, srcType, n, dest);
+    case gltf::ElementType::AttrJointIndices:
+      return convert<uint8_t>(src, srcType, n, dest);
+    case gltf::ElementType::VertexIndex:
+      return convert<uint16_t>(src, srcType, n, dest);
+    default:
+      EXCEPTION("Cannot convert element type");
   }
 }
 
-template<typename T>
 void copyToBuffer(const std::vector<std::vector<char>>& srcBuffers, char* dstBuffer,
   const gltf::BufferDesc desc)
-{/*
+{
   const char* src = srcBuffers[desc.index].data() + desc.offset;
-  // TODO: Do we need this?
 
   size_t srcElemSize = gltf::getSize(desc.componentType) * desc.dimensions;
+  DBG_ASSERT(srcElemSize * desc.size == desc.byteLength, "Buffer has unexpected length");
 
+  char* dstPtr = dstBuffer;
   for (unsigned long i = 0; i < desc.size; ++i) {
-    T* dstPtr = reinterpret_cast<T*>(dstBuffer) + i * desc.dimensions;
-    convert<T>(src + i * srcElemSize, desc.componentType, desc.dimensions, dstPtr);
+    dstPtr += convert(src + i * srcElemSize, desc.type, desc.componentType, desc.dimensions, dstPtr);
   }
-*/
-  memcpy(dstBuffer, srcBuffers[desc.index].data() + desc.offset, desc.byteLength);
 }
 
 BufferUsage getUsage(gltf::ElementType type)
@@ -64,6 +81,8 @@ BufferUsage getUsage(gltf::ElementType type)
     case gltf::ElementType::AttrPosition: return BufferUsage::AttrPosition;
     case gltf::ElementType::AttrNormal: return BufferUsage::AttrNormal;
     case gltf::ElementType::AttrTexCoord: return BufferUsage::AttrTexCoord;
+    case gltf::ElementType::AttrJointIndices: return BufferUsage::AttrJointIndices;
+    case gltf::ElementType::AttrJointWeights: return BufferUsage::AttrJointWeights;
     // TODO
     default: EXCEPTION("Error converting ElementType to BufferUsage");
   }
@@ -125,7 +144,7 @@ MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
     if (bufferDesc.type == gltf::ElementType::VertexIndex) {
       mesh->indexBuffer.usage = BufferUsage::Index;
       mesh->indexBuffer.data.resize(bufferDesc.byteLength);
-      copyToBuffer<uint16_t>(dataBuffers, mesh->indexBuffer.data.data(), bufferDesc);
+      copyToBuffer(dataBuffers, mesh->indexBuffer.data.data(), bufferDesc);
     }
     else if (gltf::isAttribute(bufferDesc.type)) {
       auto usage = getUsage(bufferDesc.type);
@@ -133,7 +152,7 @@ MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
       buffer.usage = usage;
       buffer.data.resize(bufferDesc.byteLength);
 
-      copyToBuffer<float_t>(dataBuffers, buffer.data.data(), bufferDesc);
+      copyToBuffer(dataBuffers, buffer.data.data(), bufferDesc);
 
       size_t index = std::distance(attributes.begin(), attributes.find(bufferDesc.type));
       mesh->attributeBuffers[index] = std::move(buffer);

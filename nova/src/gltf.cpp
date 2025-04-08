@@ -14,8 +14,8 @@ ElementType parseElementType(const std::string& type)
   else if (type == "NORMAL") return ElementType::AttrNormal;
   else if (type == "TEXCOORD_0") return ElementType::AttrTexCoord;
   else if (type == "INDEX") return ElementType::VertexIndex;
-  else if (type == "JOINTS_0") return ElementType::AttrJointIndex;
-  else if (type == "WEIGHTS_0") return ElementType::AttrJointWeight;
+  else if (type == "JOINTS_0") return ElementType::AttrJointIndices;
+  else if (type == "WEIGHTS_0") return ElementType::AttrJointWeights;
   else EXCEPTION("Unknown attribute type '" << type << "'");
 }
 

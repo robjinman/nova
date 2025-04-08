@@ -21,8 +21,8 @@ enum class ElementType
   AttrPosition,
   AttrNormal,
   AttrTexCoord,
-  AttrJointIndex,
-  AttrJointWeight,
+  AttrJointIndices,
+  AttrJointWeights,
 
   VertexIndex,
 
@@ -38,8 +38,8 @@ inline bool isAttribute(ElementType type)
     case ElementType::AttrPosition:
     case ElementType::AttrNormal:
     case ElementType::AttrTexCoord:
-    case ElementType::AttrJointIndex:
-    case ElementType::AttrJointWeight:
+    case ElementType::AttrJointIndices:
+    case ElementType::AttrJointWeights:
       return true;
     default:
       return false;

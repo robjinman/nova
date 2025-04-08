@@ -24,14 +24,14 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="2.4673516"
-     inkscape:cx="191.29823"
-     inkscape:cy="217.43962"
+     inkscape:cx="117.12964"
+     inkscape:cy="312.27815"
      inkscape:window-width="1920"
-     inkscape:window-height="1046"
+     inkscape:window-height="1018"
      inkscape:window-x="0"
-     inkscape:window-y="1080"
+     inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="g5"
+     inkscape:current-layer="g4329"
      inkscape:pageshadow="2"
      showgrid="false"
      inkscape:snap-global="false" />
@@ -55,7 +55,7 @@
        style="text-align:start;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect1);display:inline;fill:#000000"><tspan
          x="357.96094"
          y="880.23047"
-         id="tspan2025">8</tspan></text>
+         id="tspan22662">8</tspan></text>
     <g
        id="g5">
       <text
@@ -264,7 +264,7 @@
              id="tspan3-9-53"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
-             y="26.306543">type=monkey</tspan></text>
+             y="26.306543">type=bendy</tspan></text>
       </g>
       <g
          id="g4-5-3-1"
