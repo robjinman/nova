@@ -86,6 +86,12 @@ Install the APKs
 
 #### iOS
 
+If Vulkan isn't found, source the setup-env.sh file before building for iOS
+
+```
+    . ~/VulkanSDK/1.3.280.1/iOS/setup-env.sh
+```
+
 To install on the device
 
 ```
