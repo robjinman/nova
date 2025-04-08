@@ -190,8 +190,8 @@ class TerrainImpl : public Terrain
     SpatialSystem& m_spatialSystem;
     RenderSystem& m_renderSystem;
     CollisionSystem& m_collisionSystem;
-    RenderItemId m_groundMaterial;
-    RenderItemId m_wallMaterial;
+    MaterialHandle m_groundMaterial;
+    MaterialHandle m_wallMaterial;
 
     void createTerrainMaterials();
     void fillArea(const ObjectData& area, const Mat4x4f& transform, float_t height,
@@ -237,7 +237,6 @@ void TerrainImpl::fillArea(const ObjectData& area, const Mat4x4f& transform, flo
 
 void TerrainImpl::createTerrainMaterials()
 {
-  // TODO: Move this
   MeshFeatureSet meshFeatures{
     .vertexLayout = {
       BufferUsage::AttrPosition,

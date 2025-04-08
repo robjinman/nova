@@ -71,7 +71,7 @@ class RenderResourcesImpl : public RenderResources
 
     // Meshes
     //
-    RenderItemId addMesh(MeshPtr mesh) override;
+    MeshHandle addMesh(MeshPtr mesh) override;
     void removeMesh(RenderItemId id) override;
     MeshBuffers getMeshBuffers(RenderItemId id) const override;
     void updateMeshInstances(RenderItemId id, const std::vector<MeshInstance>& instances) override;
@@ -79,7 +79,7 @@ class RenderResourcesImpl : public RenderResources
 
     // Materials
     //
-    RenderItemId addMaterial(MaterialPtr material) override;
+    MaterialHandle addMaterial(MaterialPtr material) override;
     void removeMaterial(RenderItemId id) override;
     VkDescriptorSetLayout getMaterialDescriptorSetLayout() const override;
     VkDescriptorSet getMaterialDescriptorSet(RenderItemId id) const override;
@@ -310,9 +310,12 @@ void RenderResourcesImpl::removeCubeMap(RenderItemId id)
   m_cubeMaps.erase(i);
 }
 
-RenderItemId RenderResourcesImpl::addMesh(MeshPtr mesh)
+MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
 {
   static RenderItemId nextMeshId = 1;
+
+  MeshHandle handle;
+  handle.features = mesh->featureSet;
 
   auto data = std::make_unique<MeshData>();
   data->mesh = std::move(mesh);
@@ -323,10 +326,10 @@ RenderItemId RenderResourcesImpl::addMesh(MeshPtr mesh)
       data->instanceBufferMemory);
   }
 
-  RenderItemId id = nextMeshId++;
-  m_meshes[id] = std::move(data);
+  handle.id = nextMeshId++;
+  m_meshes[handle.id] = std::move(data);
 
-  return id;
+  return handle;
 }
 
 void RenderResourcesImpl::removeMesh(RenderItemId id)
@@ -380,12 +383,15 @@ const MeshFeatureSet& RenderResourcesImpl::getMeshFeatures(RenderItemId id) cons
   return m_meshes.at(id)->mesh->featureSet;
 }
 
-RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
+MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
 {
   static RenderItemId nextMaterialId = 1;
 
   // TODO: Use descriptorBindingPartiallyBound feature provided by VK_EXT_descriptor_indexing
   // extension
+
+  MaterialHandle handle;
+  handle.features = material->featureSet;
 
   auto materialData = std::make_unique<MaterialData>();
 
@@ -475,11 +481,11 @@ RenderItemId RenderResourcesImpl::addMaterial(MaterialPtr material)
 
   memcpy(materialData->uboMapped, &ubo, sizeof(ubo));
 
-  auto materialId = nextMaterialId++;
+  handle.id = nextMaterialId++;
   materialData->material = std::move(material);
-  m_materials[materialId] = std::move(materialData);
+  m_materials[handle.id] = std::move(materialData);
 
-  return materialId;
+  return handle;
 }
 
 void RenderResourcesImpl::removeMaterial(RenderItemId id)
@@ -1094,7 +1100,7 @@ void RenderResourcesImpl::createNullMaterial()
   material->texture.id = NULL_ID;
   material->normalMap.id = NULL_ID;
 
-  m_nullMaterialId = addMaterial(std::move(material));
+  m_nullMaterialId = addMaterial(std::move(material)).id;
 }
 
 RenderResourcesImpl::~RenderResourcesImpl()

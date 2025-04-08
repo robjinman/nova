@@ -16,8 +16,8 @@ enum class CRenderType
 
 struct MeshMaterialPair
 {
-  RenderItemId mesh = NULL_ID;
-  RenderItemId material = NULL_ID;
+  MeshHandle mesh;
+  MaterialHandle material;
 };
 
 struct CRender : public Component
@@ -69,12 +69,12 @@ class RenderSystem : public System
 
     // Meshes
     //
-    virtual RenderItemId addMesh(MeshPtr mesh) = 0;
+    virtual MeshHandle addMesh(MeshPtr mesh) = 0;
     virtual void removeMesh(RenderItemId id) = 0;
 
     // Materials
     //
-    virtual RenderItemId addMaterial(MaterialPtr material) = 0;
+    virtual MaterialHandle addMaterial(MaterialPtr material) = 0;
     virtual void removeMaterial(RenderItemId id) = 0;
 
     virtual Camera& camera() = 0;

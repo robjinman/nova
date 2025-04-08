@@ -351,19 +351,16 @@ Pipeline::Pipeline(const MeshFeatureSet& meshFeatures, const MaterialFeatureSet&
 void Pipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
   BindState& bindState, size_t currentFrame)
 {
-  // TODO: These frequent lookups could be expensive
-  auto& meshFeatures = m_renderResources.getMeshFeatures(node.mesh);
-
   auto matricesDescriptorSet = m_renderResources.getMatricesDescriptorSet(currentFrame);
-  auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material);
+  auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material.id);
   auto lightingDescriptorSet = m_renderResources.getLightingDescriptorSet(currentFrame);
-  auto buffers = m_renderResources.getMeshBuffers(node.mesh);
+  auto buffers = m_renderResources.getMeshBuffers(node.mesh.id);
 
   if (m_pipeline != bindState.pipeline) {
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
   }
   std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer };
-  if (meshFeatures.isInstanced) {
+  if (node.mesh.features.isInstanced) {
     vertexBuffers.push_back(buffers.instanceBuffer);
   }
   std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
@@ -374,18 +371,18 @@ void Pipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNo
     matricesDescriptorSet,
     materialDescriptorSet,
   };
-  if (!meshFeatures.isSkybox) {
+  if (!node.mesh.features.isSkybox) {
     descriptorSets.push_back(lightingDescriptorSet);
   }
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
     descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-  if (!meshFeatures.isInstanced && !meshFeatures.isSkybox) {
+  if (!node.mesh.features.isInstanced && !node.mesh.features.isSkybox) {
     auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
 
     vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4x4f),
       &defaultNode.modelMatrix);
   }
-  if (meshFeatures.isInstanced) {
+  if (node.mesh.features.isInstanced) {
     vkCmdDrawIndexed(commandBuffer, buffers.numIndices, buffers.numInstances, 0, 0, 0);
   }
   else {

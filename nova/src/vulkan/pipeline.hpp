@@ -17,8 +17,8 @@ struct RenderNode
     : type(type) {}
 
   RenderNodeType type;
-  RenderItemId mesh;
-  RenderItemId material;
+  MeshHandle mesh;
+  MaterialHandle material;
 
   virtual ~RenderNode() = default;
 };

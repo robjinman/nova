@@ -63,7 +63,7 @@ class EntityFactoryImpl : public EntityFactory
     void constructRenderComponent(EntityId entityId, const XmlNode& node,
       const ObjectData& data) const;
     ModelResources gpuLoadModel(ModelPtr model);
-    RenderItemId gpuLoadMaterial(MaterialPtr material);
+    MaterialHandle gpuLoadMaterial(MaterialPtr material);
     void constructCollisionComponent(EntityId entityId, const XmlNode& node) const;
     Mat4x4f parseTransform(const XmlNode& node) const;
 };
@@ -141,7 +141,7 @@ ModelResources EntityFactoryImpl::gpuLoadModel(ModelPtr model)
   return resources;
 }
 
-RenderItemId EntityFactoryImpl::gpuLoadMaterial(MaterialPtr material)
+MaterialHandle EntityFactoryImpl::gpuLoadMaterial(MaterialPtr material)
 {
   auto textureFileName = material->texture.fileName;
   if (textureFileName != "") {

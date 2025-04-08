@@ -81,21 +81,21 @@ class RendererImpl : public Renderer
 
     // Meshes
     //
-    RenderItemId addMesh(MeshPtr mesh) override;
+    MeshHandle addMesh(MeshPtr mesh) override;
     void removeMesh(RenderItemId id) override;
 
     // Materials
     //
-    RenderItemId addMaterial(MaterialPtr material) override;
+    MaterialHandle addMaterial(MaterialPtr material) override;
     void removeMaterial(RenderItemId id) override;
 
     // Per frame draw functions
     //
     void beginFrame(const Camera& camera) override;
-    void drawInstance(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform) override;
-    void drawModel(RenderItemId mesh, RenderItemId material, const Mat4x4f& transform) override;
+    void drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
+    void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
     void drawLight(const Vec3f& colour, float_t ambient, const Vec3f& worldPos) override;
-    void drawSkybox(RenderItemId mesh, RenderItemId material) override;
+    void drawSkybox(MeshHandle mesh, MaterialHandle material) override;
     void endFrame() override;
 
     ~RendererImpl() override;
@@ -139,7 +139,7 @@ class RendererImpl : public Renderer
     VkFormat findDepthFormat() const;
     void renderLoop();
     void cleanUp();
-    RenderGraph::Key generateRenderGraphKey(RenderItemId meshId, RenderItemId materialId) const;
+    RenderGraph::Key generateRenderGraphKey(MeshHandle mesh, MaterialHandle material) const;
 
     ViewParams m_viewParams;
     const FileSystem& m_fileSystem;
@@ -291,25 +291,20 @@ const ViewParams& RendererImpl::getViewParams() const
   return m_viewParams;
 }
 
-RenderGraph::Key RendererImpl::generateRenderGraphKey(RenderItemId meshId,
-  RenderItemId materialId) const
+RenderGraph::Key RendererImpl::generateRenderGraphKey(MeshHandle mesh,
+  MaterialHandle material) const
 {
-  // TODO: REMOVE! We're on main thread
-  auto& meshFeatures = m_resources->getMeshFeatures(meshId);
-  auto& materialFeatures = m_resources->getMaterialFeatures(materialId);
-
-  // TODO: Don't build this every time
-  PipelineKey pipelineKey{ meshFeatures, materialFeatures };
+  PipelineKey pipelineKey{ mesh.features, material.features };
   auto pipelineHash = std::hash<PipelineKey>{}(pipelineKey);
 
-  if (meshFeatures.isInstanced) {
+  if (mesh.features.isInstanced) {
     return RenderGraph::Key{
       static_cast<RenderGraphKey>(pipelineHash),
-      static_cast<RenderGraphKey>(meshId),
-      static_cast<RenderGraphKey>(materialId)
+      static_cast<RenderGraphKey>(mesh.id),
+      static_cast<RenderGraphKey>(material.id)
     };
   }
-  else if (meshFeatures.isSkybox) {
+  else if (mesh.features.isSkybox) {
     return RenderGraph::Key{
       static_cast<RenderGraphKey>(pipelineHash)
     };
@@ -319,14 +314,14 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(RenderItemId meshId,
 
     return RenderGraph::Key{
       static_cast<RenderGraphKey>(pipelineHash),
-      static_cast<RenderGraphKey>(meshId),
-      static_cast<RenderGraphKey>(materialId),
+      static_cast<RenderGraphKey>(mesh.id),
+      static_cast<RenderGraphKey>(material.id),
       nextId++
     };
   }
 }
 
-void RendererImpl::drawInstance(RenderItemId meshId, RenderItemId materialId,
+void RendererImpl::drawInstance(MeshHandle meshId, MaterialHandle materialId,
   const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
@@ -351,7 +346,7 @@ void RendererImpl::drawInstance(RenderItemId meshId, RenderItemId materialId,
   node->instances.push_back(MeshInstance{transform});
 }
 
-void RendererImpl::drawModel(RenderItemId meshId, RenderItemId materialId, const Mat4x4f& transform)
+void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
 
@@ -359,11 +354,11 @@ void RendererImpl::drawModel(RenderItemId meshId, RenderItemId materialId, const
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<DefaultModelNode>();
-  node->mesh = meshId;
-  node->material = materialId;
+  node->mesh = mesh;
+  node->material = material;
   node->modelMatrix = transform;
 
-  auto key = generateRenderGraphKey(meshId, materialId);
+  auto key = generateRenderGraphKey(mesh, material);
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
@@ -380,7 +375,7 @@ void RendererImpl::drawLight(const Vec3f& colour, float_t ambient, const Vec3f& 
   light.worldPos = worldPos;
 }
 
-void RendererImpl::drawSkybox(RenderItemId meshId, RenderItemId materialId)
+void RendererImpl::drawSkybox(MeshHandle mesh, MaterialHandle material)
 {
   //DBG_TRACE(m_logger);
 
@@ -388,10 +383,10 @@ void RendererImpl::drawSkybox(RenderItemId meshId, RenderItemId materialId)
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<SkyboxNode>();
-  node->mesh = meshId;
-  node->material = materialId;
+  node->mesh = mesh;
+  node->material = material;
 
-  auto key = generateRenderGraphKey(meshId, materialId);
+  auto key = generateRenderGraphKey(mesh, material);
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
@@ -467,7 +462,7 @@ void RendererImpl::updateResources()
     switch (node->type) {
       case RenderNodeType::InstancedModel: {
         auto& nodeData = dynamic_cast<const InstancedModelNode&>(*node);
-        m_resources->updateMeshInstances(nodeData.mesh, nodeData.instances);
+        m_resources->updateMeshInstances(nodeData.mesh.id, nodeData.instances);
 
         break;
       }
@@ -730,7 +725,6 @@ void RendererImpl::recreateSwapChain()
   cleanupSwapChain();
   createSwapChain();
   createImageViews();
-  //createPipelines();
   createDepthResources();
   createFramebuffers();
 
@@ -1104,10 +1098,9 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
   vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
   auto choosePipeline = [this](const RenderNode& node) -> Pipeline& {
-    // TODO: These lookups could get expensive
     PipelineKey key{
-      .meshFeatures = m_resources->getMeshFeatures(node.mesh),
-      .materialFeatures = m_resources->getMaterialFeatures(node.material)
+      .meshFeatures = node.mesh.features,
+      .materialFeatures = node.material.features
     };
     auto i = m_pipelines.find(key);
     if (i == m_pipelines.end()) {
@@ -1167,22 +1160,22 @@ RenderItemId RendererImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
   }).get();
 }
 
-RenderItemId RendererImpl::addMaterial(MaterialPtr material)
+MaterialHandle RendererImpl::addMaterial(MaterialPtr material)
 {
   DBG_TRACE(m_logger);
 
   ASSERT(!m_running, "Renderer already started");
-  return m_thread.run<RenderItemId>([&, this]() {
+  return m_thread.run<MaterialHandle>([&, this]() {
     return m_resources->addMaterial(std::move(material));
   }).get();
 }
 
-RenderItemId RendererImpl::addMesh(MeshPtr mesh)
+MeshHandle RendererImpl::addMesh(MeshPtr mesh)
 {
   DBG_TRACE(m_logger);
 
   ASSERT(!m_running, "Renderer already started");
-  return m_thread.run<RenderItemId>([&, this]() {
+  return m_thread.run<MeshHandle>([&, this]() {
     return m_resources->addMesh(std::move(mesh));
   }).get();
 }
