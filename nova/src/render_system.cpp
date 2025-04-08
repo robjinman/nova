@@ -209,7 +209,7 @@ void RenderSystemImpl::update()
       const auto& component = *entry->second;
       const auto& spatial = m_spatialSystem.getComponent(id);
 
-      switch(component.type) {/*
+      switch(component.type) {
         case CRenderType::Instance: {
           for (auto& mesh : component.meshes) {
             m_renderer.drawInstance(mesh.mesh, mesh.material, spatial.absTransform());
@@ -221,7 +221,7 @@ void RenderSystemImpl::update()
             m_renderer.drawModel(mesh.mesh, mesh.material, spatial.absTransform());
           }
           break;
-        }*/
+        }
         case CRenderType::Skybox: {
           ASSERT(component.meshes.size() == 1, "Expected skybox to have exactly 1 mesh");
           m_renderer.drawSkybox(component.meshes[0].mesh, component.meshes[0].material);

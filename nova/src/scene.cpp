@@ -142,7 +142,7 @@ PlayerPtr SceneBuilder::createScene()
   createTerrainMaterials();
   constructInstances(objectData);
   constructSky();
-  //constructOriginMarkers();
+  constructOriginMarkers();
 
   ASSERT(m_player != nullptr, "Map does not contain player");
   PlayerPtr player = std::move(m_player);
@@ -237,8 +237,8 @@ void SceneBuilder::constructOriginMarkers()
     material->colour = colour;
 
     MeshPtr mesh = cuboid(w, h, d, Vec2f{ 1, 1 });
-    auto meshId = m_renderSystem.addMesh(std::move(mesh));
     m_renderSystem.compileShader(mesh->featureSet, material->featureSet);
+    auto meshId = m_renderSystem.addMesh(std::move(mesh));
     CRenderPtr render = std::make_unique<CRender>(id, CRenderType::Regular);
     render->meshes = {
       MeshMaterialPair{
