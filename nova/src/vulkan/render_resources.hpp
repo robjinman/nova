@@ -30,7 +30,7 @@ struct LightingUbo
 struct MaterialUbo
 {
   Vec4f colour;
-  VkBool32 hasTexture;
+  // TODO: PBR properties
 };
 
 struct MeshInstance

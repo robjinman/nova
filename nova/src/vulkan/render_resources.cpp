@@ -56,6 +56,13 @@ struct MaterialData
 
 using MaterialDataPtr = std::unique_ptr<MaterialData>;
 
+enum MaterialDescriptorSetBindings : uint32_t {
+  Ubo,
+  TextureSampler,
+  NormapMapSampler,
+  CubeMapSampler
+};
+
 class RenderResourcesImpl : public RenderResources
 {
   public:
@@ -105,9 +112,6 @@ class RenderResourcesImpl : public RenderResources
     std::map<RenderItemId, CubeMapDataPtr> m_cubeMaps;
     std::map<RenderItemId, MaterialDataPtr> m_materials;
 
-    RenderItemId m_nullTextureId;
-    RenderItemId m_nullMaterialId;
-
     Logger& m_logger;
     VkPhysicalDevice m_physicalDevice;
     VkDevice m_device;
@@ -122,7 +126,9 @@ class RenderResourcesImpl : public RenderResources
     std::vector<void*> m_matricesUboMapped;
   
     VkDescriptorSetLayout m_materialDescriptorSetLayout;
-    VkSampler m_textureSampler;
+    VkSampler m_textureSampler; // TODO: Just use 1 sampler?
+    VkSampler m_normalMapSampler;
+    VkSampler m_cubeMapSampler;
 
     VkDescriptorSetLayout m_lightingUboDescriptorSetLayout;
     std::vector<VkDescriptorSet> m_lightingUboDescriptorSets;
@@ -139,6 +145,8 @@ class RenderResourcesImpl : public RenderResources
     VkBuffer createInstanceBuffer(size_t maxInstances, VkDeviceMemory& instanceBufferMemory);
     void updateInstanceBuffer(const std::vector<MeshInstance>& instanceData, VkBuffer buffer);
     void createTextureSampler();
+    void createNormalMapSampler();
+    void createCubeMapSampler();
     VkBuffer createIndexBuffer(const Buffer& indexBuffer, VkDeviceMemory& indexBufferMemory);
     void createUniformBuffers();
     void createPerFrameUbos(size_t size, std::vector<VkBuffer>& buffers,
@@ -148,13 +156,14 @@ class RenderResourcesImpl : public RenderResources
     void createDescriptorSets();
     void createDescriptorSets(size_t n, VkDescriptorSetLayout layout,
       std::vector<VkDescriptorSet>& descriptorSets, const std::vector<VkBuffer>& buffers);
+    void addSamplerToDescriptorSet(VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler,
+      uint32_t binding);
     void createDescriptorSetLayouts();
     void createUboDescriptorSetLayout();
     void createLightingDescriptorSetLayout();
     void createMaterialDescriptorSetLayout();
     void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
       uint32_t layerCount);
-    void createNullMaterial();
     VkCommandBuffer beginSingleTimeCommands();
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 };
@@ -171,10 +180,11 @@ RenderResourcesImpl::RenderResourcesImpl(VkPhysicalDevice physicalDevice, VkDevi
 
   createDescriptorSetLayouts();
   createTextureSampler();
+  createNormalMapSampler();
+  createCubeMapSampler();
   createUniformBuffers();
   createDescriptorPool();
   createDescriptorSets();
-  createNullMaterial();
 }
 
 RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture)
@@ -383,39 +393,39 @@ const MeshFeatureSet& RenderResourcesImpl::getMeshFeatures(RenderItemId id) cons
   return m_meshes.at(id)->mesh->featureSet;
 }
 
+void RenderResourcesImpl::addSamplerToDescriptorSet(VkDescriptorSet descriptorSet,
+  VkImageView imageView, VkSampler sampler, uint32_t binding)
+{
+  VkDescriptorImageInfo imageInfo{
+    .sampler = sampler,
+    .imageView = imageView,
+    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+  };
+
+  VkWriteDescriptorSet samplerDescriptorWrite{
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .pNext = nullptr,
+    .dstSet = descriptorSet,
+    .dstBinding = binding,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .pImageInfo = &imageInfo,
+    .pBufferInfo = nullptr,
+    .pTexelBufferView = nullptr
+  };
+
+  vkUpdateDescriptorSets(m_device, 1, &samplerDescriptorWrite, 0, nullptr);
+}
+
 MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
 {
   static RenderItemId nextMaterialId = 1;
-
-  // TODO: Use descriptorBindingPartiallyBound feature provided by VK_EXT_descriptor_indexing
-  // extension
 
   MaterialHandle handle;
   handle.features = material->featureSet;
 
   auto materialData = std::make_unique<MaterialData>();
-
-  // TODO
-  ASSERT(!(material->cubeMap.id != NULL_ID && material->texture.id != NULL_ID),
-    "Currently, materials cannot have both a cube map and a texture");
-
-  RenderItemId textureId = material->texture.id;
-  bool usingNullTexture = false;
-  bool usingCubeMap = material->cubeMap.id != NULL_ID;
-
-  if (textureId == NULL_ID) {
-    textureId = m_nullTextureId;
-    usingNullTexture = true;
-  }
-
-  VkImageView imageView = VK_NULL_HANDLE;
-  if (!usingCubeMap) {
-    imageView = m_textures.at(textureId)->imageView;
-  }
-  else {
-    imageView = m_cubeMaps.at(material->cubeMap.id)->imageView;
-  }
-  assert(imageView != VK_NULL_HANDLE);
 
   VkDescriptorSetAllocateInfo allocInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
@@ -428,29 +438,8 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
   VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, &materialData->descriptorSet),
     "Failed to allocate descriptor sets");
 
-  VkDescriptorImageInfo imageInfo{
-    .sampler = m_textureSampler,
-    .imageView = imageView,
-    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-  };
-
-  VkWriteDescriptorSet samplerDescriptorWrite{
-    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-    .pNext = nullptr,
-    .dstSet = materialData->descriptorSet,
-    .dstBinding = 0,
-    .dstArrayElement = 0,
-    .descriptorCount = 1,
-    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-    .pImageInfo = &imageInfo,
-    .pBufferInfo = nullptr,
-    .pTexelBufferView = nullptr
-  };
-
   createUbo(sizeof(MaterialUbo), materialData->uboBuffer, materialData->uboMemory,
     materialData->uboMapped);
-
-  vkUpdateDescriptorSets(m_device, 1, &samplerDescriptorWrite, 0, nullptr);
 
   VkDescriptorBufferInfo bufferInfo{
     .buffer = materialData->uboBuffer,
@@ -462,7 +451,7 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
     .pNext = nullptr,
     .dstSet = materialData->descriptorSet,
-    .dstBinding = 1,
+    .dstBinding = MaterialDescriptorSetBindings::Ubo,
     .dstArrayElement = 0,
     .descriptorCount = 1,
     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -475,11 +464,28 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
 
   // TODO: Use staging buffer instead of host mapping
   MaterialUbo ubo{
-    .colour = material->colour,
-    .hasTexture = !usingNullTexture
+    .colour = material->colour
+    // TODO: PBR properties
   };
 
   memcpy(materialData->uboMapped, &ubo, sizeof(ubo));
+
+  // TODO: Use array of descriptors for textures, normal maps, etc.?
+  if (material->featureSet.hasTexture) {
+    VkImageView imageView = m_textures.at(material->texture.id)->imageView;
+    addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_textureSampler,
+      MaterialDescriptorSetBindings::TextureSampler);
+  }
+  if (material->featureSet.hasNormalMap) {
+    VkImageView imageView = m_textures.at(material->normalMap.id)->imageView;
+    addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_normalMapSampler,
+      MaterialDescriptorSetBindings::NormapMapSampler);
+  }
+  if (material->featureSet.hasCubeMap) {
+    VkImageView imageView = m_cubeMaps.at(material->cubeMap.id)->imageView;
+    addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_cubeMapSampler,
+      MaterialDescriptorSetBindings::CubeMapSampler);
+  }
 
   handle.id = nextMaterialId++;
   materialData->material = std::move(material);
@@ -508,7 +514,7 @@ VkDescriptorSetLayout RenderResourcesImpl::getMaterialDescriptorSetLayout() cons
 
 VkDescriptorSet RenderResourcesImpl::getMaterialDescriptorSet(RenderItemId id) const
 {
-  return m_materials.at(id == NULL_ID ? m_nullMaterialId : id)->descriptorSet;
+  return m_materials.at(id)->descriptorSet;
 }
 
 const MaterialFeatureSet& RenderResourcesImpl::getMaterialFeatures(RenderItemId id) const
@@ -556,7 +562,7 @@ void RenderResourcesImpl::createDescriptorPool()
   poolSizes[0].descriptorCount = 50; // TODO
 
   poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  poolSizes[1].descriptorCount = 20; // TODO
+  poolSizes[1].descriptorCount = 100; // TODO
 
   VkDescriptorPoolCreateInfo poolInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -944,7 +950,7 @@ void RenderResourcesImpl::transitionImageLayout(VkImage image, VkImageLayout old
   endSingleTimeCommands(commandBuffer);
 }
 
-void RenderResourcesImpl::createUboDescriptorSetLayout()
+void RenderResourcesImpl::createUboDescriptorSetLayout()  // TODO: Rename this
 {
   DBG_TRACE(m_logger);
 
@@ -1006,31 +1012,63 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
 {
   DBG_TRACE(m_logger);
 
-  VkDescriptorSetLayoutBinding samplerLayoutBinding{
-    .binding = 0,
-    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-    .pImmutableSamplers = nullptr
-  };
-
   VkDescriptorSetLayoutBinding materialLayoutBinding{
-    .binding = 1,
+    .binding = MaterialDescriptorSetBindings::Ubo,
     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
     .descriptorCount = 1,
     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
     .pImmutableSamplers = nullptr
   };
 
+  VkDescriptorSetLayoutBinding textureSamplerLayoutBinding{
+    .binding = MaterialDescriptorSetBindings::TextureSampler,
+    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
+  VkDescriptorSetLayoutBinding normalMapLayoutBinding{
+    .binding = MaterialDescriptorSetBindings::NormapMapSampler,
+    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
+  VkDescriptorSetLayoutBinding cubeMapLayoutBinding{
+    .binding = MaterialDescriptorSetBindings::CubeMapSampler,
+    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
   std::vector<VkDescriptorSetLayoutBinding> bindings{
-    samplerLayoutBinding,
+    textureSamplerLayoutBinding,
+    normalMapLayoutBinding,
+    cubeMapLayoutBinding,
     materialLayoutBinding
     // ...
   };
 
+  std::array<VkDescriptorBindingFlags, 4> bindingFlags = {
+    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
+    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
+    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
+    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT
+  };
+
+  VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
+    .pNext = nullptr,
+    .bindingCount = bindingFlags.size(),
+    .pBindingFlags = bindingFlags.data()
+  };
+
   VkDescriptorSetLayoutCreateInfo layoutInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .pNext = nullptr,
+    .pNext = nullptr,//&bindingFlagsInfo,
     .flags = 0,
     .bindingCount = static_cast<uint32_t>(bindings.size()),
     .pBindings = bindings.data()
@@ -1081,26 +1119,68 @@ void RenderResourcesImpl::createTextureSampler()
     "Failed to create texture sampler");
 }
 
-void RenderResourcesImpl::createNullMaterial()
+void RenderResourcesImpl::createNormalMapSampler()
 {
   DBG_TRACE(m_logger);
 
-  TexturePtr texture = std::make_unique<Texture>();
-  texture->channels = 3;
-  texture->width = 1;
-  texture->height = 1;
-  texture->data = { 0, 0, 0, 0 };
-  m_nullTextureId = addTexture(std::move(texture));
+  VkPhysicalDeviceProperties properties{};
+  vkGetPhysicalDeviceProperties(m_physicalDevice, &properties);
 
-  MaterialPtr material = std::make_unique<Material>(MaterialFeatureSet{
-    .hasTransparency = false,
-    .hasTexture = true,
-    .hasNormalMap = false
-  });
-  material->texture.id = NULL_ID;
-  material->normalMap.id = NULL_ID;
+  VkSamplerCreateInfo samplerInfo{
+    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .magFilter = VK_FILTER_LINEAR,
+    .minFilter = VK_FILTER_LINEAR,
+    .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+    .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .mipLodBias = 0.f,
+    .anisotropyEnable = VK_TRUE,
+    .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
+    .compareEnable = VK_FALSE,
+    .compareOp = VK_COMPARE_OP_ALWAYS,
+    .minLod = 0.f,
+    .maxLod = 0.f,
+    .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+    .unnormalizedCoordinates = VK_FALSE
+  };
 
-  m_nullMaterialId = addMaterial(std::move(material)).id;
+  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_normalMapSampler),
+    "Failed to create normal map sampler");
+}
+
+void RenderResourcesImpl::createCubeMapSampler()
+{
+  DBG_TRACE(m_logger);
+
+  VkPhysicalDeviceProperties properties{};
+  vkGetPhysicalDeviceProperties(m_physicalDevice, &properties);
+
+  VkSamplerCreateInfo samplerInfo{
+    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .magFilter = VK_FILTER_LINEAR,
+    .minFilter = VK_FILTER_LINEAR,
+    .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+    .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .mipLodBias = 0.f,
+    .anisotropyEnable = VK_TRUE,
+    .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
+    .compareEnable = VK_FALSE,
+    .compareOp = VK_COMPARE_OP_ALWAYS,
+    .minLod = 0.f,
+    .maxLod = 0.f,
+    .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+    .unnormalizedCoordinates = VK_FALSE
+  };
+
+  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_cubeMapSampler),
+    "Failed to create normal map sampler");
 }
 
 RenderResourcesImpl::~RenderResourcesImpl()
@@ -1122,6 +1202,8 @@ RenderResourcesImpl::~RenderResourcesImpl()
     removeMesh(m_meshes.begin()->first);
   }
   vkDestroySampler(m_device, m_textureSampler, nullptr);
+  vkDestroySampler(m_device, m_normalMapSampler, nullptr);
+  vkDestroySampler(m_device, m_cubeMapSampler, nullptr);
   while (!m_materials.empty()) {
     removeMaterial(m_materials.begin()->first);
   }

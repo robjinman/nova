@@ -33,6 +33,7 @@ VkFormat attributeFormat(BufferUsage usage)
     case BufferUsage::AttrPosition: return VK_FORMAT_R32G32B32_SFLOAT;
     case BufferUsage::AttrNormal: return VK_FORMAT_R32G32B32_SFLOAT;
     case BufferUsage::AttrTexCoord: return VK_FORMAT_R32G32_SFLOAT;
+    case BufferUsage::AttrTangent: return VK_FORMAT_R32G32B32_SFLOAT;
     case BufferUsage::AttrJointIndices: return VK_FORMAT_R8G8B8A8_UINT;
     case BufferUsage::AttrJointWeights: return VK_FORMAT_R32G32B32A32_SFLOAT;
     default: EXCEPTION("Buffer type is not a vertex attribute");
@@ -188,7 +189,6 @@ Pipeline::Pipeline(const MeshFeatureSet& meshFeatures, const MaterialFeatureSet&
   std::vector<char> vertShaderCode;
   std::vector<char> fragShaderCode;
 
-  // TODO: Use material features
   // TODO: Generate and compile shaders dynamically
 
   if (meshFeatures.isInstanced) {
@@ -200,8 +200,19 @@ Pipeline::Pipeline(const MeshFeatureSet& meshFeatures, const MaterialFeatureSet&
     fragShaderCode = fileSystem.readFile("shaders/fragment/skybox.spv");
   }
   else {
-    vertShaderCode = fileSystem.readFile("shaders/vertex/default.spv");
-    fragShaderCode = fileSystem.readFile("shaders/fragment/default.spv");
+    if (materialFeatures.hasNormalMap) {
+      assert(meshFeatures.hasTangents);
+      vertShaderCode = fileSystem.readFile("shaders/vertex/normal_mapped.spv");
+      fragShaderCode = fileSystem.readFile("shaders/fragment/normal_mapped.spv");
+    }
+    else if (materialFeatures.hasTexture) {
+      vertShaderCode = fileSystem.readFile("shaders/vertex/default.spv");
+      fragShaderCode = fileSystem.readFile("shaders/fragment/default.spv");
+    }
+    else {
+      vertShaderCode = fileSystem.readFile("shaders/vertex/default.spv");
+      fragShaderCode = fileSystem.readFile("shaders/fragment/untextured.spv");
+    }
   }
 
   VkShaderModule vertShaderModule = createShaderModule(m_device, vertShaderCode);

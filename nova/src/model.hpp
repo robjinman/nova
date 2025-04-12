@@ -49,9 +49,19 @@ enum class BufferUsage : int
   AttrPosition,
   AttrNormal,
   AttrTexCoord,
+  AttrTangent,
   AttrJointIndices,
   AttrJointWeights,
   Index
+};
+
+const std::array<BufferUsage, 7> ATTRIBUTE_ORDER{
+  BufferUsage::AttrPosition,
+  BufferUsage::AttrNormal,
+  BufferUsage::AttrTexCoord,
+  BufferUsage::AttrTangent,
+  BufferUsage::AttrJointIndices,
+  BufferUsage::AttrJointWeights
 };
 
 inline size_t getAttributeSize(BufferUsage usage)
@@ -60,6 +70,7 @@ inline size_t getAttributeSize(BufferUsage usage)
     case BufferUsage::AttrPosition: return sizeof(Vec3f);
     case BufferUsage::AttrNormal: return sizeof(Vec3f);
     case BufferUsage::AttrTexCoord: return sizeof(Vec2f);
+    case BufferUsage::AttrTangent: return sizeof(Vec3f);
     case BufferUsage::AttrJointIndices: return sizeof(uint8_t) * 4;
     case BufferUsage::AttrJointWeights: return sizeof(float_t) * 4;
     case BufferUsage::Index: return sizeof(uint16_t);
@@ -74,6 +85,7 @@ struct MeshFeatureSet
   bool isInstanced = false;
   bool isSkybox = false;
   bool isAnimated = false;
+  bool hasTangents = false; // Tangents and bitangents for normal mapping
   uint32_t maxInstances = 0;
 
   bool operator==(const MeshFeatureSet& rhs) const = default;
@@ -84,6 +96,7 @@ struct MaterialFeatureSet
   bool hasTransparency = false;
   bool hasTexture = false;
   bool hasNormalMap = false;
+  bool hasCubeMap = false;
 
   bool operator==(const MaterialFeatureSet& rhs) const = default;
 };
@@ -167,19 +180,11 @@ Buffer createBuffer(const std::vector<T>& data, BufferUsage usage)
 
 inline size_t calcOffsetInVertex(const std::vector<BufferUsage>& layout, BufferUsage attribute)
 {
-  const static std::array<BufferUsage, 5> attributeOrder{ // TODO: Move this
-    BufferUsage::AttrPosition,
-    BufferUsage::AttrNormal,
-    BufferUsage::AttrTexCoord,
-    BufferUsage::AttrJointIndices,
-    BufferUsage::AttrJointWeights
-  };
-
   auto isBefore = [&](BufferUsage a, BufferUsage b) {
     if (a == b) {
       return false;
     }
-    for (auto attr : attributeOrder) {
+    for (auto attr : ATTRIBUTE_ORDER) {
       if (attr == a) {
         return true;
       }
@@ -213,12 +218,10 @@ struct Mesh
 using MeshPtr = std::unique_ptr<Mesh>;
 
 template<typename T>
-std::span<const T> getConstAttrBufferData(const Mesh& mesh, size_t index, BufferUsage usage)
+std::span<const T> getConstBufferData(const Buffer& buffer)
 {
-  auto& buffer = mesh.attributeBuffers[index];
   size_t attributeSize = getAttributeSize(buffer.usage);
 
-  DBG_ASSERT(buffer.usage == usage, "Buffer has unexpected type");
   DBG_ASSERT(buffer.data.size() % attributeSize == 0, "Buffer has unexpected size");
 
   return std::span<const T>(
@@ -228,9 +231,9 @@ std::span<const T> getConstAttrBufferData(const Mesh& mesh, size_t index, Buffer
 }
 
 template<typename T>
-std::span<T> getAttrBufferData(Mesh& mesh, size_t index, BufferUsage usage)
+std::span<T> getBufferData(Buffer& buffer)
 {
-  auto span = getConstAttrBufferData<T>(mesh, index, usage);
+  auto span = getConstBufferData<T>(buffer);
   return std::span<T>(const_cast<T*>(span.data()), span.size());
 }
 

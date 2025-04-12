@@ -156,8 +156,8 @@ MeshPtr createTopFace(const std::vector<Vec4f>& points, float_t height)
   auto mesh = createBottomFace(points);
   Vec3f normal{ 0, 1, 0 };
 
-  auto positions = getAttrBufferData<Vec3f>(*mesh, 0, BufferUsage::AttrPosition);
-  auto normals = getAttrBufferData<Vec3f>(*mesh, 1, BufferUsage::AttrNormal);
+  auto positions = getBufferData<Vec3f>(mesh->attributeBuffers[0]);
+  auto normals = getBufferData<Vec3f>(mesh->attributeBuffers[1]);
   auto indices = getIndexBufferData(*mesh);
 
   assert(positions.size() == normals.size());
@@ -307,7 +307,7 @@ void TerrainImpl::constructWall(const ObjectData& obj, const Mat4x4f& parentTran
 
     CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::Regular);
     auto mesh = cuboid(wallThickness, wallHeight, distance, textureSize);
-    auto positions = getConstAttrBufferData<Vec3f>(*mesh, 0, BufferUsage::AttrPosition);
+    auto positions = getConstBufferData<Vec3f>(mesh->attributeBuffers[0]);
     float_t radius = computeRadius(positions);
     render->meshes = {
       MeshMaterialPair{
@@ -354,7 +354,7 @@ Mat4x4f TerrainImpl::constructZone(const ObjectData& obj, const Mat4x4f& parentT
 
   auto mesh = mergeMeshes(*bottomFace, *topFace);
   createSideFaces(*mesh);
-  auto positions = getConstAttrBufferData<Vec3f>(*mesh, 0, BufferUsage::AttrPosition);
+  auto positions = getConstBufferData<Vec3f>(mesh->attributeBuffers[0]);
   float_t radius = computeRadius(positions);
 
   CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::Regular);

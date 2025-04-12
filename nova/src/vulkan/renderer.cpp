@@ -902,14 +902,21 @@ void RendererImpl::createLogicalDevice()
     queueCreateInfos.push_back(queueCreateInfo);
   }
 
-  VkPhysicalDeviceFeatures deviceFeatures{};
-  deviceFeatures.samplerAnisotropy = VK_TRUE;
+  VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures{};
+  indexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+  indexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
+
+  VkPhysicalDeviceFeatures2 deviceFeatures{};
+  deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+  //deviceFeatures.pNext = &indexingFeatures;
+  deviceFeatures.features.samplerAnisotropy = VK_TRUE;
 
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+  createInfo.pNext = &deviceFeatures;
   createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
   createInfo.pQueueCreateInfos = queueCreateInfos.data();
-  createInfo.pEnabledFeatures = &deviceFeatures;
+  createInfo.pEnabledFeatures = nullptr;
   createInfo.enabledExtensionCount = static_cast<uint32_t>(DeviceExtensions.size());
   createInfo.ppEnabledExtensionNames = DeviceExtensions.data();
 

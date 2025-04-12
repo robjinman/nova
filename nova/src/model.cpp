@@ -88,7 +88,7 @@ BufferUsage getUsage(gltf::ElementType type)
   }
 }
 
-std::vector<BufferUsage> getVertexLayout(const gltf::MeshDesc& meshDesc)
+std::vector<BufferUsage> getVertexLayout(const gltf::MeshDesc& meshDesc, bool hasTangents)
 {
   std::vector<BufferUsage> layout;
 
@@ -96,6 +96,9 @@ std::vector<BufferUsage> getVertexLayout(const gltf::MeshDesc& meshDesc)
     if (gltf::isAttribute(b.type)) {
       layout.push_back(getUsage(b.type));
     }
+  }
+  if (hasTangents) {
+    layout.push_back(BufferUsage::AttrTangent);
   }
 
   std::sort(layout.begin(), layout.end());
@@ -105,11 +108,13 @@ std::vector<BufferUsage> getVertexLayout(const gltf::MeshDesc& meshDesc)
 
 MeshFeatureSet createMeshFeatureSet(const gltf::MeshDesc& meshDesc)
 {
+  bool hasTangents = !meshDesc.material.normalMap.empty();
   return MeshFeatureSet{
-    .vertexLayout = getVertexLayout(meshDesc),
+    .vertexLayout = getVertexLayout(meshDesc, hasTangents),
     .isInstanced = false, // TODO
     .isSkybox = false,
     .isAnimated = false, // TODO
+    .hasTangents = hasTangents,
     .maxInstances = 0 // TODO
   };
 }
@@ -176,6 +181,69 @@ MaterialPtr constructMaterial(const gltf::MaterialDesc& materialDesc)
   // TODO: PBR attributes
 
   return material;
+}
+
+void computeMeshTangents(Mesh& mesh)
+{
+  auto getBuffer = [](const std::vector<Buffer>& buffers, BufferUsage usage) -> const Buffer& {
+    auto i = std::find_if(buffers.begin(), buffers.end(), [usage](const Buffer& buffer) {
+      return buffer.usage == usage;
+    });
+    DBG_ASSERT(i != buffers.end(), "Mesh does not contain buffer of that type");
+    return *i;
+  };
+
+  auto& posBuffer = getBuffer(mesh.attributeBuffers, BufferUsage::AttrPosition);
+  auto& uvBuffer = getBuffer(mesh.attributeBuffers, BufferUsage::AttrTexCoord);
+
+  auto positions = getConstBufferData<Vec3f>(posBuffer);
+  auto texCoords = getConstBufferData<Vec2f>(uvBuffer);
+  auto indices = getConstBufferData<uint16_t>(mesh.indexBuffer);
+
+  DBG_ASSERT(positions.size() == texCoords.size(), "Expected equal number of positions and UVs");
+  DBG_ASSERT(indices.size() % 3 == 0, "Expected indices buffer size to be multiple of 3");
+
+  std::vector<Vec3f> tangents(positions.size());
+
+  size_t n = indices.size();
+  for (size_t i = 0; i < n; i += 3) {
+    uint16_t aIdx = indices[i];
+    uint16_t bIdx = indices[i + 1];
+    uint16_t cIdx = indices[i + 2];
+
+    auto& A = positions[aIdx];
+    auto& B = positions[bIdx];
+    auto& C = positions[cIdx];
+
+    auto& uvA = texCoords[aIdx];
+    auto& uvB = texCoords[bIdx];
+    auto& uvC = texCoords[cIdx];
+
+    // TODO: Simplify. Don't need the bitangent
+
+    Mat2x2f M = inverse(Mat2x2f{
+      uvB[0] - uvA[0], uvC[0] - uvB[0],
+      uvB[1] - uvA[1], uvC[1] - uvB[1]
+    });
+
+    Vec3f E = B - A;
+    Vec3f F = C - B;
+
+    Mat3x2f EF{
+      E[0], F[0],
+      E[1], F[1],
+      E[2], F[2]
+    };
+
+    Mat3x2f TB = EF * M;
+
+    Vec3f T{ TB.at(0, 0), TB.at(1, 0), TB.at(2, 0) };
+    tangents[aIdx] += T;
+    tangents[bIdx] += T;
+    tangents[cIdx] += T;
+  }
+
+  mesh.attributeBuffers.push_back(createBuffer(tangents, BufferUsage::AttrTangent));
 }
 
 } // namespace
@@ -379,6 +447,10 @@ ModelPtr loadModel(const FileSystem& fileSystem, const std::string& filePath)
     auto submodel = std::make_unique<Submodel>();
     submodel->mesh = constructMesh(meshDesc, dataBuffers);
     submodel->material = constructMaterial(meshDesc.material);
+
+    if (submodel->mesh->featureSet.hasTangents) {
+      computeMeshTangents(*submodel->mesh);
+    }
 
     model->submodels.push_back(std::move(submodel));
   }

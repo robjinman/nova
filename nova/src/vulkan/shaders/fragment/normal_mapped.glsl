@@ -27,12 +27,15 @@ layout(std140, set = 2, binding = 0) uniform LightingUbo
 layout(location = 0) in vec2 inTexCoord;
 layout(location = 1) in vec3 inWorldPos;
 layout(location = 2) in vec3 inNormal;
+layout(location = 3) in mat3 inTbn;
 
 layout(location = 0) out vec4 outColour;
 
 vec3 computeLight()
 {
-  vec3 normal = normalize(inNormal);
+  // TODO: Remove normalize?
+  vec3 tangentSpaceNormal = normalize(texture(normalMapSampler, inTexCoord).rgb * 2.0 - 1.0);
+  vec3 normal = normalize(inTbn * tangentSpaceNormal);
 
   vec3 light = vec3(0, 0, 0);
   for (int i = 0; i < lighting.numLights; ++i) {

@@ -343,6 +343,15 @@ class Matrix
       return m;
     }
 
+    Matrix<T, ROWS, COLS> operator/(T s) const
+    {
+      Matrix<T, ROWS, COLS> m;
+      for (size_t i = 0; i < ROWS * COLS; ++i) {
+        m.m_data[i] = m_data[i] / s;
+      }
+      return m;
+    }
+
     Vector<T, ROWS> operator*(const Vector<T, COLS>& rhs) const
     {
       Vector<T, ROWS> v;
@@ -415,6 +424,8 @@ using Vec3f = Vector<float_t, 3>;
 using Vec4f = Vector<float_t, 4>;
 using Mat2x2f = Matrix<float_t, 2, 2>;
 using Mat3x3f = Matrix<float_t, 3, 3>;
+using Mat2x3f = Matrix<float_t, 2, 3>;
+using Mat3x2f = Matrix<float_t, 3, 2>;
 using Mat4x4f = Matrix<float_t, 4, 4>;
 
 template<typename T, size_t M>
@@ -588,3 +599,4 @@ Vec2f projectionOntoLine(const Line& line, const Vec2f& p);
 bool lineSegmentCircleIntersect(const LineSegment& lseg, const Vec2f& centre, float_t radius);
 bool pointIsInsidePoly(const Vec2f& p, const std::vector<Vec2f>& poly);
 std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices);
+Mat2x2f inverse(const Mat2x2f& M);

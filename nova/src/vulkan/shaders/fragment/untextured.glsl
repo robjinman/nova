@@ -48,8 +48,7 @@ vec3 computeLight()
 vec3 computeTexel()
 {
   // TODO: Transparency
-
-  return material.colour.xyz * texture(texSampler, inTexCoord).rgb;
+  return material.colour.xyz;
 }
 
 void main()

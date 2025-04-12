@@ -108,8 +108,9 @@ void SceneBuilder::constructSky()
   };
   auto material = std::make_unique<Material>(MaterialFeatureSet{
     .hasTransparency = false,
-    .hasTexture = true,
-    .hasNormalMap = false
+    .hasTexture = false,
+    .hasNormalMap = false,
+    .hasCubeMap = true
   });
   material->cubeMap.id = m_renderSystem.addCubeMap(std::move(textures));
   m_renderSystem.compileShader(mesh->featureSet, material->featureSet);

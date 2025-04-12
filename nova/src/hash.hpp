@@ -23,7 +23,7 @@ size_t hashAll(T first, Ts... rest)
 {
   size_t hash1 = std::hash<T>{}(first);
   size_t hash2 = hashAll(rest...);
-  return std::hash<std::pair<size_t, size_t>>{}(std::pair<size_t, size_t>{ hash1, hash2 });
+  return std::hash<std::pair<size_t, size_t>>{}({ hash1, hash2 });
 }
 
 template<typename T>

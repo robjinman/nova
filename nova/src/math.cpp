@@ -3,6 +3,24 @@
 #include <cassert>
 #include <numeric>
 
+namespace
+{
+
+Mat2x2f adjoint(const Mat2x2f& M)
+{
+  return {
+    M.at(1, 1), -M.at(0, 1),
+    -M.at(1, 0), M.at(0, 0)
+  };
+}
+
+float_t determinant(const Mat2x2f& M)
+{
+  return M.at(0, 0) * M.at(1, 1) - M.at(0, 1) * M.at(1, 0);
+}
+
+} // namespace
+
 Line::Line(const Vec2f& A, const Vec2f& B)
 {
   a = B[1] - A[1];
@@ -198,4 +216,9 @@ Mat4x4f perspective(float_t fovX, float_t fovY, float_t near, float_t far)
   m.set(3, 3, 0.f);
 
   return m;
+}
+
+Mat2x2f inverse(const Mat2x2f& M)
+{
+  return adjoint(M) / determinant(M);
 }

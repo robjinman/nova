@@ -157,7 +157,23 @@ MaterialHandle EntityFactoryImpl::gpuLoadMaterial(MaterialPtr material)
       material->texture.id = i->second;
     }
   }
-  // TODO: Repeat the above for cube maps and normal maps
+
+  // TODO: Remove duplication
+  auto normalMapFileName = material->normalMap.fileName;
+  if (normalMapFileName != "") {
+    auto texturePath = STR("resources/textures/" << normalMapFileName);
+
+    auto i = m_materialResources.find(normalMapFileName);
+    if (i == m_materialResources.end()) {
+      auto texture = loadTexture(m_fileSystem.readFile(texturePath));
+      material->normalMap.id = m_renderSystem.addTexture(std::move(texture));
+      m_materialResources[normalMapFileName] = material->normalMap.id;
+    }
+    else {
+      material->normalMap.id = i->second;
+    }
+  }
+  // TODO: Repeat the above for cube maps
 
   return m_renderSystem.addMaterial(std::move(material));
 }
