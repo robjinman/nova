@@ -40,6 +40,13 @@ Linux host with the same prerequisites as above, plus
 
 Make sure environment variables ANDROID_HOME and ANDROID_NDK_HOME are set.
 
+Build shaderc. You only need to do this once.
+
+```
+    cd ~/Android/Sdk/ndk/27.0.12077973/sources/third_party/shaderc
+    ../../../ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk APP_STL:=c++_static APP_ABI=all libshaderc_combined
+```
+
 ### Build
 
 To build, just run the relevant workflow from the project root.
@@ -65,7 +72,7 @@ You can also run the configure/build steps separately
 
 #### Android
 
-On Android, the build output is an AAB bundle located under build/android/gradle_output/outputs/bundle, which can be installed using the [bundle tool](https://github.com/google/bundletool/releases).
+The build output is an AAB bundle located under build/android/gradle_output/outputs/bundle, which can be installed using the [bundle tool](https://github.com/google/bundletool/releases).
 
 Convert the bundle to APKs
 

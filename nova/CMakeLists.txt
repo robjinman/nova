@@ -86,8 +86,9 @@ if(PLATFORM_LINUX)
     set(RELEASE_COMPILE_FLAGS ${RELEASE_COMPILE_FLAGS} -g)
   endif()
   add_library(${LIB_TARGET} ${CPP_SOURCES})
+  target_link_libraries(${LIB_TARGET} PUBLIC Vulkan::shaderc_combined)
 elseif(PLATFORM_ANDROID)
-  find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
+  find_package(Vulkan REQUIRED)
   set(COMPILE_FLAGS -Wextra -Wall)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
@@ -108,10 +109,14 @@ elseif(PLATFORM_ANDROID)
   target_include_directories(app-glue PUBLIC
     "$ENV{ANDROID_NDK_HOME}/sources/android/native_app_glue"
   )
+  target_include_directories(${LIB_TARGET} PUBLIC
+    "$ENV{ANDROID_NDK_HOME}/sources/third_party/shaderc/include"
+  )
   target_link_libraries(${LIB_TARGET} PUBLIC
     android
     log
     app-glue
+    "$ENV{ANDROID_NDK_HOME}/sources/third_party/shaderc/libs/c++_static/${ANDROID_ABI}/libshaderc.a"
   )
 elseif(PLATFORM_WINDOWS)
   find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
@@ -119,12 +124,14 @@ elseif(PLATFORM_WINDOWS)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS})
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} /O2)
   add_library(${LIB_TARGET} ${CPP_SOURCES})
+  target_link_libraries(${LIB_TARGET} PUBLIC Vulkan::shaderc_combined)
 elseif(PLATFORM_OSX)
   find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
   set(COMPILE_FLAGS -Wextra -Wall)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
   add_library(${LIB_TARGET} ${CPP_SOURCES})
+  target_link_libraries(${LIB_TARGET} PUBLIC Vulkan::shaderc_combined)
 elseif(PLATFORM_IOS)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../platform/ios/cmake")
   find_package(Vulkan REQUIRED COMPONENTS MoltenVK shaderc_combined)
@@ -132,6 +139,7 @@ elseif(PLATFORM_IOS)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
   add_library(${LIB_TARGET} ${CPP_SOURCES})
+  target_link_libraries(${LIB_TARGET} PUBLIC Vulkan::shaderc_combined)
 endif()
 
 target_include_directories(${LIB_TARGET} PUBLIC
@@ -142,7 +150,6 @@ target_include_directories(${LIB_TARGET} PUBLIC
 
 target_link_libraries(${LIB_TARGET} PUBLIC
   Vulkan::Vulkan
-  Vulkan::shaderc_combined
   tinyxml2::tinyxml2
 )
 
