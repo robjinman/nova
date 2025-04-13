@@ -19,38 +19,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(PROJECT_NAME Nova)
 project(${PROJECT_NAME})
 
-file(GLOB FRAG_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/nova/src/vulkan/shaders/fragment/*.glsl")
-file(GLOB VERT_SHADER_SOURCES "${PROJECT_SOURCE_DIR}/nova/src/vulkan/shaders/vertex/*.glsl")
-
-find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
-
-function(compile_shaders targetName shaderSources shaderStage shaderBinaryDir)
-  if(CMAKE_BUILD_TYPE STREQUAL Debug)
-    set(compile_flags -fshader-stage=${shaderStage} -g)
-  else()
-    set(compile_flags -fshader-stage=${shaderStage} -O)
-  endif()
-
-  set(shaderBinaries "")
-  foreach(shaderSource ${shaderSources})
-    get_filename_component(shaderFilename ${shaderSource} NAME)
-    string(REGEX REPLACE "[.]glsl$" ".spv" shaderBinaryName ${shaderFilename})
-    set(shaderBinary "${shaderBinaryDir}/${shaderStage}/${shaderBinaryName}")
-    list(APPEND shaderBinaries ${shaderBinary})
-    add_custom_command(
-      OUTPUT ${shaderBinary}
-      COMMAND ${CMAKE_COMMAND} -E make_directory "${shaderBinaryDir}/${shaderStage}"
-      COMMAND ${glslc_executable} ${compile_flags} ${shaderSource} -o ${shaderBinary}
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-      MAIN_DEPENDENCY ${shaderSource}
-    )
-  endforeach()
-  add_custom_target(${targetName} DEPENDS ${shaderBinaries})
-endfunction()
-
-compile_shaders(frag_shaders "${FRAG_SHADER_SOURCES}" fragment "${PROJECT_SOURCE_DIR}/data/shaders")
-compile_shaders(vert_shaders "${VERT_SHADER_SOURCES}" vertex "${PROJECT_SOURCE_DIR}/data/shaders")
-
 if(PLATFORM_ANDROID)
   add_custom_target(android_bundle ALL
     COMMAND "${PROJECT_SOURCE_DIR}/platform/android/gradlew" "bundle${CMAKE_BUILD_TYPE}"
@@ -58,8 +26,6 @@ if(PLATFORM_ANDROID)
     USES_TERMINAL
     COMMENT "Running Gradle build..."
   )
-  add_dependencies(android_bundle frag_shaders)
-  add_dependencies(android_bundle vert_shaders)
 else()
   add_subdirectory("nova" "libnova")
 
@@ -171,9 +137,6 @@ else()
     ${LIB_TARGET}
   )
 
-  add_dependencies(${EXE_TARGET} frag_shaders)
-  add_dependencies(${EXE_TARGET} vert_shaders)
-
   add_custom_target(
     link_data ALL
     COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_SOURCE_DIR}/data ${PROJECT_BINARY_DIR}/data
@@ -188,8 +151,6 @@ else()
       RUNTIME DESTINATION .
     )
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/data"
-      DESTINATION "${EXE_TARGET}.app/Contents/Resources")
-    install(DIRECTORY "${PROJECT_BINARY_DIR}/shaders"
       DESTINATION "${EXE_TARGET}.app/Contents/Resources")
     install(FILES "${PROJECT_SOURCE_DIR}/platform/osx/nova.icns"
       DESTINATION "${EXE_TARGET}.app/Contents/Resources")

@@ -4,20 +4,22 @@
 #include "file_system.hpp"
 #include "utils.hpp"
 #include "model.hpp"
+#include <shaderc/shaderc.hpp>
 #include <array>
 #include <numeric>
+#include <cstring>
 
 namespace
 {
 
-VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code)
+VkShaderModule createShaderModule(VkDevice device, const std::vector<uint32_t>& code)
 {
   VkShaderModuleCreateInfo createInfo{
     .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
     .pNext = nullptr,
     .flags = 0,
-    .codeSize = code.size(),
-    .pCode = reinterpret_cast<const uint32_t*>(code.data())
+    .codeSize = code.size() * sizeof(uint32_t),
+    .pCode = code.data()
   };
 
   VkShaderModule shaderModule;
@@ -178,45 +180,206 @@ VkPipelineDepthStencilStateCreateInfo defaultDepthStencilState()
   };
 }
 
-} // namespace
-
-Pipeline::Pipeline(const MeshFeatureSet& meshFeatures, const MaterialFeatureSet& materialFeatures,
-  const FileSystem& fileSystem, VkDevice device, VkExtent2D swapchainExtent,
-  VkRenderPass renderPass, const RenderResources& renderResources)
-  : m_device(device)
-  , m_renderResources(renderResources)
+class SourceIncluder : public shaderc::CompileOptions::IncluderInterface
 {
-  std::vector<char> vertShaderCode;
-  std::vector<char> fragShaderCode;
+  public:
+    SourceIncluder(const FileSystem& fileSystem)
+      : m_fileSystem(fileSystem) {}
 
-  // TODO: Generate and compile shaders dynamically
+    shaderc_include_result* GetInclude(const char* requested_source,
+      shaderc_include_type type, const char* requesting_source, size_t include_depth) override;
+
+    void ReleaseInclude(shaderc_include_result* data) override;
+
+  private:
+    const FileSystem& m_fileSystem;
+    std::string m_errorMessage;
+};
+
+shaderc_include_result* SourceIncluder::GetInclude(const char* requested_source,
+  shaderc_include_type, const char*, size_t)
+{
+  auto result = new shaderc_include_result{};
+
+  try {
+    const std::filesystem::path sourcesDir = "shaders";
+    auto sourcePath = sourcesDir / requested_source;
+
+    auto source = m_fileSystem.readFile(sourcePath);
+    size_t contentBufferLength = source.size();
+    char* contentBuffer = new char[contentBufferLength];
+    memcpy(contentBuffer, source.data(), source.size());
+
+    size_t sourceNameLength = sourcePath.string().length();
+    char* nameBuffer = new char[sourceNameLength];
+    memcpy(nameBuffer, reinterpret_cast<const char*>(sourcePath.c_str()), sourceNameLength);
+
+    result->source_name = nameBuffer;
+    result->source_name_length = sourceNameLength;
+    result->content = contentBuffer;
+    result->content_length = contentBufferLength;
+    result->user_data = nullptr;
+  }
+  catch (const std::exception& ex) {
+    m_errorMessage = ex.what();
+    result->content = m_errorMessage.c_str();
+    result->content_length = m_errorMessage.length();
+  }
+
+  return result;
+}
+
+void SourceIncluder::ReleaseInclude(shaderc_include_result* data)
+{
+  if (data) {
+    if (data->content) {
+      delete[] data->content;
+    }
+    if (data->source_name) {
+      delete[] data->source_name;
+    }
+    delete data;
+  }
+}
+
+struct PipelineProperties
+{
+  bool hasLighting = false;
+};
+
+struct ShaderProgram
+{
+  std::vector<uint32_t> vertexShaderCode;
+  std::vector<uint32_t> fragmentShaderCode;
+};
+
+enum class ShaderType
+{
+  Vertex,
+  Fragment
+};
+
+class PipelineImpl : public Pipeline
+{
+  public:
+    PipelineImpl(const MeshFeatureSet& meshFeatures, const MaterialFeatureSet& materialFeatures,
+      const FileSystem& fileSystem, const RenderResources& renderResources, VkDevice device,
+      VkExtent2D swapchainExtent, VkRenderPass renderPass);
+
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
+      BindState& bindState, size_t currentFrame) override;
+
+    ~PipelineImpl() override;
+
+  private:
+    const FileSystem& m_fileSystem;
+    const RenderResources& m_renderResources;
+    VkDevice m_device;
+    VkPipeline m_pipeline;
+    VkPipelineLayout m_layout;
+    PipelineProperties m_properties;
+
+    ShaderProgram compileShaderProgram(const MeshFeatureSet& meshFeatures,
+      const MaterialFeatureSet& materialFeatures);
+
+    std::vector<uint32_t> compileShader(const std::string& name, const std::vector<char>& source,
+      ShaderType type);
+};
+
+ShaderProgram PipelineImpl::compileShaderProgram(const MeshFeatureSet& meshFeatures,
+  const MaterialFeatureSet& materialFeatures)
+{
+  // TODO: Construct shader sources dynamically
+
+  ShaderProgram program;
+
+  m_properties.hasLighting = true;
 
   if (meshFeatures.isInstanced) {
-    vertShaderCode = fileSystem.readFile("shaders/vertex/instanced.spv");
-    fragShaderCode = fileSystem.readFile("shaders/fragment/default.spv");
+    auto vertShaderSrc = m_fileSystem.readFile("shaders/vertex/instanced.glsl");
+    auto fragShaderSrc = m_fileSystem.readFile("shaders/fragment/default.glsl");
+    program.vertexShaderCode = compileShader("vert_instanced", vertShaderSrc, ShaderType::Vertex);
+    program.fragmentShaderCode = compileShader("frag_default", fragShaderSrc, ShaderType::Fragment);
   }
   else if (meshFeatures.isSkybox) {
-    vertShaderCode = fileSystem.readFile("shaders/vertex/skybox.spv");
-    fragShaderCode = fileSystem.readFile("shaders/fragment/skybox.spv");
+    auto vertShaderSrc = m_fileSystem.readFile("shaders/vertex/skybox.glsl");
+    auto fragShaderSrc = m_fileSystem.readFile("shaders/fragment/skybox.glsl");
+    program.vertexShaderCode = compileShader("vert_skybox", vertShaderSrc, ShaderType::Vertex);
+    program.fragmentShaderCode = compileShader("frag_skybox", fragShaderSrc, ShaderType::Fragment);
+    m_properties.hasLighting = false;
   }
   else {
     if (materialFeatures.hasNormalMap) {
       assert(meshFeatures.hasTangents);
-      vertShaderCode = fileSystem.readFile("shaders/vertex/normal_mapped.spv");
-      fragShaderCode = fileSystem.readFile("shaders/fragment/normal_mapped.spv");
+      auto vertShaderSrc = m_fileSystem.readFile("shaders/vertex/normal_mapped.glsl");
+      auto fragShaderSrc = m_fileSystem.readFile("shaders/fragment/normal_mapped.glsl");
+      program.vertexShaderCode = compileShader("vert_normal_mapped", vertShaderSrc,
+        ShaderType::Vertex);
+      program.fragmentShaderCode = compileShader("vert_normal_mapped", fragShaderSrc,
+        ShaderType::Fragment);
     }
     else if (materialFeatures.hasTexture) {
-      vertShaderCode = fileSystem.readFile("shaders/vertex/default.spv");
-      fragShaderCode = fileSystem.readFile("shaders/fragment/default.spv");
+      auto vertShaderSrc = m_fileSystem.readFile("shaders/vertex/default.glsl");
+      auto fragShaderSrc = m_fileSystem.readFile("shaders/fragment/default.glsl");
+      program.vertexShaderCode = compileShader("vert_default", vertShaderSrc, ShaderType::Vertex);
+      program.fragmentShaderCode = compileShader("frag_default", fragShaderSrc,
+        ShaderType::Fragment);
     }
     else {
-      vertShaderCode = fileSystem.readFile("shaders/vertex/default.spv");
-      fragShaderCode = fileSystem.readFile("shaders/fragment/untextured.spv");
+      auto vertShaderSrc = m_fileSystem.readFile("shaders/vertex/default.glsl");
+      auto fragShaderSrc = m_fileSystem.readFile("shaders/fragment/untextured.glsl");
+      program.vertexShaderCode = compileShader("vert_default", vertShaderSrc, ShaderType::Vertex);
+      program.fragmentShaderCode = compileShader("frag_untextured", fragShaderSrc,
+        ShaderType::Fragment);
     }
   }
 
-  VkShaderModule vertShaderModule = createShaderModule(m_device, vertShaderCode);
-  VkShaderModule fragShaderModule = createShaderModule(m_device, fragShaderCode);
+  assert(program.fragmentShaderCode.size() > 0);
+  assert(program.vertexShaderCode.size() > 0);
+
+  return program;
+}
+
+std::vector<uint32_t> PipelineImpl::compileShader(const std::string& name,
+  const std::vector<char>& source, ShaderType type)
+{
+  shaderc_shader_kind kind;
+  switch (type) {
+    case ShaderType::Vertex: kind = shaderc_shader_kind::shaderc_glsl_vertex_shader; break;
+    case ShaderType::Fragment: kind = shaderc_shader_kind::shaderc_glsl_fragment_shader; break;
+  }
+
+  shaderc::Compiler compiler;
+  shaderc::CompileOptions options;
+  options.SetOptimizationLevel(shaderc_optimization_level_performance);
+  options.SetWarningsAsErrors();
+  options.SetIncluder(std::make_unique<SourceIncluder>(m_fileSystem));
+
+  auto result = compiler.CompileGlslToSpv(source.data(), source.size(), kind, name.c_str(),
+    options);
+
+  if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
+    EXCEPTION("Error compiling shader: " << result.GetErrorMessage());
+  }
+
+  std::vector<uint32_t> code;
+  code.assign(result.cbegin(), result.cend());
+
+  return code;
+}
+
+PipelineImpl::PipelineImpl(const MeshFeatureSet& meshFeatures,
+  const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
+  const RenderResources& renderResources, VkDevice device, VkExtent2D swapchainExtent,
+  VkRenderPass renderPass)
+  : m_fileSystem(fileSystem)
+  , m_renderResources(renderResources)
+  , m_device(device)
+{
+  auto program = compileShaderProgram(meshFeatures, materialFeatures);
+
+  VkShaderModule vertShaderModule = createShaderModule(m_device, program.vertexShaderCode);
+  VkShaderModule fragShaderModule = createShaderModule(m_device, program.fragmentShaderCode);
 
   VkPipelineShaderStageCreateInfo vertShaderStageInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -359,7 +522,7 @@ Pipeline::Pipeline(const MeshFeatureSet& meshFeatures, const MaterialFeatureSet&
   vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
 }
 
-void Pipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
+void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
   BindState& bindState, size_t currentFrame)
 {
   auto matricesDescriptorSet = m_renderResources.getMatricesDescriptorSet(currentFrame);
@@ -385,8 +548,10 @@ void Pipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNo
   if (!node.mesh.features.isSkybox) {
     descriptorSets.push_back(lightingDescriptorSet);
   }
-  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
-    descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+  if (descriptorSets != bindState.descriptorSets) {
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
+      descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+  }
   if (!node.mesh.features.isInstanced && !node.mesh.features.isSkybox) {
     auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
 
@@ -401,10 +566,22 @@ void Pipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNo
   }
 
   bindState.pipeline = m_pipeline;
+  bindState.descriptorSets = descriptorSets;
 }
 
-Pipeline::~Pipeline()
+PipelineImpl::~PipelineImpl()
 {
   vkDestroyPipeline(m_device, m_pipeline, nullptr);
   vkDestroyPipelineLayout(m_device, m_layout, nullptr);
+}
+
+} // namespace
+
+PipelinePtr createPipeline(const MeshFeatureSet& meshFeatures,
+  const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
+  const RenderResources& renderResources, VkDevice device, VkExtent2D swapchainExtent,
+  VkRenderPass renderPass)
+{
+  return std::make_unique<PipelineImpl>(meshFeatures, materialFeatures, fileSystem, renderResources,
+    device, swapchainExtent, renderPass);
 }

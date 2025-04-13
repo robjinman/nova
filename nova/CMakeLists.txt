@@ -78,7 +78,7 @@ if(PLATFORM_LINUX)
     #find_package(GOOGLE_PERFTOOLS REQUIRED)
   endif()
 
-  find_package(Vulkan REQUIRED)
+  find_package(Vulkan COMPONENTS shaderc_combined REQUIRED)
   set(COMPILE_FLAGS -Wextra -Wall)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
@@ -142,6 +142,7 @@ target_include_directories(${LIB_TARGET} PUBLIC
 
 target_link_libraries(${LIB_TARGET} PUBLIC
   Vulkan::Vulkan
+  Vulkan::shaderc_combined
   tinyxml2::tinyxml2
 )
 

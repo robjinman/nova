@@ -95,6 +95,8 @@ void SceneBuilder::constructSky()
 
   auto render = std::make_unique<CRender>(entityId, CRenderType::Skybox);
   auto mesh = cuboid(10000, 10000, 10000, Vec2f{ 1, 1 });
+  mesh->attributeBuffers.resize(1); // Just keep the positions
+  mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition };
   mesh->featureSet.isSkybox = true;
   uint16_t* indexData = reinterpret_cast<uint16_t*>(mesh->indexBuffer.data.data());
   std::reverse(indexData, indexData + mesh->indexBuffer.data.size() / sizeof(uint16_t));

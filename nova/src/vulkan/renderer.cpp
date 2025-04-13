@@ -271,9 +271,9 @@ void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
     };
   
     if (!m_pipelines.contains(key)) {
-      auto pipeline = std::make_unique<Pipeline>(meshFeatures, materialFeatures, m_fileSystem,
-        m_device, m_swapchainExtent, m_renderPass, *m_resources);
-  
+      auto pipeline = createPipeline(meshFeatures, materialFeatures, m_fileSystem, *m_resources,
+        m_device, m_swapchainExtent, m_renderPass);
+
       m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
     }
   }).get();

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "vulkan/pipeline.hpp"
-#include "vulkan/render_resources.hpp"
 #include "tree_set.hpp"
+#include "render_resources.hpp"
+#include <vulkan/vulkan.h>
 
 enum class RenderNodeType
 {
@@ -72,6 +72,7 @@ struct SkyboxNode : public RenderNode
 struct BindState
 {
   VkPipeline pipeline;
+  std::vector<VkDescriptorSet> descriptorSets;
 };
 
 class FileSystem;
@@ -79,20 +80,15 @@ class FileSystem;
 class Pipeline
 {
   public:
-    Pipeline(const MeshFeatureSet& meshFeatures, const MaterialFeatureSet& materialFeatures,
-      const FileSystem& fileSystem, VkDevice device, VkExtent2D swapchainExtent,
-      VkRenderPass renderPass, const RenderResources& renderResources);
+    virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
+      BindState& bindState, size_t currentFrame) = 0;
 
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
-      BindState& bindState, size_t currentFrame);
-
-    ~Pipeline();
-
-  private:
-    VkDevice m_device;
-    const RenderResources& m_renderResources;
-    VkPipeline m_pipeline;
-    VkPipelineLayout m_layout;
+    virtual ~Pipeline() {}
 };
 
 using PipelinePtr = std::unique_ptr<Pipeline>;
+
+PipelinePtr createPipeline(const MeshFeatureSet& meshFeatures,
+  const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
+  const RenderResources& renderResources, VkDevice device, VkExtent2D swapchainExtent,
+  VkRenderPass renderPass);
