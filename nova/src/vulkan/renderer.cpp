@@ -94,7 +94,8 @@ class RendererImpl : public Renderer
     void beginFrame(const Camera& camera) override;
     void drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
-    void drawLight(const Vec3f& colour, float_t ambient, const Vec3f& worldPos) override;
+    void drawLight(const Vec3f& colour, float_t ambient, float_t specular,
+      const Vec3f& worldPos) override;
     void drawSkybox(MeshHandle mesh, MaterialHandle material) override;
     void endFrame() override;
 
@@ -180,6 +181,7 @@ class RendererImpl : public Renderer
       RenderGraph graph;
       std::map<RenderGraph::Key, RenderNode*> lookup;
       LightingUbo lighting;
+      Vec3f cameraPos;
       Mat4x4f cameraMatrix;
     };
 
@@ -364,7 +366,8 @@ void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat
   renderGraph.insert(key, std::move(node));
 }
 
-void RendererImpl::drawLight(const Vec3f& colour, float_t ambient, const Vec3f& worldPos)
+void RendererImpl::drawLight(const Vec3f& colour, float_t ambient, float_t specular,
+  const Vec3f& worldPos)
 {
   auto& state = m_renderStates.getWritable();
   ASSERT(state.lighting.numLights < MAX_LIGHTS, "Exceeded max lights");
@@ -372,6 +375,7 @@ void RendererImpl::drawLight(const Vec3f& colour, float_t ambient, const Vec3f& 
   Light& light = state.lighting.lights[state.lighting.numLights++];
   light.colour = colour;
   light.ambient = ambient;
+  light.specular = specular;
   light.worldPos = worldPos;
 }
 
@@ -400,6 +404,7 @@ void RendererImpl::beginFrame(const Camera& camera)
   state.lookup.clear();
   state.graph.clear();
   state.lighting = LightingUbo{};
+  state.cameraPos = camera.getPosition();
   state.cameraMatrix = camera.getMatrix();
 }
 
@@ -429,6 +434,7 @@ void RendererImpl::renderLoop()
       auto& state = m_renderStates.getReadable();
 
       updateMatricesUbo(state.cameraMatrix);
+      state.lighting.cameraPos = state.cameraPos;
       m_resources->updateLightingUbo(state.lighting, m_currentFrame);
 
       updateResources();

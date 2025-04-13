@@ -52,7 +52,8 @@ class Renderer
     virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) = 0;
     virtual void drawInstance(MeshHandle mesh, MaterialHandle material,
       const Mat4x4f& transform) = 0;
-    virtual void drawLight(const Vec3f& colour, float_t ambient, const Vec3f& worldPos) = 0;
+    virtual void drawLight(const Vec3f& colour, float_t ambient, float_t specular,
+      const Vec3f& worldPos) = 0;
     virtual void drawSkybox(MeshHandle mesh, MaterialHandle cubeMap) = 0;
     virtual void endFrame() = 0;
 

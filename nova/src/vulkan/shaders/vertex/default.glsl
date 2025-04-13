@@ -27,6 +27,5 @@ void main()
 
   outTexCoord = inTexCoord;
   outWorldPos = worldPos.xyz;
-  // TODO: Compute normal matrix on CPU
-  outNormal = mat3(transpose(inverse(constants.modelMatrix))) * inNormal;
+  outNormal = mat3(constants.modelMatrix) * inNormal;
 }

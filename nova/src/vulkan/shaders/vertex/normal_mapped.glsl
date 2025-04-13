@@ -20,18 +20,22 @@ layout(location = 3) in vec3 inTangent;
 layout(location = 0) out vec2 outTexCoord;
 layout(location = 1) out vec3 outWorldPos;
 layout(location = 2) out vec3 outNormal;
-layout(location = 3) out mat3 outTbn;
+layout(location = 3) out vec3 outTangent;
+layout(location = 4) out vec3 outBitangent;
 
 void main()
 {
   vec4 worldPos = constants.modelMatrix * vec4(inPos, 1.0);
   gl_Position = matrices.projMatrix * matrices.viewMatrix * worldPos;
 
-  vec3 T = normalize(mat3(constants.modelMatrix) * inTangent);
-  vec3 N = normalize(mat3(constants.modelMatrix) * inNormal);
-  vec3 B = normalize(cross(T, N)); // TODO: Need to normalize?
+  vec3 T = normalize(mat3(constants.modelMatrix) * normalize(inTangent));
+  vec3 N = normalize(mat3(constants.modelMatrix) * normalize(inNormal));
+  T = normalize(T - dot(T, N) * N);
+  vec3 B = normalize(cross(N, T));
 
-  outTbn = mat3(T, B, N);
+  outTangent = T;
+  outBitangent = B;
+  outNormal = N;
   outTexCoord = inTexCoord;
   outWorldPos = worldPos.xyz;
 }

@@ -15,15 +15,17 @@ struct MatricesUbo
 struct Light
 {
   Vec3f worldPos;
-  uint8_t _padding1[4];
+  uint8_t _pad0[4];
   Vec3f colour;
   float_t ambient;
+  float_t specular;
+  uint8_t _pad2[12];
 };
 
 struct LightingUbo
 {
+  Vec3f cameraPos;
   int32_t numLights;
-  uint8_t _padding1[12];
   Light lights[MAX_LIGHTS];
 };
 

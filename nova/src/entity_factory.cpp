@@ -58,7 +58,7 @@ class EntityFactoryImpl : public EntityFactory
     std::map<std::string, XmlNodePtr> m_definitions;
 
     void loadModel(const std::string& name, bool isInstanced, int maxInstances);
-    void constructSpatialComponent(EntityId entityId, const XmlNode& node,
+    void constructSpatialComponent(EntityId entityId, const XmlNode& node, const ObjectData& data,
       const Mat4x4f& transform) const;
     void constructRenderComponent(EntityId entityId, const XmlNode& node,
       const ObjectData& data) const;
@@ -186,7 +186,7 @@ EntityId EntityFactoryImpl::constructEntity(const ObjectData& data, const Mat4x4
 
   for (auto& node : root) {
     if (node.name() == "spatial-component") {
-      constructSpatialComponent(id, node, transform);
+      constructSpatialComponent(id, node, data, transform);
     }
     else if (node.name() == "render-component") {
       constructRenderComponent(id, node, data);
@@ -227,14 +227,41 @@ Mat4x4f EntityFactoryImpl::parseTransform(const XmlNode& node) const
   return transform(metresToWorldUnits(pos), ori) * scaleMatrix<float_t, 4>(scale, true);
 }
 
+template<typename T>
+T getValue(const ObjectData& data, const std::string& name, const T& defaultValue);
+
+template<>
+std::string getValue(const ObjectData& data, const std::string& name,
+  const std::string& defaultValue)
+{
+  auto i = data.values.find(name);
+  if (i == data.values.end()) {
+    return defaultValue;
+  }
+  return i->second;
+}
+
+template<>
+float_t getValue(const ObjectData& data, const std::string& name, const float_t& defaultValue)
+{
+  auto i = data.values.find(name);
+  if (i == data.values.end()) {
+    return defaultValue;
+  }
+  return std::stof(i->second);
+}
+
 void EntityFactoryImpl::constructSpatialComponent(EntityId entityId, const XmlNode& node,
-  const Mat4x4f& transform) const
+  const ObjectData& data, const Mat4x4f& transform) const
 {
   auto strRadius = node.attribute("radius");
   float_t radius = !strRadius.empty() ? metresToWorldUnits(parseFloat<float_t>(strRadius)) : 0.f;
 
   auto i = node.child("transform");
   auto m = i != node.end() ? transform * parseTransform(*i) : transform;
+
+  float_t height = metresToWorldUnits(getValue<float_t>(data, "height", 0));
+  m.set(1, 3, m.at(1, 3) + height);
 
   auto spatial = std::make_unique<CSpatial>(entityId, m, radius);
 
@@ -260,6 +287,7 @@ void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNod
     auto light = std::make_unique<CRenderLight>(entityId);
     light->colour = parseVec3f(data.values.at("colour"));
     light->ambient = parseFloat<float_t>(data.values.at("ambient"));
+    light->specular = parseFloat<float_t>(data.values.at("specular"));
     render = std::move(light);
   }
   else {

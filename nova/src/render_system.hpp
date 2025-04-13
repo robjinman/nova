@@ -39,6 +39,7 @@ struct CRenderLight : public CRender
 
   Vec3f colour;
   float_t ambient = 0.f;
+  float_t specular = 0.f;
 };
 
 using CRenderPtr = std::unique_ptr<CRender>;

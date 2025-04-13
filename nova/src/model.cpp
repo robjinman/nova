@@ -211,9 +211,9 @@ void computeMeshTangents(Mesh& mesh)
     uint16_t bIdx = indices[i + 1];
     uint16_t cIdx = indices[i + 2];
 
-    auto& A = positions[aIdx];
-    auto& B = positions[bIdx];
-    auto& C = positions[cIdx];
+    auto& posA = positions[aIdx];
+    auto& posB = positions[bIdx];
+    auto& posC = positions[cIdx];
 
     auto& uvA = texCoords[aIdx];
     auto& uvB = texCoords[bIdx];
@@ -226,8 +226,8 @@ void computeMeshTangents(Mesh& mesh)
       uvB[1] - uvA[1], uvC[1] - uvB[1]
     });
 
-    Vec3f E = B - A;
-    Vec3f F = C - B;
+    Vec3f E = posB - posA;
+    Vec3f F = posC - posB;
 
     Mat3x2f EF{
       E[0], F[0],
@@ -238,6 +238,7 @@ void computeMeshTangents(Mesh& mesh)
     Mat3x2f TB = EF * M;
 
     Vec3f T{ TB.at(0, 0), TB.at(1, 0), TB.at(2, 0) };
+
     tangents[aIdx] += T;
     tangents[bIdx] += T;
     tangents[cIdx] += T;

@@ -236,7 +236,7 @@ void RenderSystemImpl::update()
       const auto& spatial = m_spatialSystem.getComponent(id);
       const auto& transform = spatial.absTransform();
 
-      m_renderer.drawLight(light.colour, light.ambient, getTranslation(transform));
+      m_renderer.drawLight(light.colour, light.ambient, light.specular, getTranslation(transform));
 
       if (light.meshes.size() > 0) {
         for (auto& mesh : light.meshes) {

@@ -313,7 +313,7 @@ GridCellList Grid<T, GRID_W, GRID_H>::gridCellsBetweenPoints(const Vec2f& A_, co
     std::numeric_limits<float_t>::max();
 
   assert(tx >= 0);
-  assert(ty >= 0);
+  assert(ty >= 0);  // TODO: Correct?
 
   float_t dtX = m_cellW / fabs(delta[0]);
   float_t dtY = m_cellH / fabs(delta[1]);
