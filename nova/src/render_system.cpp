@@ -35,6 +35,7 @@ class RenderSystemImpl : public RenderSystem
     // Resources
     //
     RenderItemId addTexture(TexturePtr texture) override;
+    RenderItemId addNormalMap(TexturePtr texture) override;
     RenderItemId addCubeMap(std::array<TexturePtr, 6>&& textures) override;
 
     void removeTexture(RenderItemId id) override;
@@ -147,6 +148,11 @@ const CRender& RenderSystemImpl::getComponent(EntityId entityId) const
 RenderItemId RenderSystemImpl::addTexture(TexturePtr texture)
 {
   return m_renderer.addTexture(std::move(texture));
+}
+
+RenderItemId RenderSystemImpl::addNormalMap(TexturePtr texture)
+{
+  return m_renderer.addNormalMap(std::move(texture));
 }
 
 RenderItemId RenderSystemImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)

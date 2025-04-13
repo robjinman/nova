@@ -31,6 +31,7 @@ class Renderer
     // Resources
     //
     virtual RenderItemId addTexture(TexturePtr texture) = 0;
+    virtual RenderItemId addNormalMap(TexturePtr texture) = 0;
     virtual RenderItemId addCubeMap(std::array<TexturePtr, 6>&& textures) = 0;
 
     virtual void removeTexture(RenderItemId id) = 0;

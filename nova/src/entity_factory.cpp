@@ -166,7 +166,7 @@ MaterialHandle EntityFactoryImpl::gpuLoadMaterial(MaterialPtr material)
     auto i = m_materialResources.find(normalMapFileName);
     if (i == m_materialResources.end()) {
       auto texture = loadTexture(m_fileSystem.readFile(texturePath));
-      material->normalMap.id = m_renderSystem.addTexture(std::move(texture));
+      material->normalMap.id = m_renderSystem.addNormalMap(std::move(texture));
       m_materialResources[normalMapFileName] = material->normalMap.id;
     }
     else {

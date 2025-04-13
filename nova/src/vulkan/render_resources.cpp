@@ -72,6 +72,7 @@ class RenderResourcesImpl : public RenderResources
     // Resources
     //
     RenderItemId addTexture(TexturePtr texture) override;
+    RenderItemId addNormalMap(TexturePtr texture) override;
     RenderItemId addCubeMap(std::array<TexturePtr, 6> textures) override;
     void removeTexture(RenderItemId id) override;
     void removeCubeMap(RenderItemId id) override;
@@ -136,6 +137,7 @@ class RenderResourcesImpl : public RenderResources
     std::vector<VkDeviceMemory> m_lightingUboMemory;
     std::vector<void*> m_lightingUboMapped;
 
+    RenderItemId addTexture(TexturePtr texture, VkFormat format);
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height,
       VkDeviceSize bufferOffset, uint32_t layer);
@@ -187,7 +189,7 @@ RenderResourcesImpl::RenderResourcesImpl(VkPhysicalDevice physicalDevice, VkDevi
   createDescriptorSets();
 }
 
-RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture)
+RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture, VkFormat format)
 {
   static RenderItemId nextTextureId = 1;
 
@@ -208,7 +210,7 @@ RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture)
   memcpy(data, texture->data.data(), static_cast<size_t>(imageSize));
   vkUnmapMemory(m_device, stagingBufferMemory);
 
-  createImage(m_physicalDevice, m_device, texture->width, texture->height, VK_FORMAT_R8G8B8A8_SRGB,
+  createImage(m_physicalDevice, m_device, texture->width, texture->height, format,
     VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureData->image, textureData->imageMemory);
 
@@ -223,7 +225,7 @@ RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture)
   vkDestroyBuffer(m_device, stagingBuffer, nullptr);
   vkFreeMemory(m_device, stagingBufferMemory, nullptr);
 
-  textureData->imageView = createImageView(m_device, textureData->image, VK_FORMAT_R8G8B8A8_SRGB,
+  textureData->imageView = createImageView(m_device, textureData->image, format,
     VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
 
   auto textureId = nextTextureId++;
@@ -231,6 +233,16 @@ RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture)
   m_textures[textureId] = std::move(textureData);
 
   return textureId;
+}
+
+RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture)
+{
+  return addTexture(std::move(texture), VK_FORMAT_R8G8B8A8_SRGB);
+}
+
+RenderItemId RenderResourcesImpl::addNormalMap(TexturePtr texture)
+{
+  return addTexture(std::move(texture), VK_FORMAT_R8G8B8A8_UNORM);
 }
 
 RenderItemId RenderResourcesImpl::addCubeMap(std::array<TexturePtr, 6> textures)

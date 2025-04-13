@@ -23,9 +23,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="2.4673516"
-     inkscape:cx="302.34848"
-     inkscape:cy="417.6543"
+     inkscape:zoom="9.8694064"
+     inkscape:cx="83.895623"
+     inkscape:cy="161.05325"
      inkscape:window-width="1920"
      inkscape:window-height="990"
      inkscape:window-x="0"
@@ -55,7 +55,7 @@
        style="text-align:start;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect1);display:inline;fill:#000000"><tspan
          x="357.96094"
          y="880.23047"
-         id="tspan43039">8</tspan></text>
+         id="tspan53622">8</tspan></text>
     <g
        id="g5">
       <text
@@ -131,7 +131,7 @@
              id="tspan3-9-5-5-3"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="30.581728"
-             y="32.04047">ambient=0.4</tspan></text>
+             y="32.04047">ambient=0.2</tspan></text>
         <text
            xml:space="preserve"
            style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
@@ -142,7 +142,71 @@
              id="tspan3-9-5-5-3-6"
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="30.617479"
-             y="33.68647">specular=0.8</tspan></text>
+             y="33.68647">specular=3.0</tspan></text>
+      </g>
+      <g
+         id="g4-5-8-2-9"
+         transform="translate(-24.567757,12.797234)">
+        <path
+           style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
+           d="m 33.54999,23.595155 0.467548,1.127599 1.362302,-1.232005 z"
+           id="path2-1-7-3-2"
+           sodipodi:nodetypes="cccc" />
+        <text
+           xml:space="preserve"
+           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
+           x="30.581728"
+           y="26.427095"
+           id="text3-3-1-7-0"><tspan
+             sodipodi:role="line"
+             id="tspan3-9-5-5-23"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
+             x="30.581728"
+             y="26.427095">type=light</tspan></text>
+        <text
+           xml:space="preserve"
+           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
+           x="30.581728"
+           y="28.298223"
+           id="text3-3-1-7-9-7"><tspan
+             sodipodi:role="line"
+             id="tspan3-9-5-5-2-5"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
+             x="30.581728"
+             y="28.298223">height=10</tspan></text>
+        <text
+           xml:space="preserve"
+           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
+           x="30.581728"
+           y="30.169348"
+           id="text3-3-1-7-2-9"><tspan
+             sodipodi:role="line"
+             id="tspan3-9-5-5-8-2"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
+             x="30.581728"
+             y="30.169348">colour=1.0, 0.0, 0.0</tspan></text>
+        <text
+           xml:space="preserve"
+           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
+           x="30.581728"
+           y="32.04047"
+           id="text3-3-1-7-97-2"><tspan
+             sodipodi:role="line"
+             id="tspan3-9-5-5-3-8"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
+             x="30.581728"
+             y="32.04047">ambient=0.2</tspan></text>
+        <text
+           xml:space="preserve"
+           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
+           x="30.617479"
+           y="33.68647"
+           id="text3-3-1-7-97-3-9"><tspan
+             sodipodi:role="line"
+             id="tspan3-9-5-5-3-6-7"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
+             x="30.617479"
+             y="33.68647">specular=3.0</tspan></text>
       </g>
       <g
          id="g4-5-8-6"
@@ -788,7 +852,7 @@
              y="90.779625">fill=grass</tspan></text>
         <g
            id="g4-5-8-6-5-7-0"
-           transform="translate(39.605967,69.393462)">
+           transform="translate(26.555088,67.779408)">
           <path
              style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.264583;stroke-opacity:1"
              d="m 25.890367,23.239002 0.778484,0.940236 0.939745,-1.578159 z"

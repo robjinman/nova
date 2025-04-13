@@ -75,6 +75,7 @@ class RendererImpl : public Renderer
     // Resources
     //
     RenderItemId addTexture(TexturePtr texture) override;
+    RenderItemId addNormalMap(TexturePtr texture) override;
     RenderItemId addCubeMap(std::array<TexturePtr, 6>&& textures) override;
     void removeTexture(RenderItemId id) override;
     void removeCubeMap(RenderItemId id) override;
@@ -1160,6 +1161,16 @@ RenderItemId RendererImpl::addTexture(TexturePtr texture)
   ASSERT(!m_running, "Renderer already started");
   return m_thread.run<RenderItemId>([&, this]() {
     return m_resources->addTexture(std::move(texture));
+  }).get();
+}
+
+RenderItemId RendererImpl::addNormalMap(TexturePtr texture)
+{
+  DBG_TRACE(m_logger);
+
+  ASSERT(!m_running, "Renderer already started");
+  return m_thread.run<RenderItemId>([&, this]() {
+    return m_resources->addNormalMap(std::move(texture));
   }).get();
 }
 
