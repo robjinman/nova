@@ -135,12 +135,12 @@ VkPipelineColorBlendStateCreateInfo
 defaultColourBlendState(VkPipelineColorBlendAttachmentState& colourBlendAttachment)
 {
   colourBlendAttachment = VkPipelineColorBlendAttachmentState{
-    .blendEnable = VK_FALSE,
-    .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
-    .dstColorBlendFactor = VK_BLEND_FACTOR_ZERO,
+    .blendEnable = VK_TRUE,
+    .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
     .colorBlendOp = VK_BLEND_OP_ADD,
     .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
     .alphaBlendOp = VK_BLEND_OP_ADD,
     .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
                       VK_COLOR_COMPONENT_G_BIT |
@@ -153,7 +153,7 @@ defaultColourBlendState(VkPipelineColorBlendAttachmentState& colourBlendAttachme
     .pNext = nullptr,
     .flags = 0,
     .logicOpEnable = VK_FALSE,
-    .logicOp = VK_LOGIC_OP_COPY,
+    .logicOp = VK_LOGIC_OP_AND,
     .attachmentCount = 1,
     .pAttachments = &colourBlendAttachment,
     .blendConstants = { 0, 0, 0, 0 }
