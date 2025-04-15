@@ -1,12 +1,6 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(std140, set = 1, binding = 0) uniform MaterialUbo
-{
-  vec4 colour;
-  // TODO: PBR values
-} material;
-
 layout(set = 1, binding = 1) uniform sampler2D texSampler;
 layout(set = 1, binding = 2) uniform sampler2D normalMapSampler;
 layout(set = 1, binding = 3) uniform samplerCube cubeMapSampler;

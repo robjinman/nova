@@ -1,30 +1,8 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(std140, set = 1, binding = 0) uniform MaterialUbo
-{
-  vec4 colour;
-  // TODO: PBR values
-} material;
-
-layout(set = 1, binding = 1) uniform sampler2D texSampler;
-layout(set = 1, binding = 2) uniform sampler2D normalMapSampler;
-layout(set = 1, binding = 3) uniform samplerCube cubeMapSampler;
-
-struct Light
-{
-  vec3 worldPos;
-  vec3 colour;
-  float ambient;
-  float specular;
-};
-
-layout(std140, set = 2, binding = 0) uniform LightingUbo
-{
-  vec3 cameraPos;
-  int numLights;
-  Light lights[8];
-} lighting;
+#include "fragment/lighting.glsl"
+#include "fragment/materials.glsl"
 
 layout(location = 0) in vec2 inTexCoord;
 layout(location = 1) in vec3 inWorldPos;
@@ -34,40 +12,14 @@ layout(location = 4) in vec3 inBitangent;
 
 layout(location = 0) out vec4 outColour;
 
-vec3 computeLight()
+void main()
 {
-  // TODO: Remove normalize?
   vec3 tangentSpaceNormal = normalize(texture(normalMapSampler, inTexCoord).rgb * 2.0 - 1.0);
   mat3 tbn = mat3(inTangent, inBitangent, inNormal);
   vec3 normal = normalize(tbn * tangentSpaceNormal);
 
-  vec3 light = vec3(0, 0, 0);
-  for (int i = 0; i < lighting.numLights; ++i) {
-    vec3 lightDir = normalize(lighting.lights[i].worldPos - inWorldPos);
-    float diffuse = max(dot(normal, lightDir), 0.0);
-    vec3 viewDir = normalize(lighting.cameraPos - inWorldPos);
-    vec3 reflectDir = reflect(-lightDir, normal);
-    float specular = lighting.lights[i].specular * pow(max(dot(viewDir, reflectDir), 0.0), 32);
-    float intensity = lighting.lights[i].ambient + diffuse + specular;
-    light += intensity * lighting.lights[i].colour;
-  }
+  vec3 light = computeLight(inWorldPos, normal);
+  vec4 texel = computeTexel(inTexCoord);
 
-  return light;
-}
-
-vec3 computeTexel()
-{
-  // TODO: Transparency
-
-  return material.colour.xyz * texture(texSampler, inTexCoord).rgb;
-}
-
-void main()
-{
-  const vec3 white = vec3(1, 1, 1);
-
-  vec3 light = computeLight();
-  vec3 texel = computeTexel();
-
-  outColour = vec4(light * texel, 1.0);
+  outColour = vec4(light, 1.0) * texel;
 }
