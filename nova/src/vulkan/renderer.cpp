@@ -324,15 +324,14 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(MeshHandle mesh,
   }
 }
 
-void RendererImpl::drawInstance(MeshHandle meshId, MaterialHandle materialId,
-  const Mat4x4f& transform)
+void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
 
   RenderState& state = m_renderStates.getWritable();
   RenderGraph& renderGraph = state.graph;
 
-  auto key = generateRenderGraphKey(meshId, materialId);
+  auto key = generateRenderGraphKey(mesh, material);
   InstancedModelNode* node = nullptr;
   auto i = state.lookup.find(key);
   if (i != state.lookup.end()) {
@@ -340,13 +339,13 @@ void RendererImpl::drawInstance(MeshHandle meshId, MaterialHandle materialId,
   }
   else {
     auto newNode = std::make_unique<InstancedModelNode>();
-    newNode->mesh = meshId;
-    newNode->material = materialId;
+    newNode->mesh = mesh;
+    newNode->material = material;
     node = newNode.get();
     renderGraph.insert(key, std::move(newNode));
     state.lookup.insert({ key, node });
   }
-  node->instances.push_back(MeshInstance{transform});
+  node->instances.push_back(MeshInstance{transform * mesh.transform});
 }
 
 void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform)

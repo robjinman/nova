@@ -29,6 +29,45 @@ uint32_t dimensions(const std::string& type)
   else EXCEPTION("Unknown element type '" << type << "'");
 }
 
+Mat4x4f extractTransform(const nlohmann::json& node)
+{
+  auto iRotation = node.find("rotation");
+  auto iScale = node.find("scale");
+  auto iTranslation = node.find("translation");
+
+  Mat4x4f S = identityMatrix<float_t, 4>();
+  Mat4x4f R = identityMatrix<float_t, 4>();
+  Mat4x4f T = identityMatrix<float_t, 4>();
+
+  if (iScale != node.end()) {
+    auto& scale = *iScale;
+    S.set(0, 0, scale[0]);
+    S.set(1, 1, scale[1]);
+    S.set(2, 2, scale[2]);
+  }
+
+  if (iRotation != node.end()) {
+    auto& rotation = *iRotation;
+    R = rotationMatrix4x4(Vec4f{
+      rotation[3],
+      rotation[0],
+      rotation[1],
+      rotation[2]
+    });
+  }
+
+  if (iTranslation != node.end()) {
+    auto& translation = *iTranslation;
+    T = translationMatrix4x4(Vec3f{
+      translation[0],
+      translation[1],
+      translation[2]
+    });
+  }
+
+  return T * R * S;
+}
+
 BufferDesc extractBuffer(const nlohmann::json& root, unsigned long accessorIndex,
   ElementType elementType)
 {
@@ -99,15 +138,13 @@ MaterialDesc extractMaterial(const nlohmann::json& root, unsigned long materialI
 }
 
 void extractMeshHierarchy(const nlohmann::json& root, unsigned long nodeIndex,
-  std::vector<MeshDesc>& meshDescs)
+  std::vector<MeshDesc>& meshDescs, const Mat4x4f& parentTransform)
 {
   auto& nodes = root.at("nodes");
   auto& node = nodes[nodeIndex];
 
-  // TODO: Use these
-  auto iRotation = node.find("rotation");
-  auto iScale = node.find("scale");
-  auto iTranslation = node.find("translation");
+  Mat4x4f localTransform = extractTransform(node);
+  Mat4x4f globalTransform = parentTransform * localTransform;
 
   auto iMeshIndex = node.find("mesh");
   if (iMeshIndex != node.end()) {
@@ -117,6 +154,7 @@ void extractMeshHierarchy(const nlohmann::json& root, unsigned long nodeIndex,
 
     for (auto& meshPrimitive : meshPrimitives) {
       MeshDesc meshDesc;
+      meshDesc.transform = globalTransform;
 
       auto& meshAttributes = meshPrimitive.at("attributes");
 
@@ -147,7 +185,7 @@ void extractMeshHierarchy(const nlohmann::json& root, unsigned long nodeIndex,
     auto& children = *iChildren;
     for (auto& child : children) {
       auto index = child.get<unsigned long>();
-      extractMeshHierarchy(root, index, meshDescs);
+      extractMeshHierarchy(root, index, meshDescs, globalTransform);
     }
   }
 }
@@ -156,43 +194,9 @@ JointDesc extractJointHierarchy(const nlohmann::json& nodes, unsigned long nodeI
 {
   auto& node = nodes[nodeIndex];
 
-  auto iRotation = node.find("rotation");
-  auto iScale = node.find("scale");
-  auto iTranslation = node.find("translation");
-
-  Mat4x4f S = identityMatrix<float_t, 4>();
-  Mat4x4f R = identityMatrix<float_t, 4>();
-  Mat4x4f T = identityMatrix<float_t, 4>();
-
-  if (iScale != node.end()) {
-    auto& scale = *iScale;
-    S.set(0, 0, scale[0]);
-    S.set(1, 1, scale[1]);
-    S.set(2, 2, scale[2]);
-  }
-
-  if (iRotation != node.end()) {
-    auto& rotation = *iRotation;
-    R = rotationMatrix4x4(Vec4f{
-      rotation[0],
-      rotation[1],
-      rotation[2],
-      rotation[3]
-    });
-  }
-
-  if (iTranslation != node.end()) {
-    auto& translation = *iTranslation;
-    T = translationMatrix4x4(Vec3f{
-      translation[0],
-      translation[1],
-      translation[2]
-    });
-  }
-
   JointDesc jointDesc;
   jointDesc.nodeIndex = nodeIndex;
-  jointDesc.transform = T * R * S;
+  jointDesc.transform = extractTransform(node);
 
   auto iChildren = node.find("children");
   if (iChildren != node.end()) {
@@ -259,7 +263,7 @@ ModelDesc extractModel(const std::vector<char>& jsonData)
     modelDesc.buffers.push_back(buffer.at("uri").get<std::string>());
   }
 
-  extractMeshHierarchy(root, rootNodeIndex, modelDesc.meshes);
+  extractMeshHierarchy(root, rootNodeIndex, modelDesc.meshes, identityMatrix<float_t, 4>());
   modelDesc.armature = extractArmature(root, rootNodeIndex);
 
   return modelDesc;

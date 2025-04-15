@@ -513,9 +513,17 @@ Matrix<T, 4, 4> rotationMatrix4x4(const Vector<T, 3>& ori)
 template<typename T>
 Matrix<T, 4, 4> rotationMatrix4x4(const Vector<T, 4>& quaternion)
 {
-  Matrix<T, 4, 4> m;
-  // TODO
-  return m;
+  T w = quaternion[0];
+  T x = quaternion[1];
+  T y = quaternion[2];
+  T z = quaternion[3];
+
+  return Matrix<T, 4, 4>{
+    1.f - 2.f * y * y - 2.f * z * z, 2.f * x * y - 2.f * z * w, 2.f * x * z + 2.f * y * w, 0.f,
+    2.f * x * y + 2.f * z * w, 1.f - 2.f * x * x - 2.f * z * z, 2.f * y * z - 2.f * x * w, 0.f,
+    2.f * x * z - 2.f * y * w, 2.f * y * z + 2.f * x * w, 1.f - 2.f * x * x - 2.f * y * y, 0.f,
+    0.f, 0.f, 0.f, 1.f
+  };
 }
 
 template<typename T>

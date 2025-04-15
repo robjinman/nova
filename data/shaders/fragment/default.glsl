@@ -50,11 +50,11 @@ vec3 computeLight()
   return light;
 }
 
-vec3 computeTexel()
+vec4 computeTexel()
 {
   // TODO: Transparency
 
-  return material.colour.xyz * texture(texSampler, inTexCoord).rgb;
+  return material.colour * texture(texSampler, inTexCoord);
 }
 
 void main()
@@ -62,7 +62,7 @@ void main()
   const vec3 white = vec3(1, 1, 1);
 
   vec3 light = computeLight();
-  vec3 texel = computeTexel();
+  vec4 texel = computeTexel();
 
-  outColour = vec4(light * texel, 1.0);
+  outColour = vec4(light, 1.0) * texel;
 }

@@ -337,6 +337,7 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
   static RenderItemId nextMeshId = 1;
 
   MeshHandle handle;
+  handle.transform = mesh->transform;
   handle.features = mesh->featureSet;
 
   auto data = std::make_unique<MeshData>();

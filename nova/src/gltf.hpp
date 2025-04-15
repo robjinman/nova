@@ -70,6 +70,7 @@ struct MeshDesc
 {
   std::vector<BufferDesc> buffers;
   MaterialDesc material;
+  Mat4x4f transform;
 };
 
 struct JointDesc

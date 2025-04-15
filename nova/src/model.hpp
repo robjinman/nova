@@ -106,6 +106,7 @@ struct MeshHandle
 {
   RenderItemId id = NULL_ID;
   MeshFeatureSet features;
+  Mat4x4f transform;
 };
 
 struct MaterialHandle
@@ -211,6 +212,7 @@ struct Mesh
     : featureSet(features)
   {}
 
+  Mat4x4f transform = identityMatrix<float_t, 4>();
   MeshFeatureSet featureSet;
   std::vector<Buffer> attributeBuffers;
   Buffer indexBuffer;

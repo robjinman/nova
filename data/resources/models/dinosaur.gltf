@@ -15,19 +15,13 @@
 	"nodes":[
 		{
 			"mesh":0,
-			"name":"T-Rex_Model",
-			"rotation":[
-				0.7071068286895752,
-				0,
-				0,
-				0.7071068286895752
-			]
+			"name":"T-Rex_Model"
 		}
 	],
 	"materials":[
 		{
 			"doubleSided":true,
-			"name":"Material.001",
+			"name":"Material.003",
 			"pbrMetallicRoughness":{
 				"baseColorTexture":{
 					"index":0
@@ -70,7 +64,7 @@
 		{
 			"bufferView":0,
 			"componentType":5126,
-			"count":21653,
+			"count":21661,
 			"max":[
 				10.81377124786377,
 				8.643627166748047,
@@ -86,13 +80,13 @@
 		{
 			"bufferView":1,
 			"componentType":5126,
-			"count":21653,
+			"count":21661,
 			"type":"VEC3"
 		},
 		{
 			"bufferView":2,
 			"componentType":5126,
-			"count":21653,
+			"count":21661,
 			"type":"VEC2"
 		},
 		{
@@ -105,26 +99,26 @@
 	"bufferViews":[
 		{
 			"buffer":0,
-			"byteLength":259836,
+			"byteLength":259932,
 			"byteOffset":0,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":259836,
-			"byteOffset":259836,
+			"byteLength":259932,
+			"byteOffset":259932,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":173224,
-			"byteOffset":519672,
+			"byteLength":173288,
+			"byteOffset":519864,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":91014,
-			"byteOffset":692896,
+			"byteOffset":693152,
 			"target":34963
 		}
 	],
@@ -136,7 +130,7 @@
 	],
 	"buffers":[
 		{
-			"byteLength":783912,
+			"byteLength":784168,
 			"uri":"dinosaur.bin"
 		}
 	]

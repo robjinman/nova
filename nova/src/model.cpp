@@ -132,6 +132,7 @@ MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
   const std::vector<std::vector<char>>& dataBuffers)
 {
   auto mesh = std::make_unique<Mesh>(createMeshFeatureSet(meshDesc));
+  mesh->transform = meshDesc.transform;
 
   std::set<gltf::ElementType> attributes;
   for (const auto& bufferDesc : meshDesc.buffers) {

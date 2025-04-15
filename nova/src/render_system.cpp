@@ -224,7 +224,8 @@ void RenderSystemImpl::update()
         }
         case CRenderType::Regular: {
           for (auto& mesh : component.meshes) {
-            m_renderer.drawModel(mesh.mesh, mesh.material, spatial.absTransform());
+            m_renderer.drawModel(mesh.mesh, mesh.material,
+              spatial.absTransform() * mesh.mesh.transform);
           }
           break;
         }
