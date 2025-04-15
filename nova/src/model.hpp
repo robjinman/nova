@@ -7,6 +7,7 @@
 #include <string>
 #include <span>
 #include <optional>
+#include <array>
 
 using RenderItemId = long;
 const RenderItemId NULL_ID = -1;

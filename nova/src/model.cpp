@@ -488,7 +488,7 @@ MeshPtr mergeMeshes(const Mesh& A, const Mesh& B)
   auto indices = fromBytes<uint16_t>(A.indexBuffer.data);
   auto indicesB = fromBytes<uint16_t>(B.indexBuffer.data);
 
-  size_t n = A.attributeBuffers[0].numElements();
+  uint16_t n = static_cast<uint16_t>(A.attributeBuffers[0].numElements());
   std::transform(indicesB.begin(), indicesB.end(), std::back_inserter(indices),
     [n](uint16_t i) { return i + n; });
 
