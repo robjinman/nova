@@ -322,7 +322,7 @@ ShaderProgram PipelineImpl::compileShaderProgram(const MeshFeatureSet& meshFeatu
 std::vector<uint32_t> PipelineImpl::compileShader(const std::string& name,
   const std::vector<char>& source, ShaderType type, const std::vector<std::string>& defines)
 {
-  shaderc_shader_kind kind;
+  shaderc_shader_kind kind = shaderc_shader_kind::shaderc_glsl_vertex_shader;
   switch (type) {
     case ShaderType::Vertex: kind = shaderc_shader_kind::shaderc_glsl_vertex_shader; break;
     case ShaderType::Fragment: kind = shaderc_shader_kind::shaderc_glsl_fragment_shader; break;
@@ -533,7 +533,7 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   }
   if (descriptorSets != bindState.descriptorSets) {
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
-      descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+      static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
   }
   if (!node.mesh.features.isInstanced && !node.mesh.features.isSkybox) {
     auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);

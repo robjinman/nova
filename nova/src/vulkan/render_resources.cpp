@@ -1075,7 +1075,7 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
   VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
     .pNext = nullptr,
-    .bindingCount = bindingFlags.size(),
+    .bindingCount = static_cast<uint32_t>(bindingFlags.size()),
     .pBindingFlags = bindingFlags.data()
   };
 
