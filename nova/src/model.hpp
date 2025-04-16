@@ -47,7 +47,7 @@ struct MaterialResource
 
 enum class BufferUsage : int
 {
-  AttrPosition,
+  AttrPosition = 0,
   AttrNormal,
   AttrTexCoord,
   AttrTangent,
@@ -56,6 +56,7 @@ enum class BufferUsage : int
   Index
 };
 
+// TODO: Just use the order they're defined in BufferUsage
 const std::array<BufferUsage, 7> ATTRIBUTE_ORDER{
   BufferUsage::AttrPosition,
   BufferUsage::AttrNormal,

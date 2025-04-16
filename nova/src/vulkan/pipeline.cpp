@@ -47,10 +47,10 @@ std::vector<VkVertexInputAttributeDescription>
 {
   std::vector<VkVertexInputAttributeDescription> attributes;
 
-  uint32_t i = 0;
+  const uint32_t first = static_cast<uint32_t>(BufferUsage::AttrPosition);
   for (auto& attribute : layout) {
     attributes.push_back(VkVertexInputAttributeDescription{
-      .location = i++,
+      .location = static_cast<uint32_t>(attribute) - first,
       .binding = 0,
       .format = attributeFormat(attribute),
       .offset = static_cast<uint32_t>(calcOffsetInVertex(layout, attribute))
@@ -205,17 +205,18 @@ shaderc_include_result* SourceIncluder::GetInclude(const char* requested_source,
     const std::filesystem::path sourcesDir = "shaders";
     auto sourcePath = sourcesDir / requested_source;
 
-    auto source = m_fileSystem.readFile(sourcePath);
-    size_t contentBufferLength = source.size();
-    char* contentBuffer = new char[contentBufferLength];
-    memcpy(contentBuffer, source.data(), source.size());
-
     size_t sourceNameLength = sourcePath.string().length();
     char* nameBuffer = new char[sourceNameLength];
     memcpy(nameBuffer, reinterpret_cast<const char*>(sourcePath.c_str()), sourceNameLength);
 
     result->source_name = nameBuffer;
     result->source_name_length = sourceNameLength;
+
+    auto source = m_fileSystem.readFile(sourcePath);
+    size_t contentBufferLength = source.size();
+    char* contentBuffer = new char[contentBufferLength];
+    memcpy(contentBuffer, source.data(), source.size());
+
     result->content = contentBuffer;
     result->content_length = contentBufferLength;
     result->user_data = nullptr;
@@ -277,62 +278,40 @@ class PipelineImpl : public Pipeline
     VkDevice m_device;
     VkPipeline m_pipeline;
     VkPipelineLayout m_layout;
-    PipelineProperties m_properties;
+    PipelineProperties m_properties; // TODO: Remove?
 
     ShaderProgram compileShaderProgram(const MeshFeatureSet& meshFeatures,
       const MaterialFeatureSet& materialFeatures);
 
     std::vector<uint32_t> compileShader(const std::string& name, const std::vector<char>& source,
-      ShaderType type);
+      ShaderType type, const std::vector<std::string>& defines);
 };
 
 ShaderProgram PipelineImpl::compileShaderProgram(const MeshFeatureSet& meshFeatures,
   const MaterialFeatureSet& materialFeatures)
 {
-  // TODO: Construct shader sources dynamically
+  std::vector<std::string> defines;
+  if (meshFeatures.isInstanced) {
+    defines.push_back("INSTANCED");
+  }
+  if (meshFeatures.isSkybox) {
+    defines.push_back("SKYBOX");
+  }
+  if (materialFeatures.hasNormalMap) {
+    assert(meshFeatures.hasTangents);
+    defines.push_back("NORMAL_MAPPING");
+  }
+  if (materialFeatures.hasTexture) {
+    defines.push_back("TEXTURE_MAPPING");
+  }
 
   ShaderProgram program;
 
-  m_properties.hasLighting = true;
-
-  if (meshFeatures.isInstanced) {
-    auto vertShaderSrc = m_fileSystem.readFile("shaders/vertex/instanced.glsl");
-    auto fragShaderSrc = m_fileSystem.readFile("shaders/fragment/default.glsl");
-    program.vertexShaderCode = compileShader("vert_instanced", vertShaderSrc, ShaderType::Vertex);
-    program.fragmentShaderCode = compileShader("frag_default", fragShaderSrc, ShaderType::Fragment);
-  }
-  else if (meshFeatures.isSkybox) {
-    auto vertShaderSrc = m_fileSystem.readFile("shaders/vertex/skybox.glsl");
-    auto fragShaderSrc = m_fileSystem.readFile("shaders/fragment/skybox.glsl");
-    program.vertexShaderCode = compileShader("vert_skybox", vertShaderSrc, ShaderType::Vertex);
-    program.fragmentShaderCode = compileShader("frag_skybox", fragShaderSrc, ShaderType::Fragment);
-    m_properties.hasLighting = false;
-  }
-  else {
-    if (materialFeatures.hasNormalMap) {
-      assert(meshFeatures.hasTangents);
-      auto vertShaderSrc = m_fileSystem.readFile("shaders/vertex/normal_mapped.glsl");
-      auto fragShaderSrc = m_fileSystem.readFile("shaders/fragment/normal_mapped.glsl");
-      program.vertexShaderCode = compileShader("vert_normal_mapped", vertShaderSrc,
-        ShaderType::Vertex);
-      program.fragmentShaderCode = compileShader("vert_normal_mapped", fragShaderSrc,
-        ShaderType::Fragment);
-    }
-    else if (materialFeatures.hasTexture) {
-      auto vertShaderSrc = m_fileSystem.readFile("shaders/vertex/default.glsl");
-      auto fragShaderSrc = m_fileSystem.readFile("shaders/fragment/default.glsl");
-      program.vertexShaderCode = compileShader("vert_default", vertShaderSrc, ShaderType::Vertex);
-      program.fragmentShaderCode = compileShader("frag_default", fragShaderSrc,
-        ShaderType::Fragment);
-    }
-    else {
-      auto vertShaderSrc = m_fileSystem.readFile("shaders/vertex/default.glsl");
-      auto fragShaderSrc = m_fileSystem.readFile("shaders/fragment/untextured.glsl");
-      program.vertexShaderCode = compileShader("vert_default", vertShaderSrc, ShaderType::Vertex);
-      program.fragmentShaderCode = compileShader("frag_untextured", fragShaderSrc,
-        ShaderType::Fragment);
-    }
-  }
+  auto vertShaderSrc = m_fileSystem.readFile("shaders/vertex/main.glsl");
+  auto fragShaderSrc = m_fileSystem.readFile("shaders/fragment/main.glsl");
+  program.vertexShaderCode = compileShader("vertex", vertShaderSrc, ShaderType::Vertex, defines);
+  program.fragmentShaderCode = compileShader("fragment", fragShaderSrc, ShaderType::Fragment,
+    defines);
 
   assert(program.fragmentShaderCode.size() > 0);
   assert(program.vertexShaderCode.size() > 0);
@@ -341,7 +320,7 @@ ShaderProgram PipelineImpl::compileShaderProgram(const MeshFeatureSet& meshFeatu
 }
 
 std::vector<uint32_t> PipelineImpl::compileShader(const std::string& name,
-  const std::vector<char>& source, ShaderType type)
+  const std::vector<char>& source, ShaderType type, const std::vector<std::string>& defines)
 {
   shaderc_shader_kind kind;
   switch (type) {
@@ -354,6 +333,9 @@ std::vector<uint32_t> PipelineImpl::compileShader(const std::string& name,
   options.SetOptimizationLevel(shaderc_optimization_level_performance);
   options.SetWarningsAsErrors();
   options.SetIncluder(std::make_unique<SourceIncluder>(m_fileSystem));
+  for (auto& define : defines) {
+    options.AddMacroDefinition(define);
+  }
 
   auto result = compiler.CompileGlslToSpv(source.data(), source.size(), kind, name.c_str(),
     options);
@@ -414,12 +396,11 @@ PipelineImpl::PipelineImpl(const MeshFeatureSet& meshFeatures,
 
   auto attributeDescriptions = createAttributeDescriptions(meshFeatures.vertexLayout);
   if (meshFeatures.isInstanced) {
-    uint32_t n = static_cast<uint32_t>(attributeDescriptions.size());
     for (unsigned int i = 0; i < 4; ++i) {
       uint32_t offset = offsetof(MeshInstance, modelMatrix) + 4 * sizeof(float_t) * i;
   
       VkVertexInputAttributeDescription attr{
-        .location = n + i,
+        .location = 6 + i, // TODO
         .binding = 1,
         .format = VK_FORMAT_R32G32B32A32_SFLOAT,
         .offset = offset
@@ -461,9 +442,11 @@ PipelineImpl::PipelineImpl(const MeshFeatureSet& meshFeatures,
 
   std::vector<VkDescriptorSetLayout> descriptorSetLayouts{
     m_renderResources.getMatricesDescriptorSetLayout(),
-    m_renderResources.getMaterialDescriptorSetLayout(),
-    m_renderResources.getLightingDescriptorSetLayout()
+    m_renderResources.getMaterialDescriptorSetLayout()
   };
+  if (!meshFeatures.isSkybox) {
+    descriptorSetLayouts.push_back(m_renderResources.getLightingDescriptorSetLayout());
+  }
 
   std::vector<VkPushConstantRange> pushConstantRanges;
   if (!meshFeatures.isInstanced && !meshFeatures.isSkybox) {

@@ -3,7 +3,7 @@
     <model name="cube" instanced="false"/>
     <model name="monkey" instanced="false"/>
     <model name="tree" instanced="false"/>
-    <model name="long_grass" instanced="true" max-instances="10000"/>
+    <model name="grass" instanced="true" max-instances="10000"/>
     <model name="dinosaur" instanced="false"/>
     <model name="cottage" instanced="false"/>
     <model name="bendy" instanced="false"/>

@@ -145,6 +145,8 @@ void SceneBuilder::constructOriginMarkers()
     material->colour = colour;
 
     MeshPtr mesh = cuboid(w, h, d, Vec2f{ 1, 1 });
+    mesh->attributeBuffers.resize(2); // Keep just positions and normals
+    mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition, BufferUsage::AttrNormal };
     m_renderSystem.compileShader(mesh->featureSet, material->featureSet);
     auto meshId = m_renderSystem.addMesh(std::move(mesh));
     CRenderPtr render = std::make_unique<CRender>(id, CRenderType::Regular);

@@ -15,19 +15,13 @@
 	"nodes":[
 		{
 			"mesh":0,
-			"name":"Low_Grass",
-			"rotation":[
-				0.7071068286895752,
-				0,
-				0,
-				0.7071068286895752
-			]
+			"name":"Low_Grass"
 		}
 	],
 	"materials":[
 		{
 			"doubleSided":true,
-			"name":"Material.001",
+			"name":"Material.004",
 			"pbrMetallicRoughness":{
 				"baseColorTexture":{
 					"index":0
@@ -39,7 +33,7 @@
 	],
 	"meshes":[
 		{
-			"name":"Low_Grass",
+			"name":"Low_Grass.001",
 			"primitives":[
 				{
 					"attributes":{
@@ -70,7 +64,7 @@
 		{
 			"bufferView":0,
 			"componentType":5126,
-			"count":3038,
+			"count":3150,
 			"max":[
 				0.13596299290657043,
 				0.2027910053730011,
@@ -86,13 +80,13 @@
 		{
 			"bufferView":1,
 			"componentType":5126,
-			"count":3038,
+			"count":3150,
 			"type":"VEC3"
 		},
 		{
 			"bufferView":2,
 			"componentType":5126,
-			"count":3038,
+			"count":3150,
 			"type":"VEC2"
 		},
 		{
@@ -105,26 +99,26 @@
 	"bufferViews":[
 		{
 			"buffer":0,
-			"byteLength":36456,
+			"byteLength":37800,
 			"byteOffset":0,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":36456,
-			"byteOffset":36456,
+			"byteLength":37800,
+			"byteOffset":37800,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":24304,
-			"byteOffset":72912,
+			"byteLength":25200,
+			"byteOffset":75600,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":6672,
-			"byteOffset":97216,
+			"byteOffset":100800,
 			"target":34963
 		}
 	],
@@ -136,7 +130,7 @@
 	],
 	"buffers":[
 		{
-			"byteLength":103888,
+			"byteLength":107472,
 			"uri":"grass.bin"
 		}
 	]

@@ -1,9 +1,9 @@
 <entity name="grass">
   <spatial-component radius="1.0">
-    <transform scale="4">
+    <transform scale="48">
       <pos x="0" y="0" z="0"/>
       <ori x="0" y="0" z="0"/>
     </transform>
   </spatial-component>
-  <render-component model="long_grass" type="instance"/>
+  <render-component model="grass" type="instance"/>
 </entity>
