@@ -527,18 +527,29 @@ ShaderProgram PipelineImpl::compileShaderProgram(const MeshFeatureSet& meshFeatu
   const MaterialFeatureSet& materialFeatures)
 {
   std::vector<std::string> defines;
+  for (auto attr : meshFeatures.vertexLayout) {
+    switch (attr) {
+      case BufferUsage::AttrPosition: defines.push_back("ATTR_POSITION"); break;
+      case BufferUsage::AttrNormal: defines.push_back("ATTR_NORMAL"); break;
+      case BufferUsage::AttrTexCoord: defines.push_back("ATTR_TEXCOORD"); break;
+      case BufferUsage::AttrTangent: defines.push_back("ATTR_TANGENT"); break;
+      case BufferUsage::AttrJointIndices: defines.push_back("ATTR_JOINTS"); break;
+      case BufferUsage::AttrJointWeights: defines.push_back("ATTR_WEIGHTS"); break;
+      default: break;
+    }
+  }
   if (meshFeatures.isInstanced) {
-    defines.push_back("INSTANCED");
+    defines.push_back("ATTR_MODEL_MATRIX");
   }
   if (meshFeatures.isSkybox) {
-    defines.push_back("SKYBOX");
+    defines.push_back("MAIN_SKYBOX");
   }
   if (materialFeatures.hasNormalMap) {
     assert(meshFeatures.hasTangents);
-    defines.push_back("NORMAL_MAPPING");
+    defines.push_back("FEATURE_NORMAL_MAPPING");
   }
   if (materialFeatures.hasTexture) {
-    defines.push_back("TEXTURE_MAPPING");
+    defines.push_back("FEATURE_TEXTURE_MAPPING");
   }
 
   ShaderProgram program;
