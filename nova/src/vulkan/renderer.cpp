@@ -734,6 +734,10 @@ void RendererImpl::recreateSwapChain()
   createDepthResources();
   createFramebuffers();
 
+  for (auto& i : m_pipelines) {
+    i.second->onViewportResize(m_swapchainExtent);
+  }
+
   // TODO: Might need to recreate renderpass if the swap chain image format has changed if, for
   // example, the window has moved from a standard to a high dynamic range monitor.
 }

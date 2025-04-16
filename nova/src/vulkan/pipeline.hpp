@@ -80,6 +80,8 @@ class FileSystem;
 class Pipeline
 {
   public:
+    virtual void onViewportResize(VkExtent2D swapchainExtent) = 0;
+
     virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
       BindState& bindState, size_t currentFrame) = 0;
 

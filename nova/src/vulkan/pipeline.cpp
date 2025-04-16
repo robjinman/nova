@@ -267,6 +267,8 @@ class PipelineImpl : public Pipeline
       const FileSystem& fileSystem, const RenderResources& renderResources, VkDevice device,
       VkExtent2D swapchainExtent, VkRenderPass renderPass);
 
+    void onViewportResize(VkExtent2D swapchainExtent) override;
+
     void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
       BindState& bindState, size_t currentFrame) override;
 
@@ -276,16 +278,250 @@ class PipelineImpl : public Pipeline
     const FileSystem& m_fileSystem;
     const RenderResources& m_renderResources;
     VkDevice m_device;
-    VkPipeline m_pipeline;
-    VkPipelineLayout m_layout;
+    VkRenderPass m_renderPass;
+    VkShaderModule m_vertShaderModule = VK_NULL_HANDLE;
+    VkShaderModule m_fragShaderModule = VK_NULL_HANDLE;
+    VkPipeline m_pipeline = VK_NULL_HANDLE;
+    VkPipelineLayout m_layout = VK_NULL_HANDLE;
     PipelineProperties m_properties; // TODO: Remove?
+
+    VkPipelineShaderStageCreateInfo m_vertShaderStageInfo;
+    VkPipelineShaderStageCreateInfo m_fragShaderStageInfo;
+    std::vector<VkVertexInputAttributeDescription> m_vertexAttributeDescriptions;
+    std::vector<VkVertexInputBindingDescription> m_vertexBindingDescriptions;
+    VkPipelineVertexInputStateCreateInfo m_vertexInputStateInfo;
+    std::vector<VkDescriptorSetLayout> m_descriptorSetLayouts;
+    std::vector<VkPushConstantRange> m_pushConstantRanges;
+    VkPipelineLayoutCreateInfo m_layoutInfo;
+    VkPipelineInputAssemblyStateCreateInfo m_inputAssemblyStateInfo;
+    VkViewport m_viewport;
+    VkRect2D m_scissor;
+    VkPipelineRasterizationStateCreateInfo m_rasterizationStateInfo;
+    VkPipelineMultisampleStateCreateInfo m_multisampleStateInfo;
+    VkPipelineColorBlendAttachmentState m_colourBlendAttachmentState;
+    VkPipelineColorBlendStateCreateInfo m_colourBlendStateInfo;
+    VkPipelineDepthStencilStateCreateInfo m_depthStencilStateInfo;
 
     ShaderProgram compileShaderProgram(const MeshFeatureSet& meshFeatures,
       const MaterialFeatureSet& materialFeatures);
 
     std::vector<uint32_t> compileShader(const std::string& name, const std::vector<char>& source,
       ShaderType type, const std::vector<std::string>& defines);
+
+    void constructPipeline(VkExtent2D swapchainExtent);
+    void destroyPipeline();
 };
+
+PipelineImpl::PipelineImpl(const MeshFeatureSet& meshFeatures,
+  const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
+  const RenderResources& renderResources, VkDevice device, VkExtent2D swapchainExtent,
+  VkRenderPass renderPass)
+  : m_fileSystem(fileSystem)
+  , m_renderResources(renderResources)
+  , m_device(device)
+  , m_renderPass(renderPass)
+{
+  auto program = compileShaderProgram(meshFeatures, materialFeatures);
+
+  m_vertShaderModule = createShaderModule(m_device, program.vertexShaderCode);
+  m_fragShaderModule = createShaderModule(m_device, program.fragmentShaderCode);
+
+  m_vertShaderStageInfo = VkPipelineShaderStageCreateInfo{
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .stage = VK_SHADER_STAGE_VERTEX_BIT,
+    .module = m_vertShaderModule,
+    .pName = "main",
+    .pSpecializationInfo = nullptr
+  };
+
+  m_fragShaderStageInfo = VkPipelineShaderStageCreateInfo{
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .module = m_fragShaderModule,
+    .pName = "main",
+    .pSpecializationInfo = nullptr
+  };
+
+  size_t vertexSize = 0;
+  for (auto usage : meshFeatures.vertexLayout) {
+    vertexSize += getAttributeSize(usage);
+  }
+
+  VkVertexInputBindingDescription vertexBindingDescription{
+    .binding = 0,
+    .stride = static_cast<uint32_t>(vertexSize),
+    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+  };
+
+  m_vertexAttributeDescriptions = createAttributeDescriptions(meshFeatures.vertexLayout);
+  if (meshFeatures.isInstanced) {
+    for (unsigned int i = 0; i < 4; ++i) {
+      uint32_t offset = offsetof(MeshInstance, modelMatrix) + 4 * sizeof(float_t) * i;
+  
+      VkVertexInputAttributeDescription attr{
+        .location = 6 + i, // TODO
+        .binding = 1,
+        .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+        .offset = offset
+      };
+  
+      m_vertexAttributeDescriptions.push_back(attr);
+    }
+  }
+
+  m_vertexBindingDescriptions = {
+    vertexBindingDescription
+  };
+  if (meshFeatures.isInstanced) {
+    m_vertexBindingDescriptions.push_back(VkVertexInputBindingDescription{
+      .binding = 1,
+      .stride = sizeof(MeshInstance),
+      .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE
+    });
+  }
+
+  m_vertexInputStateInfo = VkPipelineVertexInputStateCreateInfo{
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .vertexBindingDescriptionCount = static_cast<uint32_t>(m_vertexBindingDescriptions.size()),
+    .pVertexBindingDescriptions = m_vertexBindingDescriptions.data(),
+    .vertexAttributeDescriptionCount = static_cast<uint32_t>(m_vertexAttributeDescriptions.size()),
+    .pVertexAttributeDescriptions = m_vertexAttributeDescriptions.data()
+  };
+
+  m_inputAssemblyStateInfo = defaultInputAssemblyState();
+  m_rasterizationStateInfo = defaultRasterizationState();
+  m_multisampleStateInfo = defaultMultisamplingState();
+  m_colourBlendStateInfo = defaultColourBlendState(m_colourBlendAttachmentState);
+  m_depthStencilStateInfo = defaultDepthStencilState();
+
+  m_descriptorSetLayouts = {
+    m_renderResources.getMatricesDescriptorSetLayout(),
+    m_renderResources.getMaterialDescriptorSetLayout()
+  };
+  if (!meshFeatures.isSkybox) {
+    m_descriptorSetLayouts.push_back(m_renderResources.getLightingDescriptorSetLayout());
+  }
+
+  if (!meshFeatures.isInstanced && !meshFeatures.isSkybox) {
+    m_pushConstantRanges = {
+      VkPushConstantRange{
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .offset = 0,
+        .size = sizeof(Mat4x4f)
+      }
+    };
+  }
+
+  m_layoutInfo = VkPipelineLayoutCreateInfo{
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .setLayoutCount = static_cast<uint32_t>(m_descriptorSetLayouts.size()),
+    .pSetLayouts = m_descriptorSetLayouts.data(),
+    .pushConstantRangeCount = static_cast<uint32_t>(m_pushConstantRanges.size()),
+    .pPushConstantRanges = m_pushConstantRanges.size() == 0 ? nullptr : m_pushConstantRanges.data()
+  };
+
+  constructPipeline(swapchainExtent);
+}
+
+void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
+{
+  destroyPipeline();
+
+  VK_CHECK(vkCreatePipelineLayout(m_device, &m_layoutInfo, nullptr, &m_layout),
+    "Failed to create default pipeline layout");
+
+  VkPipelineShaderStageCreateInfo shaderStages[] = {
+    m_vertShaderStageInfo,
+    m_fragShaderStageInfo
+  };
+
+  auto viewportStateInfo = defaultViewportState(m_viewport, m_scissor, swapchainExtent);
+
+  VkGraphicsPipelineCreateInfo pipelineInfo{
+    .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .stageCount = 2,
+    .pStages = shaderStages,
+    .pVertexInputState = &m_vertexInputStateInfo,
+    .pInputAssemblyState = &m_inputAssemblyStateInfo,
+    .pTessellationState = nullptr,
+    .pViewportState = &viewportStateInfo,
+    .pRasterizationState = &m_rasterizationStateInfo,
+    .pMultisampleState = &m_multisampleStateInfo,
+    .pDepthStencilState = &m_depthStencilStateInfo,
+    .pColorBlendState = &m_colourBlendStateInfo,
+    .pDynamicState = nullptr,
+    .layout = m_layout,
+    .renderPass = m_renderPass,
+    .subpass = 0,
+    .basePipelineHandle = VK_NULL_HANDLE,
+    .basePipelineIndex = -1
+  };
+
+  VK_CHECK(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr,
+    &m_pipeline), "Failed to create default pipeline");
+}
+
+void PipelineImpl::onViewportResize(VkExtent2D swapchainExtent)
+{
+  constructPipeline(swapchainExtent);
+}
+
+void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
+  BindState& bindState, size_t currentFrame)
+{
+  auto matricesDescriptorSet = m_renderResources.getMatricesDescriptorSet(currentFrame);
+  auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material.id);
+  auto lightingDescriptorSet = m_renderResources.getLightingDescriptorSet(currentFrame);
+  auto buffers = m_renderResources.getMeshBuffers(node.mesh.id);
+
+  if (m_pipeline != bindState.pipeline) {
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+  }
+  std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer };
+  if (node.mesh.features.isInstanced) {
+    vertexBuffers.push_back(buffers.instanceBuffer);
+  }
+  std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
+  vkCmdBindVertexBuffers(commandBuffer, 0, static_cast<uint32_t>(vertexBuffers.size()),
+    vertexBuffers.data(), offsets.data());
+  vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+  std::vector<VkDescriptorSet> descriptorSets{
+    matricesDescriptorSet,
+    materialDescriptorSet,
+  };
+  if (!node.mesh.features.isSkybox) {
+    descriptorSets.push_back(lightingDescriptorSet);
+  }
+  if (descriptorSets != bindState.descriptorSets) {
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
+      static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
+  }
+  if (!node.mesh.features.isInstanced && !node.mesh.features.isSkybox) {
+    auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
+
+    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4x4f),
+      &defaultNode.modelMatrix);
+  }
+  if (node.mesh.features.isInstanced) {
+    vkCmdDrawIndexed(commandBuffer, buffers.numIndices, buffers.numInstances, 0, 0, 0);
+  }
+  else {
+    vkCmdDrawIndexed(commandBuffer, buffers.numIndices, 1, 0, 0, 0);
+  }
+
+  bindState.pipeline = m_pipeline;
+  bindState.descriptorSets = descriptorSets;
+}
 
 ShaderProgram PipelineImpl::compileShaderProgram(const MeshFeatureSet& meshFeatures,
   const MaterialFeatureSet& materialFeatures)
@@ -350,212 +586,25 @@ std::vector<uint32_t> PipelineImpl::compileShader(const std::string& name,
   return code;
 }
 
-PipelineImpl::PipelineImpl(const MeshFeatureSet& meshFeatures,
-  const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
-  const RenderResources& renderResources, VkDevice device, VkExtent2D swapchainExtent,
-  VkRenderPass renderPass)
-  : m_fileSystem(fileSystem)
-  , m_renderResources(renderResources)
-  , m_device(device)
+void PipelineImpl::destroyPipeline()
 {
-  auto program = compileShaderProgram(meshFeatures, materialFeatures);
-
-  VkShaderModule vertShaderModule = createShaderModule(m_device, program.vertexShaderCode);
-  VkShaderModule fragShaderModule = createShaderModule(m_device, program.fragmentShaderCode);
-
-  VkPipelineShaderStageCreateInfo vertShaderStageInfo{
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-    .pNext = nullptr,
-    .flags = 0,
-    .stage = VK_SHADER_STAGE_VERTEX_BIT,
-    .module = vertShaderModule,
-    .pName = "main",
-    .pSpecializationInfo = nullptr
-  };
-
-  VkPipelineShaderStageCreateInfo fragShaderStageInfo{
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-    .pNext = nullptr,
-    .flags = 0,
-    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-    .module = fragShaderModule,
-    .pName = "main",
-    .pSpecializationInfo = nullptr
-  };
-
-  size_t vertexSize = 0;
-  for (auto usage : meshFeatures.vertexLayout) {
-    vertexSize += getAttributeSize(usage);
+  if (m_pipeline != VK_NULL_HANDLE) {
+    vkDestroyPipeline(m_device, m_pipeline, nullptr);
   }
-
-  VkVertexInputBindingDescription vertexBindingDescription{
-    .binding = 0,
-    .stride = static_cast<uint32_t>(vertexSize),
-    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-  };
-
-  auto attributeDescriptions = createAttributeDescriptions(meshFeatures.vertexLayout);
-  if (meshFeatures.isInstanced) {
-    for (unsigned int i = 0; i < 4; ++i) {
-      uint32_t offset = offsetof(MeshInstance, modelMatrix) + 4 * sizeof(float_t) * i;
-  
-      VkVertexInputAttributeDescription attr{
-        .location = 6 + i, // TODO
-        .binding = 1,
-        .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-        .offset = offset
-      };
-  
-      attributeDescriptions.push_back(attr);
-    }
+  if (m_layout != VK_NULL_HANDLE) {
+    vkDestroyPipelineLayout(m_device, m_layout, nullptr);
   }
-
-  std::vector<VkVertexInputBindingDescription> bindingDescriptions{
-    vertexBindingDescription
-  };
-  if (meshFeatures.isInstanced) {
-    bindingDescriptions.push_back(VkVertexInputBindingDescription{
-      .binding = 1,
-      .stride = sizeof(MeshInstance),
-      .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE
-    });
-  }
-
-  VkPipelineVertexInputStateCreateInfo vertexInputInfo{
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-    .pNext = nullptr,
-    .flags = 0,
-    .vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size()),
-    .pVertexBindingDescriptions = bindingDescriptions.data(),
-    .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
-    .pVertexAttributeDescriptions = attributeDescriptions.data()
-  };
-
-  auto inputAssembly = defaultInputAssemblyState();
-  VkViewport viewport;
-  VkRect2D scissor;
-  auto viewportState = defaultViewportState(viewport, scissor, swapchainExtent);
-  auto rasterizer = defaultRasterizationState();
-  auto multisampling = defaultMultisamplingState();
-  VkPipelineColorBlendAttachmentState colourBlendAttachment;
-  auto colourBlending = defaultColourBlendState(colourBlendAttachment);
-
-  std::vector<VkDescriptorSetLayout> descriptorSetLayouts{
-    m_renderResources.getMatricesDescriptorSetLayout(),
-    m_renderResources.getMaterialDescriptorSetLayout()
-  };
-  if (!meshFeatures.isSkybox) {
-    descriptorSetLayouts.push_back(m_renderResources.getLightingDescriptorSetLayout());
-  }
-
-  std::vector<VkPushConstantRange> pushConstantRanges;
-  if (!meshFeatures.isInstanced && !meshFeatures.isSkybox) {
-    pushConstantRanges = {
-      VkPushConstantRange{
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-        .offset = 0,
-        .size = sizeof(Mat4x4f)
-      }
-    };
-  }
-
-  VkPipelineLayoutCreateInfo pipelineLayoutInfo{
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    .pNext = nullptr,
-    .flags = 0,
-    .setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
-    .pSetLayouts = descriptorSetLayouts.data(),
-    .pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size()),
-    .pPushConstantRanges = pushConstantRanges.size() == 0 ? nullptr : pushConstantRanges.data()
-  };
-
-  VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_layout),
-    "Failed to create default pipeline layout");
-
-  VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
-
-  auto depthStencil = defaultDepthStencilState();
-
-  VkGraphicsPipelineCreateInfo pipelineInfo{
-    .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-    .pNext = nullptr,
-    .flags = 0,
-    .stageCount = 2,
-    .pStages = shaderStages,
-    .pVertexInputState = &vertexInputInfo,
-    .pInputAssemblyState = &inputAssembly,
-    .pTessellationState = nullptr,
-    .pViewportState = &viewportState,
-    .pRasterizationState = &rasterizer,
-    .pMultisampleState = &multisampling,
-    .pDepthStencilState = &depthStencil,
-    .pColorBlendState = &colourBlending,
-    .pDynamicState = nullptr,
-    .layout = m_layout,
-    .renderPass = renderPass,
-    .subpass = 0,
-    .basePipelineHandle = VK_NULL_HANDLE,
-    .basePipelineIndex = -1
-  };
-
-  VK_CHECK(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr,
-    &m_pipeline), "Failed to create default pipeline");
-
-  vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
-  vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
-}
-
-void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
-  BindState& bindState, size_t currentFrame)
-{
-  auto matricesDescriptorSet = m_renderResources.getMatricesDescriptorSet(currentFrame);
-  auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material.id);
-  auto lightingDescriptorSet = m_renderResources.getLightingDescriptorSet(currentFrame);
-  auto buffers = m_renderResources.getMeshBuffers(node.mesh.id);
-
-  if (m_pipeline != bindState.pipeline) {
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
-  }
-  std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer };
-  if (node.mesh.features.isInstanced) {
-    vertexBuffers.push_back(buffers.instanceBuffer);
-  }
-  std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
-  vkCmdBindVertexBuffers(commandBuffer, 0, static_cast<uint32_t>(vertexBuffers.size()),
-    vertexBuffers.data(), offsets.data());
-  vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-  std::vector<VkDescriptorSet> descriptorSets{
-    matricesDescriptorSet,
-    materialDescriptorSet,
-  };
-  if (!node.mesh.features.isSkybox) {
-    descriptorSets.push_back(lightingDescriptorSet);
-  }
-  if (descriptorSets != bindState.descriptorSets) {
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
-      static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
-  }
-  if (!node.mesh.features.isInstanced && !node.mesh.features.isSkybox) {
-    auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
-
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4x4f),
-      &defaultNode.modelMatrix);
-  }
-  if (node.mesh.features.isInstanced) {
-    vkCmdDrawIndexed(commandBuffer, buffers.numIndices, buffers.numInstances, 0, 0, 0);
-  }
-  else {
-    vkCmdDrawIndexed(commandBuffer, buffers.numIndices, 1, 0, 0, 0);
-  }
-
-  bindState.pipeline = m_pipeline;
-  bindState.descriptorSets = descriptorSets;
 }
 
 PipelineImpl::~PipelineImpl()
 {
-  vkDestroyPipeline(m_device, m_pipeline, nullptr);
-  vkDestroyPipelineLayout(m_device, m_layout, nullptr);
+  if (m_vertShaderModule != VK_NULL_HANDLE) {
+    vkDestroyShaderModule(m_device, m_vertShaderModule, nullptr);
+  }
+  if (m_fragShaderModule != VK_NULL_HANDLE) {
+    vkDestroyShaderModule(m_device, m_fragShaderModule, nullptr);
+  }
+  destroyPipeline();
 }
 
 } // namespace
