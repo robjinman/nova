@@ -23,6 +23,7 @@ class ApplicationImpl : public Application
   public:
     ApplicationImpl(const char* bundlePath, WindowDelegatePtr windowDelegate);
 
+    void onViewResize() override;
     void update() override;
 
   private:
@@ -56,6 +57,11 @@ ApplicationImpl::ApplicationImpl(const char* bundlePath, WindowDelegatePtr windo
 
   m_renderSystem->start();
   m_game = createGame(std::move(player), *m_collisionSystem, *m_logger);
+}
+
+void ApplicationImpl::onViewResize()
+{
+  m_renderer->onResize();
 }
 
 void ApplicationImpl::update()

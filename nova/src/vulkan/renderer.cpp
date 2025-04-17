@@ -124,6 +124,7 @@ class RendererImpl : public Renderer
     VkPresentModeKHR chooseSwapChainPresentMode(const std::vector<VkPresentModeKHR>& modes) const;
     VkExtent2D chooseSwapChainExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
     void createSwapChain();
+    void createSwapChain(VkExtent2D extent);
     void recreateSwapChain();
     void setProjectionMatrix(float_t rotation);
     void cleanupSwapChain();
@@ -639,9 +640,15 @@ void RendererImpl::createSwapChain()
   DBG_TRACE(m_logger);
 
   auto swapchainSupport = querySwapChainSupport(m_physicalDevice);
+  auto extent = chooseSwapChainExtent(swapchainSupport.capabilities);
+  createSwapChain(extent);
+}
+
+void RendererImpl::createSwapChain(VkExtent2D extent)
+{
+  auto swapchainSupport = querySwapChainSupport(m_physicalDevice);
   auto surfaceFormat = chooseSwapChainSurfaceFormat(swapchainSupport.formats);
   auto presentMode = chooseSwapChainPresentMode(swapchainSupport.presentModes);
-  auto extent = chooseSwapChainExtent(swapchainSupport.capabilities);
 
   uint32_t minImageCount = swapchainSupport.capabilities.minImageCount + 1;
   if (swapchainSupport.capabilities.maxImageCount != 0) {
@@ -731,8 +738,13 @@ void RendererImpl::recreateSwapChain()
 
   VK_CHECK(vkDeviceWaitIdle(m_device), "Error waiting for device to be idle");
 
+  VkExtent2D extent{
+    .width = static_cast<uint32_t>(width),
+    .height = static_cast<uint32_t>(height)
+  };
+
   cleanupSwapChain();
-  createSwapChain();
+  createSwapChain(extent);
   createImageViews();
   createDepthResources();
   createFramebuffers();

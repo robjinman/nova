@@ -41,18 +41,66 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   self.view = [[MetalView alloc] initWithFrame:[UIScreen mainScreen].bounds];
 }
 
+- (BOOL)prefersStatusBarHidden
+{
+  return YES;
+}
+
 - (void)viewDidLoad
 {
   [super viewDidLoad];
 
+  self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+
+  CAMetalLayer* metalLayer = (CAMetalLayer*)self.view.layer;
+
   NSString* bundlePath = [[NSBundle mainBundle] bundlePath];
   const char* bundlePathCStr = [bundlePath UTF8String];
 
-  _application = createApplication(bundlePathCStr,
-    createWindowDelegate((CAMetalLayer*)self.view.layer));
+  _application = createApplication(bundlePathCStr, createWindowDelegate(metalLayer));
+  [self NOVA_onViewResize];
+
+  self.view.insetsLayoutMarginsFromSafeArea = NO;
+  self.view.directionalLayoutMargins = NSDirectionalEdgeInsetsZero;
+  self.view.layoutMargins = UIEdgeInsetsZero;
 
   self.displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(updateLoop:)];
   [self.displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSDefaultRunLoopMode];
+}
+
+- (void)NOVA_onViewResize
+{
+  CAMetalLayer* metalLayer = (CAMetalLayer*)self.view.layer;
+
+  CGFloat scale = [UIScreen mainScreen].scale;
+  CGSize sizeInPoints = self.view.bounds.size;
+  CGSize drawableSize = CGSizeMake(sizeInPoints.width * scale, sizeInPoints.height * scale);
+
+  metalLayer.contentsScale = scale;
+  metalLayer.bounds = CGRectMake(0, 0, sizeInPoints.width, sizeInPoints.height);
+  metalLayer.drawableSize = drawableSize;
+
+  NSLog(@"view.bounds: %@", NSStringFromCGRect(self.view.bounds));
+  NSLog(@"layer.bounds: %@", NSStringFromCGRect(metalLayer.bounds));
+  NSLog(@"drawableSize: %@", NSStringFromCGSize(metalLayer.drawableSize));
+  NSLog(@"safeAreaInsets: %@", NSStringFromUIEdgeInsets(self.view.safeAreaInsets));
+
+  _application->onViewResize();
+}
+
+- (void)viewWillLayoutSubviews
+{
+  [super viewWillLayoutSubviews];
+  [self NOVA_onViewResize];
+}
+
+- (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator
+{
+  [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
+
+  [coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext> context) {
+    [self NOVA_onViewResize];
+  } completion:nil];
 }
 
 - (BOOL)shouldAutorotate

@@ -7,6 +7,7 @@ class Application
 {
   public:
     virtual void update() = 0;
+    virtual void onViewResize() = 0;
 
     virtual ~Application() {}
 };
