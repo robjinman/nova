@@ -9,6 +9,7 @@
 #include "utils.hpp"
 #include "file_system.hpp"
 #include <cassert>
+#include <random>
 
 namespace
 {
@@ -217,9 +218,13 @@ void TerrainImpl::fillArea(const ObjectData& area, const Mat4x4f& transform, flo
   ObjectData data{};
   data.name = entityType;
 
-  const Vec2f spacing = metresToWorldUnits(Vec2f{ 1, 1 }); // TODO
+  // TODO: Read spacing from object data
+  const Vec2f spacing = metresToWorldUnits(Vec2f{ 1, 1 });
 
   auto bounds = computeBounds(area);
+
+  std::mt19937 randomEngine;
+  std::uniform_real_distribution<float_t> uniformDistribution{0, 1};
 
   std::vector<Vec2f> perimeter;
   std::transform(area.path.points.begin(), area.path.points.end(), std::back_inserter(perimeter),
@@ -228,7 +233,10 @@ void TerrainImpl::fillArea(const ObjectData& area, const Mat4x4f& transform, flo
   for (float_t x = bounds.first[0]; x <= bounds.second[0]; x += spacing[0]) {
     for (float_t z = bounds.first[1]; z <= bounds.second[1]; z += spacing[1]) {
       if (pointIsInsidePoly(Vec2f{ x, z }, perimeter)) {
-        Mat4x4f m = translationMatrix4x4(Vec3f{ x, height, z });
+        // TODO: Read transform from object data
+        float_t rot = uniformDistribution(randomEngine) * 2.0 * PI;
+        Mat4x4f m = createTransform(Vec3f{ x, height, z }, Vec3f{ 0, rot, 0 });
+
         m_entityFactory.constructEntity(data, transform * m);
       }
     }

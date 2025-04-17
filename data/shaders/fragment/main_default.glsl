@@ -16,5 +16,10 @@ void main()
   vec4 texel = material.colour;
 #endif
 
-  outColour = vec4(light, 1.0) * texel;
+  if (texel.a < 0.5) {
+    discard;
+  }
+  else {
+    outColour = vec4(light, 1.0) * texel;
+  }
 }

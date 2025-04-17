@@ -32,7 +32,7 @@
 	"materials":[
 		{
 			"doubleSided":true,
-			"name":"Material.002",
+			"name":"long_grass",
 			"pbrMetallicRoughness":{
 				"baseColorTexture":{
 					"index":0

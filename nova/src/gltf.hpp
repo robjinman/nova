@@ -59,6 +59,7 @@ struct BufferDesc
 
 struct MaterialDesc
 {
+  std::string name;
   std::string baseColourTexture;
   std::string normalMap;
   Vec4f baseColourFactor = { 1, 1, 1, 1 };

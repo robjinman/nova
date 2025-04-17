@@ -178,6 +178,7 @@ MaterialPtr constructMaterial(const gltf::MaterialDesc& materialDesc)
 {
   auto material = std::make_unique<Material>(createMaterialFeatureSet(materialDesc));
 
+  material->name = materialDesc.name;
   material->texture.fileName = materialDesc.baseColourTexture;
   material->normalMap.fileName = materialDesc.normalMap;
   material->colour = materialDesc.baseColourFactor;

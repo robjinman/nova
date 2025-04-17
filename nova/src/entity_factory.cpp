@@ -15,6 +15,11 @@
 namespace
 {
 
+struct MaterialCustomisation
+{
+  bool hasTransparency = false;
+};
+
 struct ModelResources
 {
   std::vector<MeshMaterialPair> submodels;
@@ -36,6 +41,11 @@ Vec3f parseVec3f(const std::string s)
   };
 }
 
+void customiseMaterial(Material& material, const MaterialCustomisation& props)
+{
+  material.featureSet.hasTransparency = props.hasTransparency;
+}
+
 class EntityFactoryImpl : public EntityFactory
 {
   public:
@@ -43,6 +53,7 @@ class EntityFactoryImpl : public EntityFactory
       CollisionSystem& CollisionSystem, const FileSystem& fileSystem, Logger& logger);
 
     void loadEntityDefinitions(const XmlNode& entities) override;
+    void loadMaterials(const XmlNode& materials) override;
     void loadModels(const XmlNode& models) override;
     EntityId constructEntity(const ObjectData& data, const Mat4x4f& transform) const override;
 
@@ -56,6 +67,7 @@ class EntityFactoryImpl : public EntityFactory
     std::map<std::string, RenderItemId> m_materialResources;
     std::map<std::string, ModelResources> m_models;
     std::map<std::string, XmlNodePtr> m_definitions;
+    std::map<std::string, MaterialCustomisation> m_materialProperties;
 
     void loadModel(const std::string& name, bool isInstanced, int maxInstances);
     void constructSpatialComponent(EntityId entityId, const XmlNode& node, const ObjectData& data,
@@ -95,6 +107,19 @@ void EntityFactoryImpl::loadEntityDefinitions(const XmlNode& entities)
   }
 }
 
+void EntityFactoryImpl::loadMaterials(const XmlNode& materials)
+{
+  ASSERT(materials.name() == "materials", "Expected element with name 'materials'");
+
+  for (auto& material : materials) {
+    std::string name = material.attribute("name");
+    MaterialCustomisation props{
+      .hasTransparency = material.attribute("has-transparency") == "true"
+    };
+    m_materialProperties.insert(std::make_pair(name, props));
+  }
+}
+
 void EntityFactoryImpl::loadModels(const XmlNode& models)
 {
   ASSERT(models.name() == "models", "Expected element with name 'models'");
@@ -119,6 +144,11 @@ void EntityFactoryImpl::loadModel(const std::string& name, bool isInstanced, int
   for (auto& submodel : model->submodels) {
     submodel->mesh->featureSet.isInstanced = isInstanced;
     submodel->mesh->featureSet.maxInstances = maxInstances;
+
+    auto i = m_materialProperties.find(submodel->material->name);
+    if (i != m_materialProperties.end()) {
+      customiseMaterial(*submodel->material, i->second);
+    }
   }
 
   m_models[name] = gpuLoadModel(std::move(model));
@@ -224,7 +254,7 @@ Mat4x4f EntityFactoryImpl::parseTransform(const XmlNode& node) const
 
   float_t scale = parseFloat<float_t>(node.attribute("scale"));
 
-  return transform(metresToWorldUnits(pos), ori) * scaleMatrix<float_t, 4>(scale, true);
+  return createTransform(metresToWorldUnits(pos), ori) * scaleMatrix<float_t, 4>(scale, true);
 }
 
 template<typename T>

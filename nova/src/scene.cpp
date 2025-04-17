@@ -65,6 +65,7 @@ PlayerPtr SceneBuilder::createScene()
 {
   auto scene = parseXml(m_fileSystem.readFile("scenes/scene1.xml"));
 
+  m_entityFactory.loadMaterials(*scene->child("materials"));
   m_entityFactory.loadModels(*scene->child("models"));
   m_entityFactory.loadEntityDefinitions(*scene->child("entities"));
 

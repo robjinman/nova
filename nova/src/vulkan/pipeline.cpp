@@ -8,6 +8,7 @@
 #include <array>
 #include <numeric>
 #include <cstring>
+#include <iostream>
 
 namespace
 {

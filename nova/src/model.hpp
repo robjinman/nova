@@ -151,6 +151,7 @@ struct Material
     : featureSet(features)
   {}
 
+  std::string name;
   MaterialFeatureSet featureSet;
   Vec4f colour = { 1, 1, 1, 1 };
   MaterialResource texture;

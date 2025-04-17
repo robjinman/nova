@@ -527,7 +527,7 @@ Matrix<T, 4, 4> rotationMatrix4x4(const Vector<T, 4>& quaternion)
 }
 
 template<typename T>
-Matrix<T, 4, 4> transform(const Vector<T, 3>& pos, const Vector<T, 3>& ori)
+Matrix<T, 4, 4> createTransform(const Vector<T, 3>& pos, const Vector<T, 3>& ori)
 {
   auto rot = rotationMatrix3x3(ori);
   Matrix<T, 4, 4> m = identityMatrix<float_t, 4>();

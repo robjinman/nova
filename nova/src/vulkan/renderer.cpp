@@ -302,6 +302,7 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(MeshHandle mesh,
 
   if (mesh.features.isInstanced) {
     return RenderGraph::Key{
+      static_cast<RenderGraphKey>(material.features.hasTransparency),
       static_cast<RenderGraphKey>(pipelineHash),
       static_cast<RenderGraphKey>(mesh.id),
       static_cast<RenderGraphKey>(material.id)
@@ -309,6 +310,7 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(MeshHandle mesh,
   }
   else if (mesh.features.isSkybox) {
     return RenderGraph::Key{
+      static_cast<RenderGraphKey>(material.features.hasTransparency),
       static_cast<RenderGraphKey>(pipelineHash)
     };
   }
@@ -316,6 +318,7 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(MeshHandle mesh,
     static RenderGraphKey nextId = 0;
 
     return RenderGraph::Key{
+      static_cast<RenderGraphKey>(material.features.hasTransparency),
       static_cast<RenderGraphKey>(pipelineHash),
       static_cast<RenderGraphKey>(mesh.id),
       static_cast<RenderGraphKey>(material.id),

@@ -1,4 +1,7 @@
 <scene map="maps/map1.svg">
+  <materials>
+    <material name="long_grass" has-transparency="true"/>
+  </materials>
   <models>
     <model name="cube" instanced="false"/>
     <model name="monkey" instanced="false"/>
