@@ -20,7 +20,7 @@
 	],
 	"materials":[
 		{
-			"doubleSided":true,
+			"doubleSided":false,
 			"name":"brick",
 			"normalTexture":{
 				"index":0

@@ -105,6 +105,7 @@ MaterialDesc extractMaterial(const nlohmann::json& root, unsigned long materialI
   auto iTextures = root.find("textures");
   auto iImages = root.find("images");
   auto& material = materials[materialIndex];
+  materialDesc.isDoubleSided = material.at("doubleSided").get<bool>();
   auto& pbr = material.at("pbrMetallicRoughness");
   auto iBaseColourFactor = pbr.find("baseColorFactor");
   if (iBaseColourFactor != pbr.end()) {

@@ -64,6 +64,7 @@ struct MaterialDesc
   Vec4f baseColourFactor = { 1, 1, 1, 1 };
   float metallicFactor = 0.f;
   float roughnessFactor = 0.f;
+  bool isDoubleSided = false;
 };
 
 struct MeshDesc

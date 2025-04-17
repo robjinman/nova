@@ -20,7 +20,7 @@
 	],
 	"materials":[
 		{
-			"doubleSided":true,
+			"doubleSided":false,
 			"name":"Cottage_FREE",
 			"normalTexture":{
 				"index":0

@@ -99,6 +99,7 @@ struct MaterialFeatureSet
   bool hasTexture = false;
   bool hasNormalMap = false;
   bool hasCubeMap = false;
+  bool isDoubleSided = false;
 
   bool operator==(const MaterialFeatureSet& rhs) const = default;
 };

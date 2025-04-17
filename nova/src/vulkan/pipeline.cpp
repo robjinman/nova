@@ -99,8 +99,9 @@ VkPipelineViewportStateCreateInfo defaultViewportState(VkViewport& viewport, VkR
   };
 }
 
-VkPipelineRasterizationStateCreateInfo defaultRasterizationState()
+VkPipelineRasterizationStateCreateInfo defaultRasterizationState(bool doubleSided)
 {
+  VkCullModeFlags cullMode = doubleSided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
   return VkPipelineRasterizationStateCreateInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
     .pNext = nullptr,
@@ -108,7 +109,7 @@ VkPipelineRasterizationStateCreateInfo defaultRasterizationState()
     .depthClampEnable = VK_FALSE,
     .rasterizerDiscardEnable = VK_FALSE,
     .polygonMode = VK_POLYGON_MODE_FILL,
-    .cullMode = VK_CULL_MODE_NONE,//VK_CULL_MODE_BACK_BIT,
+    .cullMode = cullMode,
     .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
     .depthBiasEnable = VK_FALSE,
     .depthBiasConstantFactor = 0.0f,
@@ -395,7 +396,7 @@ PipelineImpl::PipelineImpl(const MeshFeatureSet& meshFeatures,
   };
 
   m_inputAssemblyStateInfo = defaultInputAssemblyState();
-  m_rasterizationStateInfo = defaultRasterizationState();
+  m_rasterizationStateInfo = defaultRasterizationState(materialFeatures.isDoubleSided);
   m_multisampleStateInfo = defaultMultisamplingState();
   m_colourBlendStateInfo = defaultColourBlendState(m_colourBlendAttachmentState);
   m_depthStencilStateInfo = defaultDepthStencilState();

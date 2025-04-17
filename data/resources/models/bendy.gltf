@@ -133,7 +133,7 @@
 	],
 	"materials":[
 		{
-			"doubleSided":true,
+			"doubleSided":false,
 			"name":"Material",
 			"pbrMetallicRoughness":{
 				"baseColorFactor":[

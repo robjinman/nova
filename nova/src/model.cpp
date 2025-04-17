@@ -124,7 +124,9 @@ MaterialFeatureSet createMaterialFeatureSet(const gltf::MaterialDesc& materialDe
   return MaterialFeatureSet{
     .hasTransparency = false, // TODO
     .hasTexture = !materialDesc.baseColourTexture.empty(),
-    .hasNormalMap = !materialDesc.normalMap.empty()
+    .hasNormalMap = !materialDesc.normalMap.empty(),
+    .hasCubeMap = false,
+    .isDoubleSided = materialDesc.isDoubleSided
   };
 }
 
