@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>nova_exe</string>
+
+    <key>CFBundleIdentifier</key>
+    <string>io.deadbeef.nova</string>
+
+    <key>CFBundleName</key>
+    <string>Nova</string>
+
+    <key>CFBundleDisplayName</key>
+    <string>Nova</string>
+
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
+
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+
+    <key>UIStatusBarHidden</key>
+    <true/>
+
+    <key>UIViewControllerBasedStatusBarAppearance</key>
+    <false/>
+</dict>
+</plist>

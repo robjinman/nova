@@ -70,20 +70,19 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
 
 - (void)NOVA_onViewResize
 {
+  [self NOVA_onViewResize:self.view.bounds.size];
+}
+
+- (void)NOVA_onViewResize:(CGSize)size
+{
   CAMetalLayer* metalLayer = (CAMetalLayer*)self.view.layer;
 
   CGFloat scale = [UIScreen mainScreen].scale;
-  CGSize sizeInPoints = self.view.bounds.size;
-  CGSize drawableSize = CGSizeMake(sizeInPoints.width * scale, sizeInPoints.height * scale);
+  CGSize drawableSize = CGSizeMake(size.width * scale, size.height * scale);
 
   metalLayer.contentsScale = scale;
-  metalLayer.bounds = CGRectMake(0, 0, sizeInPoints.width, sizeInPoints.height);
+  metalLayer.bounds = CGRectMake(0, 0, size.width, size.height);
   metalLayer.drawableSize = drawableSize;
-
-  NSLog(@"view.bounds: %@", NSStringFromCGRect(self.view.bounds));
-  NSLog(@"layer.bounds: %@", NSStringFromCGRect(metalLayer.bounds));
-  NSLog(@"drawableSize: %@", NSStringFromCGSize(metalLayer.drawableSize));
-  NSLog(@"safeAreaInsets: %@", NSStringFromUIEdgeInsets(self.view.safeAreaInsets));
 
   _application->onViewResize();
 }
@@ -91,7 +90,7 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
 - (void)viewWillLayoutSubviews
 {
   [super viewWillLayoutSubviews];
-  [self NOVA_onViewResize];
+  [self NOVA_onViewResize:self.view.bounds.size];
 }
 
 - (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator
@@ -99,7 +98,7 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
 
   [coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext> context) {
-    [self NOVA_onViewResize];
+    [self NOVA_onViewResize:size];
   } completion:nil];
 }
 

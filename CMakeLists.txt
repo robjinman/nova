@@ -75,6 +75,17 @@ else()
       glfw
     )
   elseif(PLATFORM_IOS)
+    set(LAUNCH_STORYBOARD ${CMAKE_CURRENT_SOURCE_DIR}/platform/ios/LaunchScreen.storyboard)
+    set(LAUNCH_STORYBOARDC ${CMAKE_CURRENT_BINARY_DIR}/LaunchScreen.storyboardc)
+
+    add_custom_command(
+      OUTPUT ${LAUNCH_STORYBOARDC}
+      COMMAND ibtool --errors --warnings --notices --output-format human-readable-text
+        --compile ${LAUNCH_STORYBOARDC} ${LAUNCH_STORYBOARD}
+      DEPENDS ${LAUNCH_STORYBOARD}
+      COMMENT "Compiling LaunchScreen.storyboard"
+    )
+
     list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/platform/ios/cmake")
     set(MACOSX_BUNDLE_BUNDLE_NAME "Nova")
     set(MACOSX_BUNDLE_BUNDLE_VERSION "0.1")
@@ -88,6 +99,7 @@ else()
       "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/ios/vulkan_window_delegate.mm"
       "${PROJECT_SOURCE_DIR}/data"
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
+      "${LAUNCH_STORYBOARDC}"
     )
     set_source_files_properties(
       "${PROJECT_SOURCE_DIR}/data"
@@ -96,6 +108,11 @@ else()
     )
     set_source_files_properties(
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
+      PROPERTIES
+        MACOSX_PACKAGE_LOCATION Resources
+    )
+    set_source_files_properties(
+      "${LAUNCH_STORYBOARDC}"
       PROPERTIES
         MACOSX_PACKAGE_LOCATION Resources
     )
@@ -122,6 +139,7 @@ else()
       XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH "NO"
       MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
       MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
+      MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/platform/ios/Info.plist
       XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "LW57Q4U5U7"
       XCODE_EMBED_FRAMEWORKS "${Vulkan_MoltenVK_LIBRARY};${Vulkan_LIBRARY};${Vulkan_Layer_VALIDATION}" # TODO: ${Vulkan_Layer_VALIDATION}
       XCODE_EMBED_FRAMEWORKS_CODE_SIGN_ON_COPY "YES"
