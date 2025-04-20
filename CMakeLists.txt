@@ -55,6 +55,7 @@ else()
     )
     target_link_libraries(${EXE_TARGET} PRIVATE
       glfw
+      winmm
     )
   elseif(PLATFORM_OSX)
     find_package(glfw3 REQUIRED)
