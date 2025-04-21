@@ -93,4 +93,4 @@ using PipelinePtr = std::unique_ptr<Pipeline>;
 PipelinePtr createPipeline(const MeshFeatureSet& meshFeatures,
   const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
   const RenderResources& renderResources, VkDevice device, VkExtent2D swapchainExtent,
-  VkRenderPass renderPass);
+  VkFormat swapchainImageFormat, VkFormat depthFormat);

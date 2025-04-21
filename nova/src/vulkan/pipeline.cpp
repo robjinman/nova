@@ -245,11 +245,6 @@ void SourceIncluder::ReleaseInclude(shaderc_include_result* data)
   }
 }
 
-struct PipelineProperties
-{
-  bool hasLighting = false;
-};
-
 struct ShaderProgram
 {
   std::vector<uint32_t> vertexShaderCode;
@@ -267,7 +262,7 @@ class PipelineImpl : public Pipeline
   public:
     PipelineImpl(const MeshFeatureSet& meshFeatures, const MaterialFeatureSet& materialFeatures,
       const FileSystem& fileSystem, const RenderResources& renderResources, VkDevice device,
-      VkExtent2D swapchainExtent, VkRenderPass renderPass);
+      VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat);
 
     void onViewportResize(VkExtent2D swapchainExtent) override;
 
@@ -280,12 +275,11 @@ class PipelineImpl : public Pipeline
     const FileSystem& m_fileSystem;
     const RenderResources& m_renderResources;
     VkDevice m_device;
-    VkRenderPass m_renderPass;
+    VkFormat m_swapchainImageFormat;
     VkShaderModule m_vertShaderModule = VK_NULL_HANDLE;
     VkShaderModule m_fragShaderModule = VK_NULL_HANDLE;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     VkPipelineLayout m_layout = VK_NULL_HANDLE;
-    PipelineProperties m_properties; // TODO: Remove?
 
     VkPipelineShaderStageCreateInfo m_vertShaderStageInfo;
     VkPipelineShaderStageCreateInfo m_fragShaderStageInfo;
@@ -303,6 +297,7 @@ class PipelineImpl : public Pipeline
     VkPipelineColorBlendAttachmentState m_colourBlendAttachmentState;
     VkPipelineColorBlendStateCreateInfo m_colourBlendStateInfo;
     VkPipelineDepthStencilStateCreateInfo m_depthStencilStateInfo;
+    VkPipelineRenderingCreateInfo m_renderingCreateInfo;
 
     ShaderProgram compileShaderProgram(const MeshFeatureSet& meshFeatures,
       const MaterialFeatureSet& materialFeatures);
@@ -317,11 +312,11 @@ class PipelineImpl : public Pipeline
 PipelineImpl::PipelineImpl(const MeshFeatureSet& meshFeatures,
   const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
   const RenderResources& renderResources, VkDevice device, VkExtent2D swapchainExtent,
-  VkRenderPass renderPass)
+  VkFormat swapchainImageFormat, VkFormat depthFormat)
   : m_fileSystem(fileSystem)
   , m_renderResources(renderResources)
   , m_device(device)
-  , m_renderPass(renderPass)
+  , m_swapchainImageFormat(swapchainImageFormat)
 {
   auto program = compileShaderProgram(meshFeatures, materialFeatures);
 
@@ -430,6 +425,16 @@ PipelineImpl::PipelineImpl(const MeshFeatureSet& meshFeatures,
     .pPushConstantRanges = m_pushConstantRanges.size() == 0 ? nullptr : m_pushConstantRanges.data()
   };
 
+  m_renderingCreateInfo = VkPipelineRenderingCreateInfo{
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+    .pNext = nullptr,
+    .viewMask = 0,
+    .colorAttachmentCount = 1,
+    .pColorAttachmentFormats = &m_swapchainImageFormat,
+    .depthAttachmentFormat = depthFormat,
+    .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
+  };
+
   constructPipeline(swapchainExtent);
 }
 
@@ -449,7 +454,7 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
 
   VkGraphicsPipelineCreateInfo pipelineInfo{
     .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-    .pNext = nullptr,
+    .pNext = &m_renderingCreateInfo,
     .flags = 0,
     .stageCount = 2,
     .pStages = shaderStages,
@@ -463,7 +468,7 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
     .pColorBlendState = &m_colourBlendStateInfo,
     .pDynamicState = nullptr,
     .layout = m_layout,
-    .renderPass = m_renderPass,
+    .renderPass = nullptr,
     .subpass = 0,
     .basePipelineHandle = VK_NULL_HANDLE,
     .basePipelineIndex = -1
@@ -625,8 +630,8 @@ PipelineImpl::~PipelineImpl()
 PipelinePtr createPipeline(const MeshFeatureSet& meshFeatures,
   const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
   const RenderResources& renderResources, VkDevice device, VkExtent2D swapchainExtent,
-  VkRenderPass renderPass)
+  VkFormat swapchainImageFormat, VkFormat depthFormat)
 {
   return std::make_unique<PipelineImpl>(meshFeatures, materialFeatures, fileSystem, renderResources,
-    device, swapchainExtent, renderPass);
+    device, swapchainExtent, swapchainImageFormat, depthFormat);
 }
