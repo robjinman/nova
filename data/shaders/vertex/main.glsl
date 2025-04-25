@@ -23,8 +23,8 @@ layout(location = 3) out vec3 outTangent;
 layout(location = 4) out vec3 outBitangent;
 #endif
 
-#if defined(MAIN_SKYBOX)
-#include "vertex/main_skybox.glsl"
+#if defined(VERT_MAIN_PASSTHROUGH)
+#include "vertex/main_passthrough.glsl"
 #else
 #include "vertex/main_default.glsl"
 #endif

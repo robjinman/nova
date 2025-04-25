@@ -90,6 +90,12 @@ class RenderResources
     virtual VkDescriptorSetLayout getLightingDescriptorSetLayout() const = 0;
     virtual VkDescriptorSet getLightingDescriptorSet(size_t currentFrame) const = 0;
 
+    // Shadow pass
+    //
+    virtual VkDescriptorSetLayout getShadowPassDescriptorSetLayout() const = 0;
+    virtual VkDescriptorSet getShadowPassDescriptorSet() const = 0;
+    virtual VkImageView getShadowMapImageView() const = 0;
+
     virtual ~RenderResources() = default;
 };
 

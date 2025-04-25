@@ -56,11 +56,27 @@ struct MaterialData
 
 using MaterialDataPtr = std::unique_ptr<MaterialData>;
 
-enum MaterialDescriptorSetBindings : uint32_t {
+enum class MaterialDescriptorSetBindings : uint32_t
+{
   Ubo,
   TextureSampler,
   NormapMapSampler,
   CubeMapSampler
+};
+
+enum class MatricesDescriptorSetBindings : uint32_t
+{
+  Ubo
+};
+
+enum class LightingDescriptorSetBindings : uint32_t
+{
+  Ubo
+};
+
+enum class ShadowPassDescriptorSetBindings : uint32_t
+{
+  ShadowMap
 };
 
 class RenderResourcesImpl : public RenderResources
@@ -105,6 +121,12 @@ class RenderResourcesImpl : public RenderResources
     VkDescriptorSetLayout getLightingDescriptorSetLayout() const override;
     VkDescriptorSet getLightingDescriptorSet(size_t currentFrame) const override;
 
+    // Shadow pass
+    //
+    VkDescriptorSetLayout getShadowPassDescriptorSetLayout() const override;
+    VkDescriptorSet getShadowPassDescriptorSet() const override;
+    VkImageView getShadowMapImageView() const override;
+
     ~RenderResourcesImpl() override;
 
   private:
@@ -137,6 +159,13 @@ class RenderResourcesImpl : public RenderResources
     std::vector<VkDeviceMemory> m_lightingUboMemory;
     std::vector<void*> m_lightingUboMapped;
 
+    VkExtent2D m_shadowMapSize{ 800, 600 };
+    VkImage m_shadowMapImage;
+    VkDeviceMemory m_shadowMapImageMemory;
+    VkImageView m_shadowMapImageView;
+    VkDescriptorSetLayout m_shadowPassDescriptorSetLayout;
+    VkDescriptorSet m_shadowPassDescriptorSet;
+
     RenderItemId addTexture(TexturePtr texture, VkFormat format);
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height,
@@ -150,20 +179,22 @@ class RenderResourcesImpl : public RenderResources
     void createNormalMapSampler();
     void createCubeMapSampler();
     VkBuffer createIndexBuffer(const Buffer& indexBuffer, VkDeviceMemory& indexBufferMemory);
-    void createUniformBuffers();
     void createPerFrameUbos(size_t size, std::vector<VkBuffer>& buffers,
       std::vector<VkDeviceMemory>& memory, std::vector<void*>& mappings);
     void createUbo(size_t size, VkBuffer& buffer, VkDeviceMemory& memory, void*& mapping);
     void createDescriptorPool();
-    void createDescriptorSets();
     void createDescriptorSets(size_t n, VkDescriptorSetLayout layout,
       std::vector<VkDescriptorSet>& descriptorSets, const std::vector<VkBuffer>& buffers);
     void addSamplerToDescriptorSet(VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler,
       uint32_t binding);
-    void createDescriptorSetLayouts();
-    void createUboDescriptorSetLayout();
-    void createLightingDescriptorSetLayout();
+    void createMatricesResources();
+    void createLightingResources();
+    void createShadowPassResources();
+    void createMaterialResources();
     void createMaterialDescriptorSetLayout();
+    void createMatricesDescriptorSetLayout();
+    void createLightingDescriptorSetLayout();
+    void createShadowPassDescriptorSetLayout();
     void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
       uint32_t layerCount);
     VkCommandBuffer beginSingleTimeCommands();
@@ -180,13 +211,11 @@ RenderResourcesImpl::RenderResourcesImpl(VkPhysicalDevice physicalDevice, VkDevi
 {
   DBG_TRACE(m_logger);
 
-  createDescriptorSetLayouts();
-  createTextureSampler();
-  createNormalMapSampler();
-  createCubeMapSampler();
-  createUniformBuffers();
   createDescriptorPool();
-  createDescriptorSets();
+  createMaterialResources();
+  createMatricesResources();
+  createLightingResources();
+  createShadowPassResources();
 }
 
 RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture, VkFormat format)
@@ -464,7 +493,7 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
     .pNext = nullptr,
     .dstSet = materialData->descriptorSet,
-    .dstBinding = MaterialDescriptorSetBindings::Ubo,
+    .dstBinding = static_cast<uint32_t>(MaterialDescriptorSetBindings::Ubo),
     .dstArrayElement = 0,
     .descriptorCount = 1,
     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -487,17 +516,17 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
   if (material->featureSet.hasTexture) {
     VkImageView imageView = m_textures.at(material->texture.id)->imageView;
     addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_textureSampler,
-      MaterialDescriptorSetBindings::TextureSampler);
+      static_cast<uint32_t>(MaterialDescriptorSetBindings::TextureSampler));
   }
   if (material->featureSet.hasNormalMap) {
     VkImageView imageView = m_textures.at(material->normalMap.id)->imageView;
     addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_normalMapSampler,
-      MaterialDescriptorSetBindings::NormapMapSampler);
+      static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler));
   }
   if (material->featureSet.hasCubeMap) {
     VkImageView imageView = m_cubeMaps.at(material->cubeMap.id)->imageView;
     addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_cubeMapSampler,
-      MaterialDescriptorSetBindings::CubeMapSampler);
+      static_cast<uint32_t>(MaterialDescriptorSetBindings::CubeMapSampler));
   }
 
   handle.id = nextMaterialId++;
@@ -563,6 +592,21 @@ VkDescriptorSetLayout RenderResourcesImpl::getLightingDescriptorSetLayout() cons
 VkDescriptorSet RenderResourcesImpl::getLightingDescriptorSet(size_t currentFrame) const
 {
   return m_lightingUboDescriptorSets[currentFrame];
+}
+
+VkDescriptorSetLayout RenderResourcesImpl::getShadowPassDescriptorSetLayout() const
+{
+  return m_shadowPassDescriptorSetLayout;
+}
+
+VkDescriptorSet RenderResourcesImpl::getShadowPassDescriptorSet() const
+{
+  return m_shadowPassDescriptorSet;
+}
+
+VkImageView RenderResourcesImpl::getShadowMapImageView() const
+{
+  return m_shadowMapImageView;
 }
 
 void RenderResourcesImpl::createDescriptorPool()
@@ -799,14 +843,208 @@ void RenderResourcesImpl::createPerFrameUbos(size_t size, std::vector<VkBuffer>&
   }
 }
 
-void RenderResourcesImpl::createUniformBuffers()
+void RenderResourcesImpl::createMatricesDescriptorSetLayout()
 {
   DBG_TRACE(m_logger);
 
+  VkDescriptorSetLayoutBinding uboLayoutBinding{
+    .binding = static_cast<uint32_t>(MatricesDescriptorSetBindings::Ubo),
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
+  std::vector<VkDescriptorSetLayoutBinding> bindings{
+    uboLayoutBinding
+    // ...
+  };
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .bindingCount = static_cast<uint32_t>(bindings.size()),
+    .pBindings = bindings.data()
+  };
+
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
+    &m_matricesUboDescriptorSetLayout), "Failed to create descriptor set layout");
+}
+
+void RenderResourcesImpl::createLightingDescriptorSetLayout()
+{
+  DBG_TRACE(m_logger);
+
+  VkDescriptorSetLayoutBinding uboLayoutBinding{
+    .binding = static_cast<uint32_t>(LightingDescriptorSetBindings::Ubo),
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
+  std::vector<VkDescriptorSetLayoutBinding> bindings{
+    uboLayoutBinding
+    // ...
+  };
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .bindingCount = static_cast<uint32_t>(bindings.size()),
+    .pBindings = bindings.data()
+  };
+  
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
+    &m_lightingUboDescriptorSetLayout), "Failed to create descriptor set layout");
+}
+
+void RenderResourcesImpl::createShadowPassDescriptorSetLayout()
+{
+  DBG_TRACE(m_logger);
+
+  VkDescriptorSetLayoutBinding shadowMapLayoutBinding{
+    .binding = static_cast<uint32_t>(ShadowPassDescriptorSetBindings::ShadowMap),
+    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
+  std::vector<VkDescriptorSetLayoutBinding> bindings{
+    shadowMapLayoutBinding
+    // ...
+  };
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .bindingCount = static_cast<uint32_t>(bindings.size()),
+    .pBindings = bindings.data()
+  };
+  
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
+    &m_shadowPassDescriptorSetLayout), "Failed to create descriptor set layout");
+}
+
+void RenderResourcesImpl::createMaterialDescriptorSetLayout()
+{
+  DBG_TRACE(m_logger);
+
+  VkDescriptorSetLayoutBinding uboLayoutBinding{
+    .binding = static_cast<uint32_t>(MaterialDescriptorSetBindings::Ubo),
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
+  VkDescriptorSetLayoutBinding textureSamplerLayoutBinding{
+    .binding = static_cast<uint32_t>(MaterialDescriptorSetBindings::TextureSampler),
+    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
+  VkDescriptorSetLayoutBinding normalMapLayoutBinding{
+    .binding = static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler),
+    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
+  VkDescriptorSetLayoutBinding cubeMapLayoutBinding{
+    .binding = static_cast<uint32_t>(MaterialDescriptorSetBindings::CubeMapSampler),
+    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
+  std::vector<VkDescriptorSetLayoutBinding> bindings{
+    textureSamplerLayoutBinding,
+    normalMapLayoutBinding,
+    cubeMapLayoutBinding,
+    uboLayoutBinding
+    // ...
+  };
+
+  // TODO: Remove this?
+  std::array<VkDescriptorBindingFlags, 4> bindingFlags = {
+    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
+    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
+    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
+    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT
+  };
+
+  VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
+    .pNext = nullptr,
+    .bindingCount = static_cast<uint32_t>(bindingFlags.size()),
+    .pBindingFlags = bindingFlags.data()
+  };
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .pNext = nullptr,//&bindingFlagsInfo,
+    .flags = 0,
+    .bindingCount = static_cast<uint32_t>(bindings.size()),
+    .pBindings = bindings.data()
+  };
+
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
+    &m_materialDescriptorSetLayout), "Failed to create descriptor set layout");
+}
+
+void RenderResourcesImpl::createMaterialResources()
+{
+  createTextureSampler();
+  createNormalMapSampler();
+  createCubeMapSampler();
+  createMaterialDescriptorSetLayout();
+}
+
+void RenderResourcesImpl::createMatricesResources()
+{
+  createMatricesDescriptorSetLayout();
+
   createPerFrameUbos(sizeof(MatricesUbo), m_matricesUboBuffers, m_matricesUboMemory,
     m_matricesUboMapped);
+
+  createDescriptorSets(MAX_FRAMES_IN_FLIGHT, m_matricesUboDescriptorSetLayout,
+    m_matricesUboDescriptorSets, m_matricesUboBuffers);
+}
+
+void RenderResourcesImpl::createLightingResources()
+{
+  createLightingDescriptorSetLayout();
+
   createPerFrameUbos(sizeof(LightingUbo), m_lightingUboBuffers, m_lightingUboMemory,
     m_lightingUboMapped);
+
+  createDescriptorSets(MAX_FRAMES_IN_FLIGHT, m_lightingUboDescriptorSetLayout,
+    m_lightingUboDescriptorSets, m_lightingUboBuffers);
+}
+
+void RenderResourcesImpl::createShadowPassResources()
+{
+  DBG_TRACE(m_logger);
+
+  createShadowPassDescriptorSetLayout();
+
+  VkFormat depthFormat = findDepthFormat(m_physicalDevice);
+
+  createImage(m_physicalDevice, m_device, m_shadowMapSize.width, m_shadowMapSize.height,
+    depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_shadowMapImage, m_shadowMapImageMemory);
+
+  m_shadowMapImageView = createImageView(m_device, m_shadowMapImage, depthFormat,
+    VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
 }
 
 void RenderResourcesImpl::createDescriptorSets(size_t n, VkDescriptorSetLayout layout,
@@ -832,7 +1070,7 @@ void RenderResourcesImpl::createDescriptorSets(size_t n, VkDescriptorSetLayout l
     VkDescriptorBufferInfo bufferInfo{
       .buffer = buffers[i],
       .offset = 0,
-      .range = sizeof(MatricesUbo)
+      .range = VK_WHOLE_SIZE
     };
 
     VkWriteDescriptorSet descriptorWrite{
@@ -850,17 +1088,6 @@ void RenderResourcesImpl::createDescriptorSets(size_t n, VkDescriptorSetLayout l
 
     vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
   }
-}
-
-void RenderResourcesImpl::createDescriptorSets()
-{
-  DBG_TRACE(m_logger);
-
-  createDescriptorSets(MAX_FRAMES_IN_FLIGHT, m_matricesUboDescriptorSetLayout,
-    m_matricesUboDescriptorSets, m_matricesUboBuffers);
-
-  createDescriptorSets(MAX_FRAMES_IN_FLIGHT, m_lightingUboDescriptorSetLayout,
-    m_lightingUboDescriptorSets, m_lightingUboBuffers);
 }
 
 VkCommandBuffer RenderResourcesImpl::beginSingleTimeCommands()
@@ -961,143 +1188,6 @@ void RenderResourcesImpl::transitionImageLayout(VkImage image, VkImageLayout old
     &barrier);
 
   endSingleTimeCommands(commandBuffer);
-}
-
-void RenderResourcesImpl::createUboDescriptorSetLayout()  // TODO: Rename this
-{
-  DBG_TRACE(m_logger);
-
-  VkDescriptorSetLayoutBinding uboLayoutBinding{
-    .binding = 0,
-    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-    .pImmutableSamplers = nullptr
-  };
-
-  std::vector<VkDescriptorSetLayoutBinding> bindings{
-    uboLayoutBinding
-    // ...
-  };
-
-  VkDescriptorSetLayoutCreateInfo layoutInfo{
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .pNext = nullptr,
-    .flags = 0,
-    .bindingCount = static_cast<uint32_t>(bindings.size()),
-    .pBindings = bindings.data()
-  };
-
-  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
-    &m_matricesUboDescriptorSetLayout), "Failed to create descriptor set layout");
-}
-
-void RenderResourcesImpl::createLightingDescriptorSetLayout()
-{
-  DBG_TRACE(m_logger);
-
-  VkDescriptorSetLayoutBinding lightingLayoutBinding{
-    .binding = 0,
-    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-    .pImmutableSamplers = nullptr
-  };
-
-  std::vector<VkDescriptorSetLayoutBinding> bindings{
-    lightingLayoutBinding
-    // ...
-  };
-
-  VkDescriptorSetLayoutCreateInfo layoutInfo{
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .pNext = nullptr,
-    .flags = 0,
-    .bindingCount = static_cast<uint32_t>(bindings.size()),
-    .pBindings = bindings.data()
-  };
-  
-  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
-    &m_lightingUboDescriptorSetLayout), "Failed to create descriptor set layout");
-}
-
-void RenderResourcesImpl::createMaterialDescriptorSetLayout()
-{
-  DBG_TRACE(m_logger);
-
-  VkDescriptorSetLayoutBinding materialLayoutBinding{
-    .binding = MaterialDescriptorSetBindings::Ubo,
-    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-    .pImmutableSamplers = nullptr
-  };
-
-  VkDescriptorSetLayoutBinding textureSamplerLayoutBinding{
-    .binding = MaterialDescriptorSetBindings::TextureSampler,
-    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-    .pImmutableSamplers = nullptr
-  };
-
-  VkDescriptorSetLayoutBinding normalMapLayoutBinding{
-    .binding = MaterialDescriptorSetBindings::NormapMapSampler,
-    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-    .pImmutableSamplers = nullptr
-  };
-
-  VkDescriptorSetLayoutBinding cubeMapLayoutBinding{
-    .binding = MaterialDescriptorSetBindings::CubeMapSampler,
-    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-    .pImmutableSamplers = nullptr
-  };
-
-  std::vector<VkDescriptorSetLayoutBinding> bindings{
-    textureSamplerLayoutBinding,
-    normalMapLayoutBinding,
-    cubeMapLayoutBinding,
-    materialLayoutBinding
-    // ...
-  };
-
-  std::array<VkDescriptorBindingFlags, 4> bindingFlags = {
-    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
-    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
-    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
-    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT
-  };
-
-  VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsInfo{
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
-    .pNext = nullptr,
-    .bindingCount = static_cast<uint32_t>(bindingFlags.size()),
-    .pBindingFlags = bindingFlags.data()
-  };
-
-  VkDescriptorSetLayoutCreateInfo layoutInfo{
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .pNext = nullptr,//&bindingFlagsInfo,
-    .flags = 0,
-    .bindingCount = static_cast<uint32_t>(bindings.size()),
-    .pBindings = bindings.data()
-  };
-
-  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
-    &m_materialDescriptorSetLayout), "Failed to create descriptor set layout");
-}
-
-void RenderResourcesImpl::createDescriptorSetLayouts()
-{
-  DBG_TRACE(m_logger);
-
-  createUboDescriptorSetLayout();
-  createLightingDescriptorSetLayout();
-  createMaterialDescriptorSetLayout();
 }
 
 void RenderResourcesImpl::createTextureSampler()
@@ -1210,6 +1300,11 @@ RenderResourcesImpl::~RenderResourcesImpl()
   vkDestroyDescriptorSetLayout(m_device, m_matricesUboDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_materialDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_lightingUboDescriptorSetLayout, nullptr);
+  vkDestroyDescriptorSetLayout(m_device, m_shadowPassDescriptorSetLayout, nullptr);
+
+  vkDestroyImageView(m_device, m_shadowMapImageView, nullptr);
+  vkDestroyImage(m_device, m_shadowMapImage, nullptr);
+  vkFreeMemory(m_device, m_shadowMapImageMemory, nullptr);
 
   while (!m_meshes.empty()) {
     removeMesh(m_meshes.begin()->first);

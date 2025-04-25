@@ -4,6 +4,7 @@
 #include "file_system.hpp"
 #include "utils.hpp"
 #include "model.hpp"
+#include "logger.hpp"
 #include <shaderc/shaderc.hpp>
 #include <array>
 #include <numeric>
@@ -260,8 +261,9 @@ enum class ShaderType
 class PipelineImpl : public Pipeline
 {
   public:
-    PipelineImpl(const MeshFeatureSet& meshFeatures, const MaterialFeatureSet& materialFeatures,
-      const FileSystem& fileSystem, const RenderResources& renderResources, VkDevice device,
+    PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
+      const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
+      const RenderResources& renderResources, Logger& logger, VkDevice device,
       VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat);
 
     void onViewportResize(VkExtent2D swapchainExtent) override;
@@ -272,6 +274,7 @@ class PipelineImpl : public Pipeline
     ~PipelineImpl() override;
 
   private:
+    Logger& m_logger;
     const FileSystem& m_fileSystem;
     const RenderResources& m_renderResources;
     VkDevice m_device;
@@ -299,7 +302,7 @@ class PipelineImpl : public Pipeline
     VkPipelineDepthStencilStateCreateInfo m_depthStencilStateInfo;
     VkPipelineRenderingCreateInfo m_renderingCreateInfo;
 
-    ShaderProgram compileShaderProgram(const MeshFeatureSet& meshFeatures,
+    ShaderProgram compileShaderProgram(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
       const MaterialFeatureSet& materialFeatures);
 
     std::vector<uint32_t> compileShader(const std::string& name, const std::vector<char>& source,
@@ -309,16 +312,19 @@ class PipelineImpl : public Pipeline
     void destroyPipeline();
 };
 
-PipelineImpl::PipelineImpl(const MeshFeatureSet& meshFeatures,
+PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
   const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
-  const RenderResources& renderResources, VkDevice device, VkExtent2D swapchainExtent,
-  VkFormat swapchainImageFormat, VkFormat depthFormat)
-  : m_fileSystem(fileSystem)
+  const RenderResources& renderResources, Logger& logger, VkDevice device,
+  VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat)
+  : m_logger(logger)
+  , m_fileSystem(fileSystem)
   , m_renderResources(renderResources)
   , m_device(device)
   , m_swapchainImageFormat(swapchainImageFormat)
 {
-  auto program = compileShaderProgram(meshFeatures, materialFeatures);
+  // TODO: Use renderPass
+
+  auto program = compileShaderProgram(renderPass, meshFeatures, materialFeatures);
 
   m_vertShaderModule = createShaderModule(m_device, program.vertexShaderCode);
   m_fragShaderModule = createShaderModule(m_device, program.fragmentShaderCode);
@@ -360,7 +366,7 @@ PipelineImpl::PipelineImpl(const MeshFeatureSet& meshFeatures,
       uint32_t offset = offsetof(MeshInstance, modelMatrix) + 4 * sizeof(float_t) * i;
   
       VkVertexInputAttributeDescription attr{
-        .location = 6 + i, // TODO
+        .location = LAST_ATTR_IDX + 1 + i,
         .binding = 1,
         .format = VK_FORMAT_R32G32B32A32_SFLOAT,
         .offset = offset
@@ -530,8 +536,8 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   bindState.descriptorSets = descriptorSets;
 }
 
-ShaderProgram PipelineImpl::compileShaderProgram(const MeshFeatureSet& meshFeatures,
-  const MaterialFeatureSet& materialFeatures)
+ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
+  const MeshFeatureSet& meshFeatures, const MaterialFeatureSet& materialFeatures)
 {
   std::vector<std::string> defines;
   for (auto attr : meshFeatures.vertexLayout) {
@@ -545,18 +551,29 @@ ShaderProgram PipelineImpl::compileShaderProgram(const MeshFeatureSet& meshFeatu
       default: break;
     }
   }
+
   if (meshFeatures.isInstanced) {
     defines.push_back("ATTR_MODEL_MATRIX");
   }
-  if (meshFeatures.isSkybox) {
-    defines.push_back("MAIN_SKYBOX");
+  if (renderPass == RenderPass::Shadow) {
+    defines.push_back("VERT_MAIN_PASSTHROUGH");
+    defines.push_back("FRAG_MAIN_DEPTH");
   }
-  if (materialFeatures.hasNormalMap) {
-    assert(meshFeatures.hasTangents);
-    defines.push_back("FEATURE_NORMAL_MAPPING");
-  }
-  if (materialFeatures.hasTexture) {
-    defines.push_back("FEATURE_TEXTURE_MAPPING");
+  else {
+    defines.push_back("FEATURE_LIGHTING");
+    defines.push_back("FEATURE_MATERIALS");
+
+    if (meshFeatures.isSkybox) {
+      defines.push_back("VERT_MAIN_PASSTHROUGH");
+      defines.push_back("FRAG_MAIN_SKYBOX");
+    }
+    if (materialFeatures.hasNormalMap) {
+      assert(meshFeatures.hasTangents);
+      defines.push_back("FEATURE_NORMAL_MAPPING");
+    }
+    if (materialFeatures.hasTexture) {
+      defines.push_back("FEATURE_TEXTURE_MAPPING");
+    }
   }
 
   ShaderProgram program;
@@ -576,6 +593,8 @@ ShaderProgram PipelineImpl::compileShaderProgram(const MeshFeatureSet& meshFeatu
 std::vector<uint32_t> PipelineImpl::compileShader(const std::string& name,
   const std::vector<char>& source, ShaderType type, const std::vector<std::string>& defines)
 {
+  m_logger.info(STR("Compiling '" << name << "' shader with options: " << defines));
+
   shaderc_shader_kind kind = shaderc_shader_kind::shaderc_glsl_vertex_shader;
   switch (type) {
     case ShaderType::Vertex: kind = shaderc_shader_kind::shaderc_glsl_vertex_shader; break;
@@ -627,11 +646,12 @@ PipelineImpl::~PipelineImpl()
 
 } // namespace
 
-PipelinePtr createPipeline(const MeshFeatureSet& meshFeatures,
+PipelinePtr createPipeline(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
   const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
-  const RenderResources& renderResources, VkDevice device, VkExtent2D swapchainExtent,
-  VkFormat swapchainImageFormat, VkFormat depthFormat)
+  const RenderResources& renderResources, Logger& logger, VkDevice device,
+  VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat)
 {
-  return std::make_unique<PipelineImpl>(meshFeatures, materialFeatures, fileSystem, renderResources,
-    device, swapchainExtent, swapchainImageFormat, depthFormat);
+  return std::make_unique<PipelineImpl>(renderPass, meshFeatures, materialFeatures,
+    fileSystem, renderResources, logger, device, swapchainExtent, swapchainImageFormat,
+    depthFormat);
 }

@@ -55,16 +55,7 @@ enum class BufferUsage : int
   AttrJointWeights,
   Index
 };
-
-// TODO: Just use the order they're defined in BufferUsage
-const std::array<BufferUsage, 7> ATTRIBUTE_ORDER{
-  BufferUsage::AttrPosition,
-  BufferUsage::AttrNormal,
-  BufferUsage::AttrTexCoord,
-  BufferUsage::AttrTangent,
-  BufferUsage::AttrJointIndices,
-  BufferUsage::AttrJointWeights
-};
+const uint32_t LAST_ATTR_IDX = static_cast<uint32_t>(BufferUsage::AttrJointWeights);
 
 inline size_t getAttributeSize(BufferUsage usage)
 {
@@ -87,7 +78,7 @@ struct MeshFeatureSet
   bool isInstanced = false;
   bool isSkybox = false;
   bool isAnimated = false;
-  bool hasTangents = false; // Tangents and bitangents for normal mapping
+  bool hasTangents = false; // TODO: Need this?
   uint32_t maxInstances = 0;
 
   bool operator==(const MeshFeatureSet& rhs) const = default;
@@ -185,24 +176,9 @@ Buffer createBuffer(const std::vector<T>& data, BufferUsage usage)
 
 inline size_t calcOffsetInVertex(const std::vector<BufferUsage>& layout, BufferUsage attribute)
 {
-  auto isBefore = [&](BufferUsage a, BufferUsage b) {
-    if (a == b) {
-      return false;
-    }
-    for (auto attr : ATTRIBUTE_ORDER) {
-      if (attr == a) {
-        return true;
-      }
-      else if (attr == b) {
-        return false;
-      }
-    }
-    EXCEPTION("Error calculating attribute offset");
-  };
-
   size_t sum = 0;
   for (auto attr : layout) {
-    if (isBefore(attr, attribute)) {
+    if (attr < attribute) {
       sum += getAttributeSize(attr);
     }
   }

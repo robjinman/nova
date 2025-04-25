@@ -23,3 +23,5 @@ VkImageView createImageView(VkDevice device, VkImage image, VkFormat format,
 
 uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
   VkMemoryPropertyFlags properties);
+
+VkFormat findDepthFormat(VkPhysicalDevice physicalDevice);

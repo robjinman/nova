@@ -160,14 +160,17 @@ class RendererImpl : public Renderer
     void createDepthResources();
     void createCommandBuffers();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    void doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    void doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    void doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void updateResources();
     void updateMatricesUbo(const Mat4x4f& cameraMatrix);
     void finishFrame();
     void createSyncObjects();
-    VkFormat findDepthFormat() const;
     void renderLoop();
     void cleanUp();
     RenderGraph::Key generateRenderGraphKey(MeshHandle mesh, MaterialHandle material) const;
+    Pipeline& choosePipeline(RenderPass renderPass, const RenderNode& node);
 
     ViewParams m_viewParams;
     const FileSystem& m_fileSystem;
@@ -287,14 +290,31 @@ void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
   ASSERT(!m_running, "Renderer already started");
 
   return m_thread.run<void>([&, this]() {
+    auto depthFormat = findDepthFormat(m_physicalDevice);
+
     PipelineKey key{
+      .renderPass = RenderPass::Main,
       .meshFeatures = meshFeatures,
       .materialFeatures = materialFeatures
     };
   
     if (!m_pipelines.contains(key)) {
-      auto pipeline = createPipeline(meshFeatures, materialFeatures, m_fileSystem, *m_resources,
-        m_device, m_swapchainExtent, m_swapchainImageFormat, findDepthFormat());
+      auto pipeline = createPipeline(RenderPass::Main, meshFeatures, materialFeatures, m_fileSystem,
+        *m_resources, m_logger, m_device, m_swapchainExtent, m_swapchainImageFormat, depthFormat);
+
+      m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
+    }
+
+    key = PipelineKey{
+      .renderPass = RenderPass::Shadow,
+      .meshFeatures = meshFeatures,
+      .materialFeatures = std::nullopt
+    };
+
+    if (!m_pipelines.contains(key)) {
+      auto pipeline = createPipeline(RenderPass::Shadow, meshFeatures, materialFeatures,
+        m_fileSystem, *m_resources, m_logger, m_device, m_swapchainExtent, m_swapchainImageFormat,
+        depthFormat);
 
       m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
     }
@@ -319,7 +339,11 @@ const ViewParams& RendererImpl::getViewParams() const
 RenderGraph::Key RendererImpl::generateRenderGraphKey(MeshHandle mesh,
   MaterialHandle material) const
 {
-  PipelineKey pipelineKey{ mesh.features, material.features };
+  PipelineKey pipelineKey{
+    .renderPass = RenderPass::Main,
+    .meshFeatures = mesh.features,
+    .materialFeatures = material.features
+  };
   auto pipelineHash = std::hash<PipelineKey>{}(pipelineKey);
 
   if (mesh.features.isInstanced) {
@@ -764,7 +788,6 @@ void RendererImpl::recreateSwapChain()
   createSwapChain(extent);
   createImageViews();
   createDepthResources();
-  //createFramebuffers();
 
   for (auto& i : m_pipelines) {
     i.second->onViewportResize(m_swapchainExtent);
@@ -1007,18 +1030,68 @@ void RendererImpl::createCommandPool()
     "Failed to create command pool");
 }
 
-void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& node)
 {
-  VkCommandBufferBeginInfo beginInfo{
-    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+  PipelineKey key{
+    .renderPass = renderPass,
+    .meshFeatures = node.mesh.features,
+    .materialFeatures = node.material.features
+  };
+  auto i = m_pipelines.find(key);
+  if (i == m_pipelines.end()) {
+    EXCEPTION("No shader has been compiled for this combination of mesh/material features");
+  }
+  return *i->second;
+};
+
+void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+{
+  VkRenderingAttachmentInfo depthAttachment{
+    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
     .pNext = nullptr,
-    .flags = 0,
-    .pInheritanceInfo = nullptr
+    .imageView = m_resources->getShadowMapImageView(),
+    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    .resolveMode = VK_RESOLVE_MODE_NONE,
+    .resolveImageView = nullptr,
+    .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+    .clearValue = VkClearValue{
+      .depthStencil = VkClearDepthStencilValue{
+        .depth = 1.f,
+        .stencil = 0
+      }
+    }
   };
 
-  VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo),
-    "Failed to begin recording command buffer");
+  VkRenderingInfo renderingInfo{
+    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .renderArea = VkRect2D{VkOffset2D{}, m_swapchainExtent},
+    .layerCount = 1,
+    .viewMask = 0,
+    .colorAttachmentCount = 0,
+    .pColorAttachments = nullptr,
+    .pDepthAttachment = &depthAttachment,
+    .pStencilAttachment = nullptr
+  };
 
+  vkCmdBeginRendering(commandBuffer, &renderingInfo);
+
+  auto& state = m_renderStates.getReadable();
+  const auto& renderGraph = state.graph;
+  BindState bindState{};
+  for (auto& node : renderGraph) {
+    auto& pipeline = choosePipeline(RenderPass::Shadow, *node);
+    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
+  }
+
+  vkCmdEndRendering(commandBuffer);
+}
+
+void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+{
   VkRenderingAttachmentInfo colourAttachment{
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
     .pNext = nullptr,
@@ -1065,6 +1138,36 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
     .pStencilAttachment = nullptr
   };
 
+  vkCmdBeginRendering(commandBuffer, &renderingInfo);
+
+  auto& state = m_renderStates.getReadable();
+  const auto& renderGraph = state.graph;
+  BindState bindState{};
+  for (auto& node : renderGraph) {
+    auto& pipeline = choosePipeline(RenderPass::Main, *node);
+    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
+  }
+
+  vkCmdEndRendering(commandBuffer);
+}
+
+void RendererImpl::doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+{
+  // TODO
+}
+
+void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+{
+  VkCommandBufferBeginInfo beginInfo{
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .pInheritanceInfo = nullptr
+  };
+
+  VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo),
+    "Failed to begin recording command buffer");
+
   VkImageLayout oldLayout = m_currentFrame < m_swapchainImages.size() ?
     VK_IMAGE_LAYOUT_UNDEFINED :
     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
@@ -1073,29 +1176,9 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
 
-  vkCmdBeginRendering(commandBuffer, &renderingInfo);
-
-  auto choosePipeline = [this](const RenderNode& node) -> Pipeline& {
-    PipelineKey key{
-      .meshFeatures = node.mesh.features,
-      .materialFeatures = node.material.features
-    };
-    auto i = m_pipelines.find(key);
-    if (i == m_pipelines.end()) {
-      EXCEPTION("No shader has been compiled for this combination of mesh/material features");
-    }
-    return *i->second;
-  };
-
-  auto& state = m_renderStates.getReadable();
-  const auto& renderGraph = state.graph;
-  BindState bindState{};
-  for (auto& node : renderGraph) {
-    auto& pipeline = choosePipeline(*node);
-    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
-  }
-
-  vkCmdEndRendering(commandBuffer);
+  //doShadowRenderPass(commandBuffer, imageIndex);
+  doMainRenderPass(commandBuffer, imageIndex);
+  doSsrRenderPass(commandBuffer, imageIndex);
 
   transitionImage(commandBuffer, m_swapchainImages[imageIndex],
     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
@@ -1198,40 +1281,11 @@ void RendererImpl::createSyncObjects()
   }
 }
 
-VkFormat RendererImpl::findDepthFormat() const
-{
-  auto findSupportedFormat = [this](const std::vector<VkFormat>& candidates, VkImageTiling tiling,
-    VkFormatFeatureFlags features) {
-
-    for (VkFormat format : candidates) {
-      VkFormatProperties props;
-      vkGetPhysicalDeviceFormatProperties(m_physicalDevice, format, &props);
-
-      if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
-        return format;
-      }
-      else if (tiling == VK_IMAGE_TILING_OPTIMAL &&
-        (props.optimalTilingFeatures & features) == features) {
-
-        return format;
-      }
-    }
-
-    EXCEPTION("Failed to find supported format");
-  };
-
-  return findSupportedFormat({
-    VK_FORMAT_D32_SFLOAT,
-    VK_FORMAT_D32_SFLOAT_S8_UINT,
-    VK_FORMAT_D24_UNORM_S8_UINT
-  }, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-}
-
 void RendererImpl::createDepthResources()
 {
   DBG_TRACE(m_logger);
 
-  VkFormat depthFormat = findDepthFormat();
+  VkFormat depthFormat = findDepthFormat(m_physicalDevice);
 
   createImage(m_physicalDevice, m_device, m_swapchainExtent.width, m_swapchainExtent.height,
     depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,

@@ -3,6 +3,14 @@
 #include "tree_set.hpp"
 #include "render_resources.hpp"
 #include <vulkan/vulkan.h>
+#include <optional>
+
+enum class RenderPass
+{
+  Shadow,
+  Main,
+  Ssr
+};
 
 enum class RenderNodeType
 {
@@ -29,8 +37,9 @@ using RenderGraph = TreeSet<RenderGraphKey, RenderNodePtr>;
 
 struct PipelineKey
 {
-  MeshFeatureSet meshFeatures;
-  MaterialFeatureSet materialFeatures;
+  RenderPass renderPass;
+  std::optional<MeshFeatureSet> meshFeatures;
+  std::optional<MaterialFeatureSet> materialFeatures;
 
   bool operator==(const PipelineKey& rhs) const = default;
 };
@@ -40,9 +49,18 @@ struct std::hash<PipelineKey>
 {
   std::size_t operator()(const PipelineKey& key) const noexcept
   {
-    return hashAll(key.meshFeatures, key.materialFeatures);
+    return hashAll(key.renderPass, key.meshFeatures, key.materialFeatures);
   }
 };
+/*
+template<typename T>
+struct std::hash<std::optional<T>>
+{
+  std::size_t operator()(const std::optional<T>& x) const noexcept
+  {
+    return x.has_value() ? std::hash<T>{}(x.value()) : 0;
+  }
+};*/
 
 struct DefaultModelNode : public RenderNode
 {
@@ -90,7 +108,9 @@ class Pipeline
 
 using PipelinePtr = std::unique_ptr<Pipeline>;
 
-PipelinePtr createPipeline(const MeshFeatureSet& meshFeatures,
+class Logger;
+
+PipelinePtr createPipeline(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
   const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
-  const RenderResources& renderResources, VkDevice device, VkExtent2D swapchainExtent,
-  VkFormat swapchainImageFormat, VkFormat depthFormat);
+  const RenderResources& renderResources, Logger& logger, VkDevice device,
+  VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat);
