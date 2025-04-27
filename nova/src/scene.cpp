@@ -80,7 +80,7 @@ PlayerPtr SceneBuilder::createScene()
   m_collisionSystem.initialise(bounds.first, bounds.second);
 
   constructInstances(objectData);
-  constructSky();
+  //constructSky();
   constructOriginMarkers();
 
   ASSERT(m_player != nullptr, "Map does not contain player");
@@ -220,7 +220,7 @@ void SceneBuilder::constructPlayer(const ObjectData& obj, const Mat4x4f& parentT
   //    0,        1,        0,        0,
   //    -sin(a),  0,        cos(a),   tz
   //    0,        0,        0,        1
-  float_t yaw = 2.f * static_cast<float>(PI) - atan2(m.at(2, 0), m.at(0, 0));
+  float_t yaw = 2.f * PIf - atan2(m.at(2, 0), m.at(0, 0));
 
   float_t x = m.at(0, 3);
   float_t y = m.at(1, 3);

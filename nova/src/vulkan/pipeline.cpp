@@ -277,6 +277,7 @@ class PipelineImpl : public Pipeline
     Logger& m_logger;
     const FileSystem& m_fileSystem;
     const RenderResources& m_renderResources;
+    RenderPass m_renderPass;
     VkDevice m_device;
     VkFormat m_swapchainImageFormat;
     VkShaderModule m_vertShaderModule = VK_NULL_HANDLE;
@@ -319,11 +320,10 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   : m_logger(logger)
   , m_fileSystem(fileSystem)
   , m_renderResources(renderResources)
+  , m_renderPass(renderPass)
   , m_device(device)
   , m_swapchainImageFormat(swapchainImageFormat)
 {
-  // TODO: Use renderPass
-
   auto program = compileShaderProgram(renderPass, meshFeatures, materialFeatures);
 
   m_vertShaderModule = createShaderModule(m_device, program.vertexShaderCode);
@@ -399,16 +399,25 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
 
   m_inputAssemblyStateInfo = defaultInputAssemblyState();
   m_rasterizationStateInfo = defaultRasterizationState(materialFeatures.isDoubleSided);
+  if (m_renderPass == RenderPass::Shadow) {
+    m_rasterizationStateInfo.depthBiasEnable = VK_TRUE;
+    m_rasterizationStateInfo.depthBiasConstantFactor = 1.25f;
+    m_rasterizationStateInfo.depthBiasSlopeFactor = 1.75f;
+    //m_rasterizationStateInfo.cullMode = VK_CULL_MODE_NONE;
+  }
   m_multisampleStateInfo = defaultMultisamplingState();
   m_colourBlendStateInfo = defaultColourBlendState(m_colourBlendAttachmentState);
   m_depthStencilStateInfo = defaultDepthStencilState();
 
   m_descriptorSetLayouts = {
-    m_renderResources.getMatricesDescriptorSetLayout(),
+    m_renderResources.getTransformsDescriptorSetLayout(),
     m_renderResources.getMaterialDescriptorSetLayout()
   };
-  if (!meshFeatures.isSkybox) {
+  //if (!meshFeatures.isSkybox) {
     m_descriptorSetLayouts.push_back(m_renderResources.getLightingDescriptorSetLayout());
+  //}
+  if (m_renderPass == RenderPass::Main) {
+    m_descriptorSetLayouts.push_back(m_renderResources.getShadowPassDescriptorSetLayout());
   }
 
   if (!meshFeatures.isInstanced && !meshFeatures.isSkybox) {
@@ -431,15 +440,30 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     .pPushConstantRanges = m_pushConstantRanges.size() == 0 ? nullptr : m_pushConstantRanges.data()
   };
 
-  m_renderingCreateInfo = VkPipelineRenderingCreateInfo{
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-    .pNext = nullptr,
-    .viewMask = 0,
-    .colorAttachmentCount = 1,
-    .pColorAttachmentFormats = &m_swapchainImageFormat,
-    .depthAttachmentFormat = depthFormat,
-    .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
-  };
+  switch (m_renderPass) {
+    case RenderPass::Main:
+      m_renderingCreateInfo = VkPipelineRenderingCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+        .pNext = nullptr,
+        .viewMask = 0,
+        .colorAttachmentCount = 1,
+        .pColorAttachmentFormats = &m_swapchainImageFormat,
+        .depthAttachmentFormat = depthFormat,
+        .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
+      };
+      break;
+    case RenderPass::Shadow:
+      m_renderingCreateInfo = VkPipelineRenderingCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+        .pNext = nullptr,
+        .viewMask = 0,
+        .colorAttachmentCount = 0,
+        .pColorAttachmentFormats = nullptr,
+        .depthAttachmentFormat = depthFormat,
+        .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
+      };
+      break;
+  }
 
   constructPipeline(swapchainExtent);
 }
@@ -492,14 +516,14 @@ void PipelineImpl::onViewportResize(VkExtent2D swapchainExtent)
 void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
   BindState& bindState, size_t currentFrame)
 {
-  auto matricesDescriptorSet = m_renderResources.getMatricesDescriptorSet(currentFrame);
+  auto transformsDescriptorSet = m_renderResources.getTransformsDescriptorSet(currentFrame);
   auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material.id);
   auto lightingDescriptorSet = m_renderResources.getLightingDescriptorSet(currentFrame);
   auto buffers = m_renderResources.getMeshBuffers(node.mesh.id);
 
-  if (m_pipeline != bindState.pipeline) {
+  //if (m_pipeline != bindState.pipeline) {
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
-  }
+  //}
   std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer };
   if (node.mesh.features.isInstanced) {
     vertexBuffers.push_back(buffers.instanceBuffer);
@@ -508,17 +532,22 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   vkCmdBindVertexBuffers(commandBuffer, 0, static_cast<uint32_t>(vertexBuffers.size()),
     vertexBuffers.data(), offsets.data());
   vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+  // TODO: Optimise descriptor set order
   std::vector<VkDescriptorSet> descriptorSets{
-    matricesDescriptorSet,
-    materialDescriptorSet,
+    transformsDescriptorSet,
+    materialDescriptorSet
   };
-  if (!node.mesh.features.isSkybox) {
+  //if (!node.mesh.features.isSkybox) {
     descriptorSets.push_back(lightingDescriptorSet);
+  //}
+
+  if (m_renderPass == RenderPass::Main) {
+    descriptorSets.push_back(m_renderResources.getShadowPassDescriptorSet());
   }
-  if (descriptorSets != bindState.descriptorSets) {
+  //if (descriptorSets != bindState.descriptorSets) {
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
       static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
-  }
+  //}
   if (!node.mesh.features.isInstanced && !node.mesh.features.isSkybox) {
     auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
 
@@ -556,7 +585,6 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
     defines.push_back("ATTR_MODEL_MATRIX");
   }
   if (renderPass == RenderPass::Shadow) {
-    defines.push_back("VERT_MAIN_PASSTHROUGH");
     defines.push_back("FRAG_MAIN_DEPTH");
   }
   else {

@@ -8,19 +8,20 @@
 
 using float_t = float;
 
-constexpr double PI = 3.14159265359;
+constexpr double PId = 3.14159265359;
+constexpr float_t PIf = 3.14159265359f;
 
 template<typename T>
 T degreesToRadians(T degrees)
 {
-  constexpr T x = static_cast<T>(PI / 180.0);
+  constexpr T x = static_cast<T>(PId / 180.0);
   return degrees * x;
 }
 
 template<typename T>
 T radiansToDegrees(T radians)
 {
-  constexpr T x = static_cast<T>(360.0 / (2.0 * PI));
+  constexpr T x = static_cast<T>(360.0 / (2.0 * PId));
   return radians * x;
 }
 

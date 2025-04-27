@@ -316,7 +316,7 @@ Mat4x4f transformFromTriangle(const Path& path)
 
   Vec4f v = mostDistantPoint - centre;
   // Angle from vertical (negative z)
-  float_t a = (3.f * static_cast<float_t>(PI) / 2.f) - atan2(v[2], v[0]);
+  float_t a = (3.f * PIf / 2.f) - atan2(v[2], v[0]);
 
   return createTransform(Vec3f{ centre[0], 0, centre[2] }, Vec3f{ 0, a, 0 });
 }

@@ -40,7 +40,7 @@ const std::vector<const char*> DeviceExtensions = {
 
 void transitionImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout,
   VkImageLayout newLayout, VkPipelineStageFlags srcStageMask, VkAccessFlags srcAccessMask,
-  VkPipelineStageFlags dstStageMask, VkAccessFlags dstAccessMask)
+  VkPipelineStageFlags dstStageMask, VkAccessFlags dstAccessMask, VkImageAspectFlags aspectMask)
 {
   VkImageMemoryBarrier barrier{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -53,7 +53,7 @@ void transitionImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout
     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
     .image = image,
     .subresourceRange = VkImageSubresourceRange{
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .aspectMask = aspectMask,
       .baseMipLevel = 0,
       .levelCount = 1,
       .baseArrayLayer = 0,
@@ -164,7 +164,6 @@ class RendererImpl : public Renderer
     void doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void updateResources();
-    void updateMatricesUbo(const Mat4x4f& cameraMatrix);
     void finishFrame();
     void createSyncObjects();
     void renderLoop();
@@ -313,8 +312,8 @@ void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
 
     if (!m_pipelines.contains(key)) {
       auto pipeline = createPipeline(RenderPass::Shadow, meshFeatures, materialFeatures,
-        m_fileSystem, *m_resources, m_logger, m_device, m_swapchainExtent, m_swapchainImageFormat,
-        depthFormat);
+        m_fileSystem, *m_resources, m_logger, m_device, VkExtent2D{ SHADOW_MAP_W, SHADOW_MAP_H },
+        m_swapchainImageFormat, depthFormat);
 
       m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
     }
@@ -481,10 +480,24 @@ void RendererImpl::renderLoop()
       vkResetCommandBuffer(m_commandBuffers[m_imageIndex], 0);
 
       auto& state = m_renderStates.getReadable();
-
-      updateMatricesUbo(state.cameraMatrix);
       state.lighting.cameraPos = state.cameraPos;
       m_resources->updateLightingUbo(state.lighting, m_currentFrame);
+    
+      // TODO: Currently only the first light can cast shadows
+      const Light& light = state.lighting.lights[0];
+      Vec3f lightDir = Vec3f{ 1.f, 0.f, 1.f }.normalise(); // TODO
+      LightTransformsUbo lightTransformsUbo{
+        .viewMatrix = lookAt(light.worldPos, light.worldPos + lightDir),
+        .projMatrix = perspective(degreesToRadians(60.f), degreesToRadians(45.f),
+          m_viewParams.nearPlane, m_viewParams.farPlane)
+      };
+      m_resources->updateLightTransformsUbo(lightTransformsUbo, m_currentFrame);
+    
+      CameraTransformsUbo cameraTransformsUbo{
+        .viewMatrix = state.cameraMatrix,
+        .projMatrix = m_projectionMatrix
+      };
+      m_resources->updateCameraTransformsUbo(cameraTransformsUbo, m_currentFrame);
 
       updateResources();
       recordCommandBuffer(m_commandBuffers[m_imageIndex], m_imageIndex);
@@ -509,8 +522,6 @@ void RendererImpl::renderLoop()
 
 void RendererImpl::updateResources()
 {
-  // TODO: Move this into recordCommandBuffer?
-
   auto& renderGraph = m_renderStates.getReadable().graph;
 
   for (auto& node : renderGraph) {
@@ -578,18 +589,6 @@ void RendererImpl::finishFrame()
   }
 
   m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-}
-
-void RendererImpl::updateMatricesUbo(const Mat4x4f& cameraMatrix)
-{
-  DBG_TRACE(m_logger);
-
-  MatricesUbo ubo{
-    .viewMatrix = cameraMatrix,
-    .projMatrix = m_projectionMatrix
-  };
-
-  m_resources->updateMatricesUbo(ubo, m_currentFrame);
 }
 
 void RendererImpl::removeMesh(RenderItemId)
@@ -1037,6 +1036,9 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
     .meshFeatures = node.mesh.features,
     .materialFeatures = node.material.features
   };
+  if (renderPass == RenderPass::Shadow) {
+    key.materialFeatures = std::nullopt;
+  }
   auto i = m_pipelines.find(key);
   if (i == m_pipelines.end()) {
     EXCEPTION("No shader has been compiled for this combination of mesh/material features");
@@ -1046,11 +1048,16 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
 
 void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
+  transitionImage(commandBuffer, m_resources->getShadowMapImage(), VK_IMAGE_LAYOUT_UNDEFINED,
+    VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
+    VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    VK_IMAGE_ASPECT_DEPTH_BIT);
+
   VkRenderingAttachmentInfo depthAttachment{
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
     .pNext = nullptr,
     .imageView = m_resources->getShadowMapImageView(),
-    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
     .resolveMode = VK_RESOLVE_MODE_NONE,
     .resolveImageView = nullptr,
     .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1068,7 +1075,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t im
     .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
     .pNext = nullptr,
     .flags = 0,
-    .renderArea = VkRect2D{VkOffset2D{}, m_swapchainExtent},
+    .renderArea = VkRect2D{VkOffset2D{}, VkExtent2D{ SHADOW_MAP_W, SHADOW_MAP_H }},
     .layerCount = 1,
     .viewMask = 0,
     .colorAttachmentCount = 0,
@@ -1088,10 +1095,20 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t im
   }
 
   vkCmdEndRendering(commandBuffer);
+
+  transitionImage(commandBuffer, m_resources->getShadowMapImage(),
+    VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
+  transitionImage(commandBuffer, m_swapchainImages[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED,
+    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    VK_IMAGE_ASPECT_COLOR_BIT);
+
   VkRenderingAttachmentInfo colourAttachment{
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
     .pNext = nullptr,
@@ -1149,6 +1166,12 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
   }
 
   vkCmdEndRendering(commandBuffer);
+
+  transitionImage(commandBuffer, m_swapchainImages[imageIndex],
+    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0,
+    VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 void RendererImpl::doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
@@ -1168,22 +1191,9 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
   VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo),
     "Failed to begin recording command buffer");
 
-  VkImageLayout oldLayout = m_currentFrame < m_swapchainImages.size() ?
-    VK_IMAGE_LAYOUT_UNDEFINED :
-    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-  transitionImage(commandBuffer, m_swapchainImages[imageIndex], oldLayout,
-    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
-    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
-
-  //doShadowRenderPass(commandBuffer, imageIndex);
+  doShadowRenderPass(commandBuffer, imageIndex);
   doMainRenderPass(commandBuffer, imageIndex);
   doSsrRenderPass(commandBuffer, imageIndex);
-
-  transitionImage(commandBuffer, m_swapchainImages[imageIndex],
-    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0);
 
   VK_CHECK(vkEndCommandBuffer(commandBuffer), "Failed to record command buffer");
 }

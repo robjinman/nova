@@ -7,9 +7,10 @@ void main()
 #endif
 
   vec4 worldPos = modelMatrix * vec4(inPos, 1.0);
-  gl_Position = matrices.projMatrix * matrices.viewMatrix * worldPos;
+  gl_Position = camera.projMatrix * camera.viewMatrix * worldPos;
 
   outWorldPos = worldPos.xyz;
+  outLightSpacePos = (light.projMatrix * light.viewMatrix * worldPos).xyz;
 
 #if defined(FEATURE_TEXTURE_MAPPING) || defined(FEATURE_NORMAL_MAPPING)
   outTexCoord = inTexCoord;

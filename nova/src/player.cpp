@@ -53,7 +53,7 @@ Vec3f PlayerImpl::getDirection() const
 
 void PlayerImpl::translate(const Vec3f& delta)
 {
-  const float_t dx = m_bounceRate * 2 * static_cast<float_t>(PI) / TARGET_FRAME_RATE;
+  const float_t dx = m_bounceRate * 2.f * PIf / TARGET_FRAME_RATE;
 
   if (delta[0] != 0 || delta[2] != 0) {
     m_tallness = m_originalTallness + m_bounceHeight * sin(m_distance);

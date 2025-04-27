@@ -314,10 +314,29 @@ void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNod
 
   CRenderPtr render = nullptr;
   if (type == CRenderType::Light) {
+    float_t size = metresToWorldUnits(0.5);
+
     auto light = std::make_unique<CRenderLight>(entityId);
-    light->colour = parseVec3f(data.values.at("colour"));
+    auto colour = parseVec3f(data.values.at("colour"));
+    light->colour = colour;
     light->ambient = parseFloat<float_t>(data.values.at("ambient"));
     light->specular = parseFloat<float_t>(data.values.at("specular"));
+
+    auto mesh = cuboid(size, size, size, {});
+    mesh->attributeBuffers.resize(2);
+    mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition, BufferUsage::AttrNormal };
+    MaterialPtr material = std::make_unique<Material>(MaterialFeatureSet{
+      .hasTransparency = false,
+      .hasTexture = false,
+      .hasNormalMap = false
+    });
+    material->colour = { colour[0], colour[1], colour[2], 1.f };
+
+    //light->meshes.push_back(MeshMaterialPair{
+    //  .mesh = m_renderSystem.addMesh(std::move(mesh)),
+    //  .material = m_renderSystem.addMaterial(std::move(material))
+    //});
+
     render = std::move(light);
   }
   else {

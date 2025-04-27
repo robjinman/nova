@@ -234,7 +234,7 @@ void TerrainImpl::fillArea(const ObjectData& area, const Mat4x4f& transform, flo
     for (float_t z = bounds.first[1]; z <= bounds.second[1]; z += spacing[1]) {
       if (pointIsInsidePoly(Vec2f{ x, z }, perimeter)) {
         // TODO: Read transform from object data
-        float_t rot = uniformDistribution(randomEngine) * 2.f * static_cast<float_t>(PI);
+        float_t rot = uniformDistribution(randomEngine) * 2.f * PIf;
         Mat4x4f m = createTransform(Vec3f{ x, height, z }, Vec3f{ 0, rot, 0 });
 
         m_entityFactory.constructEntity(data, transform * m);

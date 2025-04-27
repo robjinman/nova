@@ -3,10 +3,18 @@
 #include "model.hpp"
 #include <vulkan/vulkan.h>
 
-const int32_t MAX_LIGHTS = 8;
+const uint32_t MAX_LIGHTS = 4;
+const uint32_t SHADOW_MAP_W = 1000;
+const uint32_t SHADOW_MAP_H = 1000;
 
 #pragma pack(push, 4)
-struct MatricesUbo
+struct CameraTransformsUbo
+{
+  Mat4x4f viewMatrix;
+  Mat4x4f projMatrix;
+};
+
+struct LightTransformsUbo
 {
   Mat4x4f viewMatrix;
   Mat4x4f projMatrix;
@@ -78,11 +86,14 @@ class RenderResources
     virtual VkDescriptorSet getMaterialDescriptorSet(RenderItemId id) const = 0;
     virtual const MaterialFeatureSet& getMaterialFeatures(RenderItemId id) const = 0;
 
-    // Matrices
+    // Transforms
     //
-    virtual void updateMatricesUbo(const MatricesUbo& ubo, size_t currentFrame) = 0;
-    virtual VkDescriptorSetLayout getMatricesDescriptorSetLayout() const = 0;
-    virtual VkDescriptorSet getMatricesDescriptorSet(size_t currentFrame) const = 0;
+    virtual VkDescriptorSetLayout getTransformsDescriptorSetLayout() const = 0;
+    virtual VkDescriptorSet getTransformsDescriptorSet(size_t currentFrame) const = 0;
+    // > Camera
+    virtual void updateCameraTransformsUbo(const CameraTransformsUbo& ubo, size_t currentFrame) = 0;
+    // > Light
+    virtual void updateLightTransformsUbo(const LightTransformsUbo& ubo, size_t currentFrame) = 0;
 
     // Lighting
     //
@@ -94,6 +105,7 @@ class RenderResources
     //
     virtual VkDescriptorSetLayout getShadowPassDescriptorSetLayout() const = 0;
     virtual VkDescriptorSet getShadowPassDescriptorSet() const = 0;
+    virtual VkImage getShadowMapImage() const = 0;
     virtual VkImageView getShadowMapImageView() const = 0;
 
     virtual ~RenderResources() = default;
