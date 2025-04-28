@@ -521,9 +521,9 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   auto lightingDescriptorSet = m_renderResources.getLightingDescriptorSet(currentFrame);
   auto buffers = m_renderResources.getMeshBuffers(node.mesh.id);
 
-  //if (m_pipeline != bindState.pipeline) {
+  if (m_pipeline != bindState.pipeline) {
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
-  //}
+  }
   std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer };
   if (node.mesh.features.isInstanced) {
     vertexBuffers.push_back(buffers.instanceBuffer);
@@ -544,10 +544,10 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   if (m_renderPass == RenderPass::Main) {
     descriptorSets.push_back(m_renderResources.getShadowPassDescriptorSet());
   }
-  //if (descriptorSets != bindState.descriptorSets) {
+  if (descriptorSets != bindState.descriptorSets) {
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
       static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
-  //}
+  }
   if (!node.mesh.features.isInstanced && !node.mesh.features.isSkybox) {
     auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
 
