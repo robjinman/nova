@@ -764,7 +764,9 @@ void RendererImpl::recreateSwapChain()
   createDepthResources();
 
   for (auto& i : m_pipelines) {
-    i.second->onViewportResize(m_swapchainExtent);
+    if (i.first.renderPass == RenderPass::Main) {
+      i.second->onViewportResize(m_swapchainExtent);
+    }
   }
 }
 

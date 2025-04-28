@@ -52,15 +52,6 @@ struct std::hash<PipelineKey>
     return hashAll(key.renderPass, key.meshFeatures, key.materialFeatures);
   }
 };
-/*
-template<typename T>
-struct std::hash<std::optional<T>>
-{
-  std::size_t operator()(const std::optional<T>& x) const noexcept
-  {
-    return x.has_value() ? std::hash<T>{}(x.value()) : 0;
-  }
-};*/
 
 struct DefaultModelNode : public RenderNode
 {
