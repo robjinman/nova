@@ -7,10 +7,14 @@ void main()
 #endif
 
   vec4 worldPos = modelMatrix * vec4(inPos, 1.0);
+#ifdef RENDER_PASS_SHADOW
+  gl_Position = light.projMatrix * light.viewMatrix * worldPos;
+#else
   gl_Position = camera.projMatrix * camera.viewMatrix * worldPos;
+#endif
 
   outWorldPos = worldPos.xyz;
-  outLightSpacePos = (light.projMatrix * light.viewMatrix * worldPos).xyz;
+  outLightSpacePos = light.projMatrix * light.viewMatrix * worldPos;
 
 #if defined(FEATURE_TEXTURE_MAPPING) || defined(FEATURE_NORMAL_MAPPING)
   outTexCoord = inTexCoord;

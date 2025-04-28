@@ -69,7 +69,6 @@ class EntityFactoryImpl : public EntityFactory
     std::map<std::string, XmlNodePtr> m_definitions;
     std::map<std::string, MaterialCustomisation> m_materialProperties;
 
-    void loadModel(const std::string& name, bool isInstanced, int maxInstances);
     void constructSpatialComponent(EntityId entityId, const XmlNode& node, const ObjectData& data,
       const Mat4x4f& transform) const;
     void constructRenderComponent(EntityId entityId, const XmlNode& node,
@@ -120,38 +119,35 @@ void EntityFactoryImpl::loadMaterials(const XmlNode& materials)
   }
 }
 
-void EntityFactoryImpl::loadModels(const XmlNode& models)
+void EntityFactoryImpl::loadModels(const XmlNode& modelsData)
 {
-  ASSERT(models.name() == "models", "Expected element with name 'models'");
+  ASSERT(modelsData.name() == "models", "Expected element with name 'models'");
 
-  for (auto& model : models) {
-    auto name = model.attribute("name");
-    bool isInstanced = model.attribute("instanced") == "true";
+  for (auto& modelData : modelsData) {
+    auto name = modelData.attribute("name");
+    bool isInstanced = modelData.attribute("instanced") == "true";
     int maxInstances = 0;
     if (isInstanced) {
-      maxInstances = std::stoi(model.attribute("max-instances"));
+      maxInstances = std::stoi(modelData.attribute("max-instances"));
     }
+    bool castsShadow = modelData.attribute("casts-shadow") == "true";
 
-    loadModel(name, isInstanced, maxInstances);
-  }
-}
-
-void EntityFactoryImpl::loadModel(const std::string& name, bool isInstanced, int maxInstances)
-{
-  auto path = STR("resources/models/" << name << ".gltf");
-  auto model = ::loadModel(m_fileSystem, path);
-
-  for (auto& submodel : model->submodels) {
-    submodel->mesh->featureSet.isInstanced = isInstanced;
-    submodel->mesh->featureSet.maxInstances = maxInstances;
-
-    auto i = m_materialProperties.find(submodel->material->name);
-    if (i != m_materialProperties.end()) {
-      customiseMaterial(*submodel->material, i->second);
+    auto path = STR("resources/models/" << name << ".gltf");
+    auto model = ::loadModel(m_fileSystem, path);
+  
+    for (auto& submodel : model->submodels) {
+      submodel->mesh->featureSet.isInstanced = isInstanced;
+      submodel->mesh->featureSet.maxInstances = maxInstances;
+      submodel->mesh->featureSet.castsShadow = castsShadow;
+  
+      auto i = m_materialProperties.find(submodel->material->name);
+      if (i != m_materialProperties.end()) {
+        customiseMaterial(*submodel->material, i->second);
+      }
     }
+  
+    m_models[name] = gpuLoadModel(std::move(model));
   }
-
-  m_models[name] = gpuLoadModel(std::move(model));
 }
 
 ModelResources EntityFactoryImpl::gpuLoadModel(ModelPtr model)

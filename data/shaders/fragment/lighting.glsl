@@ -19,21 +19,19 @@ vec3 computeLight(vec3 worldPos, vec3 normal)
 {
   vec3 light = vec3(0, 0, 0);
 
-  // TODO: Currently, only the first light casts shadows
   for (int i = 0; i < lighting.numLights; ++i) {
-    float shadow = 0.0;
+    float shadow = 1.0;
 
-    //if (i == 0) {
-      //if (inLightSpacePos.z > -1.0 && inLightSpacePos.z < 1.0) {
-        vec3 lightSpacePos = vec3(0.5, 0.5, 0);//inLightSpacePos * 0.5 + 0.5;
-        float minDistanceFromLight = texture(shadowMapSampler, lightSpacePos.xy).r;
+    // TODO: Currently, only the first light casts shadows
+    if (i == 0) {
+      vec3 lightSpacePos = (inLightSpacePos / inLightSpacePos.w).xyz;
+      vec2 lightSpaceXy = lightSpacePos.xy * 0.5 + 0.5;
+      float minDistanceFromLight = texture(shadowMapSampler, lightSpaceXy).r;
 
-        //if (inLightSpacePos.z <= minDistanceFromLight) {
-          shadow = 1.0;
-          light = vec3(minDistanceFromLight);
-        //}
-      //}
-    //}
+      if (lightSpacePos.z > minDistanceFromLight) {
+        shadow = 0.0;
+      }
+    }
 
     float intensity = lighting.lights[i].ambient;
 
@@ -44,7 +42,7 @@ vec3 computeLight(vec3 worldPos, vec3 normal)
     float specular = lighting.lights[i].specular * pow(max(dot(viewDir, reflectDir), 0.0), 32);
     intensity += shadow * (diffuse + specular);
 
-    //light += intensity * lighting.lights[i].colour;
+    light += intensity * lighting.lights[i].colour;
   }
 
   return light;

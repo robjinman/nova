@@ -400,10 +400,10 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   m_inputAssemblyStateInfo = defaultInputAssemblyState();
   m_rasterizationStateInfo = defaultRasterizationState(materialFeatures.isDoubleSided);
   if (m_renderPass == RenderPass::Shadow) {
-    m_rasterizationStateInfo.depthBiasEnable = VK_TRUE;
-    m_rasterizationStateInfo.depthBiasConstantFactor = 1.25f;
-    m_rasterizationStateInfo.depthBiasSlopeFactor = 1.75f;
-    m_rasterizationStateInfo.cullMode = VK_CULL_MODE_NONE;
+    //m_rasterizationStateInfo.depthBiasEnable = VK_TRUE;
+    //m_rasterizationStateInfo.depthBiasConstantFactor = 1.25f;
+    //m_rasterizationStateInfo.depthBiasSlopeFactor = 1.75f;
+    m_rasterizationStateInfo.cullMode = VK_CULL_MODE_FRONT_BIT;
   }
   m_multisampleStateInfo = defaultMultisamplingState();
   m_colourBlendStateInfo = defaultColourBlendState(m_colourBlendAttachmentState);
@@ -413,9 +413,9 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     m_renderResources.getTransformsDescriptorSetLayout(),
     m_renderResources.getMaterialDescriptorSetLayout()
   };
-  //if (!meshFeatures.isSkybox) {
+  if (!meshFeatures.isSkybox) {
     m_descriptorSetLayouts.push_back(m_renderResources.getLightingDescriptorSetLayout());
-  //}
+  }
   if (m_renderPass == RenderPass::Main) {
     m_descriptorSetLayouts.push_back(m_renderResources.getShadowPassDescriptorSetLayout());
   }
@@ -537,9 +537,9 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     transformsDescriptorSet,
     materialDescriptorSet
   };
-  //if (!node.mesh.features.isSkybox) {
+  if (!node.mesh.features.isSkybox) {
     descriptorSets.push_back(lightingDescriptorSet);
-  //}
+  }
 
   if (m_renderPass == RenderPass::Main) {
     descriptorSets.push_back(m_renderResources.getShadowPassDescriptorSet());
@@ -585,6 +585,7 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
     defines.push_back("ATTR_MODEL_MATRIX");
   }
   if (renderPass == RenderPass::Shadow) {
+    defines.push_back("RENDER_PASS_SHADOW");
     defines.push_back("FRAG_MAIN_DEPTH");
   }
   else {

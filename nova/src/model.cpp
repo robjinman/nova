@@ -115,6 +115,7 @@ MeshFeatureSet createMeshFeatureSet(const gltf::MeshDesc& meshDesc)
     .isSkybox = false,
     .isAnimated = false, // TODO
     .hasTangents = hasTangents,
+    .castsShadow = true,
     .maxInstances = 0 // TODO
   };
 }

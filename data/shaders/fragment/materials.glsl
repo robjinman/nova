@@ -10,7 +10,5 @@ layout(set = 1, binding = 3) uniform samplerCube cubeMapSampler;
 
 vec4 computeTexel(vec2 texCoord)
 {
-  // TODO: Transparency
-
   return material.colour * texture(texSampler, texCoord);
 }

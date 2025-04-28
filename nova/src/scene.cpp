@@ -80,7 +80,7 @@ PlayerPtr SceneBuilder::createScene()
   m_collisionSystem.initialise(bounds.first, bounds.second);
 
   constructInstances(objectData);
-  //constructSky();
+  constructSky();
   constructOriginMarkers();
 
   ASSERT(m_player != nullptr, "Map does not contain player");
@@ -95,7 +95,7 @@ void SceneBuilder::constructSky()
   EntityId entityId = System::nextId();
 
   auto render = std::make_unique<CRender>(entityId, CRenderType::Skybox);
-  auto mesh = cuboid(10000, 10000, 10000, Vec2f{ 1, 1 });
+  auto mesh = cuboid(9999, 9999, 9999, Vec2f{ 1, 1 });
   mesh->attributeBuffers.resize(1); // Just keep the positions
   mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition };
   mesh->featureSet.isSkybox = true;

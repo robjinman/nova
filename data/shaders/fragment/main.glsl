@@ -6,7 +6,7 @@ layout(location = 0) in vec2 inTexCoord;
 #endif
 layout(location = 1) in vec3 inWorldPos;
 layout(location = 2) in vec3 inNormal;
-layout(location = 3) in vec3 inLightSpacePos;
+layout(location = 3) in vec4 inLightSpacePos;
 #ifdef FEATURE_NORMAL_MAPPING
 layout(location = 4) in vec3 inTangent;
 layout(location = 5) in vec3 inBitangent;

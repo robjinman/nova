@@ -205,21 +205,20 @@ void RenderSystemImpl::update()
   try {
     m_renderer.beginFrame(m_camera);
 
-    //auto visible = m_spatialSystem.getIntersecting(computeFrustumPerimeter());
-    //for (EntityId id : visible) {
-    for (const auto& entry : m_components) {
-      //auto entry = m_components.find(id);
-      //if (entry == m_components.end()) {
-      //  continue;
-      //}
+    auto visible = m_spatialSystem.getIntersecting(computeFrustumPerimeter());
+    for (EntityId id : visible) {
+      auto entry = m_components.find(id);
+      if (entry == m_components.end()) {
+        continue;
+      }
 
-      const auto& component = *entry.second;// *entry->second;
-      const auto& spatial = m_spatialSystem.getComponent(entry.first);
+      const auto& component = *entry->second;
+      const auto& spatial = m_spatialSystem.getComponent(id);
 
       switch(component.type) {
         case CRenderType::Instance: {
           for (auto& mesh : component.meshes) {
-            //m_renderer.drawInstance(mesh.mesh, mesh.material, spatial.absTransform());
+            m_renderer.drawInstance(mesh.mesh, mesh.material, spatial.absTransform());
           }
           break;
         }

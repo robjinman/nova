@@ -24,7 +24,7 @@ layout(location = 0) out vec2 outTexCoord;
 #endif
 layout(location = 1) out vec3 outWorldPos;
 layout(location = 2) out vec3 outNormal;
-layout(location = 3) out vec3 outLightSpacePos;
+layout(location = 3) out vec4 outLightSpacePos;
 #ifdef FEATURE_NORMAL_MAPPING
 layout(location = 4) out vec3 outTangent;
 layout(location = 5) out vec3 outBitangent;

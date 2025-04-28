@@ -114,19 +114,9 @@ void createSideFaces(Mesh& mesh)
   mesh.indexBuffer.data = toBytes(indices);
 }
 
-MeshPtr createBottomFace(const std::vector<Vec4f>& points)
+MeshPtr createBottomFace(const std::vector<Vec4f>& points, const MeshFeatureSet& meshFeatures)
 {
-  MeshPtr mesh = std::make_unique<Mesh>(MeshFeatureSet{
-    .vertexLayout = {
-      BufferUsage::AttrPosition,
-      BufferUsage::AttrNormal,
-      BufferUsage::AttrTexCoord
-    },
-    .isInstanced = false,
-    .isSkybox = false,
-    .isAnimated = false,
-    .maxInstances = 0
-  });
+  MeshPtr mesh = std::make_unique<Mesh>(meshFeatures);
 
   Vec2f textureSize = metresToWorldUnits(Vec2f{ 4, 4 });
 
@@ -152,9 +142,10 @@ MeshPtr createBottomFace(const std::vector<Vec4f>& points)
   return mesh;
 }
 
-MeshPtr createTopFace(const std::vector<Vec4f>& points, float_t height)
+MeshPtr createTopFace(const std::vector<Vec4f>& points, float_t height,
+  const MeshFeatureSet& meshFeatures)
 {
-  auto mesh = createBottomFace(points);
+  auto mesh = createBottomFace(points, meshFeatures);
   Vec3f normal{ 0, 1, 0 };
 
   auto positions = getBufferData<Vec3f>(mesh->attributeBuffers[0]);
@@ -193,6 +184,7 @@ class TerrainImpl : public Terrain
     CollisionSystem& m_collisionSystem;
     MaterialHandle m_groundMaterial;
     MaterialHandle m_wallMaterial;
+    MeshFeatureSet m_meshFeatures;
 
     void createTerrainMaterials();
     void fillArea(const ObjectData& area, const Mat4x4f& transform, float_t height,
@@ -209,6 +201,20 @@ TerrainImpl::TerrainImpl(EntityFactory& entityFactory, SpatialSystem& spatialSys
   , m_renderSystem(renderSystem)
   , m_collisionSystem(collisionSystem)
 {
+  m_meshFeatures = MeshFeatureSet{
+    .vertexLayout = {
+      BufferUsage::AttrPosition,
+      BufferUsage::AttrNormal,
+      BufferUsage::AttrTexCoord
+    },
+    .isInstanced = false,
+    .isSkybox = false,
+    .isAnimated = false,
+    .hasTangents = false,
+    .castsShadow = true,
+    .maxInstances = 0
+  };
+
   createTerrainMaterials();
 }
 
@@ -254,12 +260,16 @@ void TerrainImpl::createTerrainMaterials()
     .isInstanced = false,
     .isSkybox = false,
     .isAnimated = false,
+    .hasTangents = false,
+    .castsShadow = true,
     .maxInstances = 0
   };
   MaterialFeatureSet materialFeatures{
     .hasTransparency = false,
     .hasTexture = true,
-    .hasNormalMap = false
+    .hasNormalMap = false,
+    .hasCubeMap = false,
+    .isDoubleSided = false
   };
 
   m_renderSystem.compileShader(meshFeatures, materialFeatures);
@@ -315,6 +325,7 @@ void TerrainImpl::constructWall(const ObjectData& obj, const Mat4x4f& parentTran
 
     CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::Regular);
     auto mesh = cuboid(wallThickness, wallHeight, distance, textureSize);
+    mesh->featureSet = m_meshFeatures;
     auto positions = getConstBufferData<Vec3f>(mesh->attributeBuffers[0]);
     float_t radius = computeRadius(positions);
     render->meshes = {
@@ -357,8 +368,8 @@ Mat4x4f TerrainImpl::constructZone(const ObjectData& obj, const Mat4x4f& parentT
 
   Mat4x4f transform = parentTransform * offset * centredObj.transform;
 
-  auto bottomFace = createBottomFace(centredObj.path.points);
-  auto topFace = createTopFace(centredObj.path.points, height);
+  auto bottomFace = createBottomFace(centredObj.path.points, m_meshFeatures);
+  auto topFace = createTopFace(centredObj.path.points, height, m_meshFeatures);
 
   auto mesh = mergeMeshes(*bottomFace, *topFace);
   createSideFaces(*mesh);

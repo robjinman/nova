@@ -1184,7 +1184,7 @@ void RenderResourcesImpl::createShadowPassResources()
     .compareOp = VK_COMPARE_OP_NEVER,
     .minLod = 0.f,
     .maxLod = 1.f,
-    .borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE,
+    .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
     .unnormalizedCoordinates = VK_FALSE
   };
 

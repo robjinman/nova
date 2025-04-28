@@ -79,6 +79,7 @@ struct MeshFeatureSet
   bool isSkybox = false;
   bool isAnimated = false;
   bool hasTangents = false; // TODO: Need this?
+  bool castsShadow = false;
   uint32_t maxInstances = 0;
 
   bool operator==(const MeshFeatureSet& rhs) const = default;
@@ -118,6 +119,8 @@ struct std::hash<MeshFeatureSet>
       x.isInstanced,
       x.isSkybox,
       x.isAnimated,
+      x.hasTangents,
+      x.castsShadow,
       x.maxInstances
     );
   }
@@ -131,7 +134,9 @@ struct std::hash<MaterialFeatureSet>
     return hashAll(
       x.hasTransparency,
       x.hasTexture,
-      x.hasNormalMap
+      x.hasNormalMap,
+      x.hasCubeMap
+      //x.isDoubleSided
     );
   }
 };

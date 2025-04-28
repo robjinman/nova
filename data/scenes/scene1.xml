@@ -3,13 +3,13 @@
     <material name="long_grass" has-transparency="true"/>
   </materials>
   <models>
-    <model name="cube" instanced="false"/>
-    <model name="monkey" instanced="false"/>
-    <model name="tree" instanced="false"/>
-    <model name="long_grass" instanced="true" max-instances="10000"/>
-    <model name="dinosaur" instanced="false"/>
-    <model name="cottage" instanced="false"/>
-    <model name="bendy" instanced="false"/>
+    <model name="cube" casts-shadow="true" instanced="false"/>
+    <model name="monkey" casts-shadow="true" instanced="false"/>
+    <model name="tree" casts-shadow="true" instanced="false"/>
+    <model name="long_grass" casts-shadow="false" instanced="true" max-instances="10000"/>
+    <model name="dinosaur" casts-shadow="true" instanced="false"/>
+    <model name="cottage" casts-shadow="true" instanced="false"/>
+    <model name="bendy" casts-shadow="true" instanced="false"/>
   </models>
   <entities>
     <entity name="light"/>

@@ -38,33 +38,6 @@ const std::vector<const char*> DeviceExtensions = {
 #endif
 };
 
-void transitionImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout,
-  VkImageLayout newLayout, VkPipelineStageFlags srcStageMask, VkAccessFlags srcAccessMask,
-  VkPipelineStageFlags dstStageMask, VkAccessFlags dstAccessMask, VkImageAspectFlags aspectMask)
-{
-  VkImageMemoryBarrier barrier{
-    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-    .pNext = nullptr,
-    .srcAccessMask = srcAccessMask,
-    .dstAccessMask = dstAccessMask,
-    .oldLayout = oldLayout,
-    .newLayout = newLayout,
-    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .image = image,
-    .subresourceRange = VkImageSubresourceRange{
-      .aspectMask = aspectMask,
-      .baseMipLevel = 0,
-      .levelCount = 1,
-      .baseArrayLayer = 0,
-      .layerCount = 1
-    }
-  };
-
-  vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1,
-    &barrier);
-}
-
 struct QueueFamilyIndices
 {
   std::optional<uint32_t> graphicsFamily;
@@ -304,18 +277,20 @@ void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
       m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
     }
 
-    key = PipelineKey{
-      .renderPass = RenderPass::Shadow,
-      .meshFeatures = meshFeatures,
-      .materialFeatures = std::nullopt
-    };
+    if (meshFeatures.castsShadow) {
+      key = PipelineKey{
+        .renderPass = RenderPass::Shadow,
+        .meshFeatures = meshFeatures,
+        .materialFeatures = std::nullopt
+      };
 
-    if (!m_pipelines.contains(key)) {
-      auto pipeline = createPipeline(RenderPass::Shadow, meshFeatures, materialFeatures,
-        m_fileSystem, *m_resources, m_logger, m_device, VkExtent2D{ SHADOW_MAP_W, SHADOW_MAP_H },
-        m_swapchainImageFormat, depthFormat);
+      if (!m_pipelines.contains(key)) {
+        auto pipeline = createPipeline(RenderPass::Shadow, meshFeatures, materialFeatures,
+          m_fileSystem, *m_resources, m_logger, m_device, VkExtent2D{ SHADOW_MAP_W, SHADOW_MAP_H },
+          m_swapchainImageFormat, depthFormat);
 
-      m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
+        m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
+      }
     }
   }).get();
 }
@@ -485,14 +460,14 @@ void RendererImpl::renderLoop()
     
       // TODO: Currently only the first light can cast shadows
       const Light& light = state.lighting.lights[0];
-      Vec3f lightDir = Vec3f{ 1.f, 0.f, 1.f }.normalise(); // TODO
+      Vec3f lightDir = Vec3f{ 1.f, -0.2f, 1.f }.normalise(); // TODO
       LightTransformsUbo lightTransformsUbo{
         .viewMatrix = lookAt(light.worldPos, light.worldPos + lightDir),
-        .projMatrix = perspective(degreesToRadians(60.f), degreesToRadians(45.f),
-          m_viewParams.nearPlane, m_viewParams.farPlane)
+        .projMatrix = perspective(PIf / 2.f, PIf / 2.f, m_viewParams.nearPlane,
+          m_viewParams.farPlane)
       };
       m_resources->updateLightTransformsUbo(lightTransformsUbo, m_currentFrame);
-    
+
       CameraTransformsUbo cameraTransformsUbo{
         .viewMatrix = state.cameraMatrix,
         .projMatrix = m_projectionMatrix
@@ -1048,10 +1023,27 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
 
 void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
-  transitionImage(commandBuffer, m_resources->getShadowMapImage(), VK_IMAGE_LAYOUT_UNDEFINED,
-    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
-    VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-    VK_IMAGE_ASPECT_DEPTH_BIT);
+  VkImageMemoryBarrier barrier1{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .pNext = nullptr,
+    .srcAccessMask = 0,
+    .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .image = m_resources->getShadowMapImage(),
+    .subresourceRange = VkImageSubresourceRange{
+      .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1
+    }
+  };
+
+  vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier1);
 
   VkRenderingAttachmentInfo depthAttachment{
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -1090,26 +1082,60 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t im
   const auto& renderGraph = state.graph;
   BindState bindState{};
   for (auto& node : renderGraph) {
-    auto& pipeline = choosePipeline(RenderPass::Shadow, *node);
-    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
+    if (node->mesh.features.castsShadow) {
+      auto& pipeline = choosePipeline(RenderPass::Shadow, *node);
+      pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
+    }
   }
 
   vkCmdEndRendering(commandBuffer);
 
-  transitionImage(commandBuffer, m_resources->getShadowMapImage(),
-    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-    VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-    VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
-    VK_IMAGE_ASPECT_DEPTH_BIT);
+  VkImageMemoryBarrier barrier2{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .pNext = nullptr,
+    .srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+    .oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    .newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .image = m_resources->getShadowMapImage(),
+    .subresourceRange = VkImageSubresourceRange{
+      .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1
+    }
+  };
+
+  vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier2);
 }
 
 void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
-  transitionImage(commandBuffer, m_swapchainImages[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED,
-    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
-    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-    VK_IMAGE_ASPECT_COLOR_BIT);
+  VkImageMemoryBarrier barrier1{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .pNext = nullptr,
+    .srcAccessMask = 0,
+    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .image = m_swapchainImages[imageIndex],
+    .subresourceRange = VkImageSubresourceRange{
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1
+    }
+  };
+
+  vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier1);
 
   VkRenderingAttachmentInfo colourAttachment{
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -1169,10 +1195,27 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
 
   vkCmdEndRendering(commandBuffer);
 
-  transitionImage(commandBuffer, m_swapchainImages[imageIndex],
-    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, VK_IMAGE_ASPECT_COLOR_BIT);
+  VkImageMemoryBarrier barrier2{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .pNext = nullptr,
+    .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    .dstAccessMask = 0,
+    .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .image = m_swapchainImages[imageIndex],
+    .subresourceRange = VkImageSubresourceRange{
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1
+    }
+  };
+
+  vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier2);
 }
 
 void RendererImpl::doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
