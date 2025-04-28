@@ -1205,7 +1205,7 @@ void RenderResourcesImpl::createShadowPassResources()
   VkDescriptorImageInfo imageInfo{
     .sampler = m_shadowMapSampler,
     .imageView = m_shadowMapImageView,
-    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
   };
 
   VkWriteDescriptorSet descriptorWrite{

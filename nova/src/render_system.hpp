@@ -42,6 +42,16 @@ struct CRenderLight : public CRender
   float_t specular = 0.f;
 };
 
+// TODO
+struct CRenderUiSprite
+{
+  RenderItemId image;
+
+  // Screen space
+  Vec2f position;
+  Vec2f size;
+};
+
 using CRenderPtr = std::unique_ptr<CRender>;
 
 class Camera;

@@ -21,6 +21,6 @@ void main()
     discard;
   }
   else {
-    outColour = vec4(light, 1.0) * texel;
+    outColour = vec4(light, 1.0);// * texel;
   }
 }

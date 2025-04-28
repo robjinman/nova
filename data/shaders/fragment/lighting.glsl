@@ -25,12 +25,13 @@ vec3 computeLight(vec3 worldPos, vec3 normal)
 
     //if (i == 0) {
       //if (inLightSpacePos.z > -1.0 && inLightSpacePos.z < 1.0) {
-        float minDistanceFromLight = texture(shadowMapSampler, inLightSpacePos.xy).r;
+        vec3 lightSpacePos = vec3(0.5, 0.5, 0);//inLightSpacePos * 0.5 + 0.5;
+        float minDistanceFromLight = texture(shadowMapSampler, lightSpacePos.xy).r;
 
-        if (inLightSpacePos.z <= minDistanceFromLight) {
+        //if (inLightSpacePos.z <= minDistanceFromLight) {
           shadow = 1.0;
-          //light = vec3(inLightSpacePos.z) * 0.01;
-        }
+          light = vec3(minDistanceFromLight);
+        //}
       //}
     //}
 
@@ -43,7 +44,7 @@ vec3 computeLight(vec3 worldPos, vec3 normal)
     float specular = lighting.lights[i].specular * pow(max(dot(viewDir, reflectDir), 0.0), 32);
     intensity += shadow * (diffuse + specular);
 
-    light += intensity * lighting.lights[i].colour;
+    //light += intensity * lighting.lights[i].colour;
   }
 
   return light;

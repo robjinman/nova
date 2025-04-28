@@ -403,7 +403,7 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     m_rasterizationStateInfo.depthBiasEnable = VK_TRUE;
     m_rasterizationStateInfo.depthBiasConstantFactor = 1.25f;
     m_rasterizationStateInfo.depthBiasSlopeFactor = 1.75f;
-    //m_rasterizationStateInfo.cullMode = VK_CULL_MODE_NONE;
+    m_rasterizationStateInfo.cullMode = VK_CULL_MODE_NONE;
   }
   m_multisampleStateInfo = defaultMultisamplingState();
   m_colourBlendStateInfo = defaultColourBlendState(m_colourBlendAttachmentState);
