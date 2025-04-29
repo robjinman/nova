@@ -33,6 +33,7 @@ const std::vector<const char*> ValidationLayers = {
 
 const std::vector<const char*> DeviceExtensions = {
   VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+  VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
 #ifdef __APPLE__
   "VK_KHR_portability_subset",
 #endif
@@ -946,13 +947,13 @@ void RendererImpl::createLogicalDevice()
   indexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
   indexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;*/
 
-  VkPhysicalDeviceVulkan13Features deviceFeatures13{};
-  deviceFeatures13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-  deviceFeatures13.dynamicRendering = VK_TRUE;
+  VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeatures{};
+  dynamicRenderingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
+  dynamicRenderingFeatures.dynamicRendering = VK_TRUE;
 
   VkPhysicalDeviceFeatures2 deviceFeatures2{};
   deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-  deviceFeatures2.pNext = &deviceFeatures13;
+  deviceFeatures2.pNext = &dynamicRenderingFeatures;
   deviceFeatures2.features.samplerAnisotropy = VK_TRUE;
 
   VkDeviceCreateInfo createInfo{};
@@ -1078,7 +1079,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t im
     .pStencilAttachment = nullptr
   };
 
-  vkCmdBeginRendering(commandBuffer, &renderingInfo);
+  vkCmdBeginRenderingFn(commandBuffer, &renderingInfo);
 
   auto& state = m_renderStates.getReadable();
   const auto& renderGraph = state.graph;
@@ -1090,7 +1091,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t im
     }
   }
 
-  vkCmdEndRendering(commandBuffer);
+  vkCmdEndRenderingFn(commandBuffer);
 
   VkImageMemoryBarrier barrier2{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -1185,7 +1186,7 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
     .pStencilAttachment = nullptr
   };
 
-  vkCmdBeginRendering(commandBuffer, &renderingInfo);
+  vkCmdBeginRenderingFn(commandBuffer, &renderingInfo);
 
   auto& state = m_renderStates.getReadable();
   const auto& renderGraph = state.graph;
@@ -1195,7 +1196,7 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
     pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
   }
 
-  vkCmdEndRendering(commandBuffer);
+  vkCmdEndRenderingFn(commandBuffer);
 
   VkImageMemoryBarrier barrier2{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -1437,7 +1438,7 @@ void RendererImpl::createInstance()
     .applicationVersion = VK_MAKE_VERSION(Nova_VERSION_MAJOR, Nova_VERSION_MINOR, 0),
     .pEngineName = "No Engine",
     .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-    .apiVersion = VK_API_VERSION_1_3
+    .apiVersion = VK_API_VERSION_1_2
   };
 
   VkInstanceCreateInfo createInfo{};
@@ -1463,6 +1464,8 @@ void RendererImpl::createInstance()
   createInfo.ppEnabledExtensionNames = extensions.data();
 
   VK_CHECK(vkCreateInstance(&createInfo, nullptr, &m_instance), "Failed to create instance");
+
+  loadVulkanExtensionFunctions(m_instance);
 }
 
 VkDebugUtilsMessengerCreateInfoEXT RendererImpl::getDebugMessengerCreateInfo() const

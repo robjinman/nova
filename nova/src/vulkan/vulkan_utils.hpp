@@ -3,6 +3,11 @@
 #include "exception.hpp"
 #include <vulkan/vulkan.h>
 
+extern PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingFn;
+extern PFN_vkCmdEndRenderingKHR vkCmdEndRenderingFn;
+
+void loadVulkanExtensionFunctions(VkInstance instance);
+
 #define VK_CHECK(fnCall, msg) \
   { \
     VkResult MAC_code = fnCall; \

@@ -1,5 +1,23 @@
 #include "vulkan/vulkan_utils.hpp"
+#include "utils.hpp"
 #include <vector>
+
+PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingFn;
+PFN_vkCmdEndRenderingKHR vkCmdEndRenderingFn;
+
+void loadVulkanExtensionFunctions(VkInstance instance)
+{
+  auto getFn = [&](const char* name) {
+    auto ptr = vkGetInstanceProcAddr(instance, name);
+    ASSERT(ptr != nullptr, STR("Error loading function " << name));
+    return ptr;
+  };
+
+  vkCmdBeginRenderingFn =
+    reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(getFn("vkCmdBeginRenderingKHR"));
+  vkCmdEndRenderingFn =
+    reinterpret_cast<PFN_vkCmdEndRenderingKHR>(getFn("vkCmdEndRenderingKHR"));
+}
 
 uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
   VkMemoryPropertyFlags properties)
