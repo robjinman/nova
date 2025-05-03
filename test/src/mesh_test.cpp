@@ -11,7 +11,7 @@ class MeshTest : public testing::Test
 
 TEST_F(MeshTest, calcOffsetInVertex_first_attribute_returns_zero)
 {
-  std::vector<BufferUsage> layout{
+  VertexLayout layout{
     BufferUsage::AttrPosition,
     BufferUsage::AttrNormal,
     BufferUsage::AttrTexCoord
@@ -23,7 +23,7 @@ TEST_F(MeshTest, calcOffsetInVertex_first_attribute_returns_zero)
 
 TEST_F(MeshTest, calcOffsetInVertex_second_attribute)
 {
-  std::vector<BufferUsage> layout{
+  VertexLayout layout{
     BufferUsage::AttrPosition,
     BufferUsage::AttrNormal,
     BufferUsage::AttrTexCoord
@@ -35,7 +35,7 @@ TEST_F(MeshTest, calcOffsetInVertex_second_attribute)
 
 TEST_F(MeshTest, calcOffsetInVertex_third_attribute)
 {
-  std::vector<BufferUsage> layout{
+  VertexLayout layout{
     BufferUsage::AttrPosition,
     BufferUsage::AttrNormal,
     BufferUsage::AttrTexCoord
@@ -47,7 +47,7 @@ TEST_F(MeshTest, calcOffsetInVertex_third_attribute)
 
 TEST_F(MeshTest, calcOffsetInVertex_with_missing_attribute)
 {
-  std::vector<BufferUsage> layout{
+  VertexLayout layout{
     BufferUsage::AttrPosition,
     BufferUsage::AttrTexCoord
   };
@@ -64,9 +64,7 @@ TEST_F(MeshTest, createVertexArray_single_vertex_all_attributes)
       BufferUsage::AttrNormal,
       BufferUsage::AttrTexCoord
     },
-    .isInstanced = false,
-    .isSkybox = false,
-    .isAnimated = false
+    .flags = 0
   }};
   mesh.attributeBuffers.push_back(createBuffer<Vec3f>({{ 1, 2, 3 }}, BufferUsage::AttrPosition));
   mesh.attributeBuffers.push_back(createBuffer<Vec3f>({{ 4, 5, 6 }}, BufferUsage::AttrNormal));
@@ -95,9 +93,7 @@ TEST_F(MeshTest, createVertexArray_two_vertices)
       BufferUsage::AttrNormal,
       BufferUsage::AttrTexCoord
     },
-    .isInstanced = false,
-    .isSkybox = false,
-    .isAnimated = false
+    .flags = 0
   }};
   mesh.attributeBuffers.push_back(createBuffer<Vec3f>({
     { 1, 2, 3 },

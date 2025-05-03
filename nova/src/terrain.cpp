@@ -201,18 +201,16 @@ TerrainImpl::TerrainImpl(EntityFactory& entityFactory, SpatialSystem& spatialSys
   , m_renderSystem(renderSystem)
   , m_collisionSystem(collisionSystem)
 {
+  MeshFeatures::Flags flags{};
+  flags.set(MeshFeatures::CastsShadow);
+
   m_meshFeatures = MeshFeatureSet{
     .vertexLayout = {
       BufferUsage::AttrPosition,
       BufferUsage::AttrNormal,
       BufferUsage::AttrTexCoord
     },
-    .isInstanced = false,
-    .isSkybox = false,
-    .isAnimated = false,
-    .hasTangents = false,
-    .castsShadow = true,
-    .maxInstances = 0
+    .flags = flags
   };
 
   createTerrainMaterials();
@@ -251,25 +249,22 @@ void TerrainImpl::fillArea(const ObjectData& area, const Mat4x4f& transform, flo
 
 void TerrainImpl::createTerrainMaterials()
 {
+  MeshFeatures::Flags meshFlags{};
+  meshFlags.set(MeshFeatures::CastsShadow);
+
+  MaterialFeatures::Flags materialFlags{};
+  materialFlags.set(MaterialFeatures::HasTexture);
+
   MeshFeatureSet meshFeatures{
     .vertexLayout = {
       BufferUsage::AttrPosition,
       BufferUsage::AttrNormal,
       BufferUsage::AttrTexCoord
     },
-    .isInstanced = false,
-    .isSkybox = false,
-    .isAnimated = false,
-    .hasTangents = false,
-    .castsShadow = true,
-    .maxInstances = 0
+    .flags = meshFlags
   };
   MaterialFeatureSet materialFeatures{
-    .hasTransparency = false,
-    .hasTexture = true,
-    .hasNormalMap = false,
-    .hasCubeMap = false,
-    .isDoubleSided = false
+    .flags = materialFlags
   };
 
   m_renderSystem.compileShader(meshFeatures, materialFeatures);

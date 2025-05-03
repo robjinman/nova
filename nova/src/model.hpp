@@ -8,6 +8,7 @@
 #include <span>
 #include <optional>
 #include <array>
+#include <bitset>
 
 using RenderItemId = long;
 const RenderItemId NULL_ID = -1;
@@ -45,9 +46,10 @@ struct MaterialResource
   RenderItemId id = NULL_ID;
 };
 
-enum class BufferUsage : int
+enum class BufferUsage : uint8_t
 {
-  AttrPosition = 0,
+  None = 0,
+  AttrPosition = 1,
   AttrNormal,
   AttrTexCoord,
   AttrTangent,
@@ -56,45 +58,74 @@ enum class BufferUsage : int
   Index
 };
 const uint32_t LAST_ATTR_IDX = static_cast<uint32_t>(BufferUsage::AttrJointWeights);
+const uint32_t MAX_ATTRIBUTES = LAST_ATTR_IDX;
+
+inline std::ostream& operator<<(std::ostream& stream, const BufferUsage& usage)
+{
+  return stream << static_cast<int>(usage);
+}
 
 inline size_t getAttributeSize(BufferUsage usage)
 {
   switch (usage) {
-    case BufferUsage::AttrPosition: return sizeof(Vec3f);
-    case BufferUsage::AttrNormal: return sizeof(Vec3f);
-    case BufferUsage::AttrTexCoord: return sizeof(Vec2f);
-    case BufferUsage::AttrTangent: return sizeof(Vec3f);
+    case BufferUsage::None:             return 0;
+    case BufferUsage::AttrPosition:     return sizeof(Vec3f);
+    case BufferUsage::AttrNormal:       return sizeof(Vec3f);
+    case BufferUsage::AttrTexCoord:     return sizeof(Vec2f);
+    case BufferUsage::AttrTangent:      return sizeof(Vec3f);
     case BufferUsage::AttrJointIndices: return sizeof(uint8_t) * 4;
     case BufferUsage::AttrJointWeights: return sizeof(float_t) * 4;
-    case BufferUsage::Index: return sizeof(uint16_t);
+    case BufferUsage::Index:            return sizeof(uint16_t);
   }
   EXCEPTION("Error getting element size");
 }
 
-// TODO: Make these more compact with bitfields
+namespace MeshFeatures
+{
+enum Enum : uint64_t
+{
+  IsInstanced,
+  IsSkybox,
+  IsAnimated,
+  HasTangents,
+  CastsShadow
+};
+using Flags = std::bitset<32>;
+}
+
+using VertexLayout = std::array<BufferUsage, MAX_ATTRIBUTES>;
+
 struct MeshFeatureSet
 {
-  std::vector<BufferUsage> vertexLayout;
-  bool isInstanced = false;
-  bool isSkybox = false;
-  bool isAnimated = false;
-  bool hasTangents = false; // TODO: Need this?
-  bool castsShadow = false;
-  uint32_t maxInstances = 0;
+  VertexLayout vertexLayout;
+  MeshFeatures::Flags flags;
 
   bool operator==(const MeshFeatureSet& rhs) const = default;
 };
 
+std::ostream& operator<<(std::ostream& stream, const MeshFeatureSet& features);
+
+namespace MaterialFeatures
+{
+enum Enum : uint64_t
+{
+  HasTransparency,
+  HasTexture,
+  HasNormalMap,
+  HasCubeMap,
+  IsDoubleSided
+};
+using Flags = std::bitset<32>;
+}
+
 struct MaterialFeatureSet
 {
-  bool hasTransparency = false;
-  bool hasTexture = false;
-  bool hasNormalMap = false;
-  bool hasCubeMap = false;
-  bool isDoubleSided = false;
+  MaterialFeatures::Flags flags;
 
   bool operator==(const MaterialFeatureSet& rhs) const = default;
 };
+
+std::ostream& operator<<(std::ostream& stream, const MaterialFeatureSet& features);
 
 struct MeshHandle
 {
@@ -116,12 +147,7 @@ struct std::hash<MeshFeatureSet>
   {
     return hashAll(
       x.vertexLayout,
-      x.isInstanced,
-      x.isSkybox,
-      x.isAnimated,
-      x.hasTangents,
-      x.castsShadow,
-      x.maxInstances
+      x.flags
     );
   }
 };
@@ -132,11 +158,7 @@ struct std::hash<MaterialFeatureSet>
   size_t operator()(const MaterialFeatureSet& x) const noexcept
   {
     return hashAll(
-      x.hasTransparency,
-      x.hasTexture,
-      x.hasNormalMap,
-      x.hasCubeMap
-      //x.isDoubleSided
+      x.flags
     );
   }
 };
@@ -179,7 +201,7 @@ Buffer createBuffer(const std::vector<T>& data, BufferUsage usage)
   };
 }
 
-inline size_t calcOffsetInVertex(const std::vector<BufferUsage>& layout, BufferUsage attribute)
+inline size_t calcOffsetInVertex(const VertexLayout& layout, BufferUsage attribute)
 {
   size_t sum = 0;
   for (auto attr : layout) {
@@ -200,6 +222,7 @@ struct Mesh
   MeshFeatureSet featureSet;
   std::vector<Buffer> attributeBuffers;
   Buffer indexBuffer;
+  uint32_t maxInstances = 0;
 };
 
 using MeshPtr = std::unique_ptr<Mesh>;

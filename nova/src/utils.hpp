@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <vector>
+#include <array>
 #include <concepts>
 
 #define STR(x) [&]() {\
@@ -24,6 +25,15 @@ T parseFloat(const std::string& s)
 
 template<typename T>
 std::ostream& operator<<(std::ostream& stream, const std::vector<T>& v)
+{
+  for (size_t i = 0; i < v.size(); ++i) {
+    stream << v[i] << (i + 1 < v.size() ? ", " : "");
+  }
+  return stream;
+}
+
+template<typename T, size_t N>
+std::ostream& operator<<(std::ostream& stream, const std::array<T, N>& v)
 {
   for (size_t i = 0; i < v.size(); ++i) {
     stream << v[i] << (i + 1 < v.size() ? ", " : "");

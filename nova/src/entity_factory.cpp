@@ -43,7 +43,7 @@ Vec3f parseVec3f(const std::string s)
 
 void customiseMaterial(Material& material, const MaterialCustomisation& props)
 {
-  material.featureSet.hasTransparency = props.hasTransparency;
+  material.featureSet.flags.set(MaterialFeatures::HasTransparency, props.hasTransparency);
 }
 
 class EntityFactoryImpl : public EntityFactory
@@ -136,9 +136,10 @@ void EntityFactoryImpl::loadModels(const XmlNode& modelsData)
     auto model = ::loadModel(m_fileSystem, path);
   
     for (auto& submodel : model->submodels) {
-      submodel->mesh->featureSet.isInstanced = isInstanced;
-      submodel->mesh->featureSet.maxInstances = maxInstances;
-      submodel->mesh->featureSet.castsShadow = castsShadow;
+      submodel->mesh->featureSet.flags.set(MeshFeatures::IsInstanced, isInstanced);
+      submodel->mesh->featureSet.flags.set(MeshFeatures::CastsShadow, castsShadow);
+
+      submodel->mesh->maxInstances = maxInstances;
   
       auto i = m_materialProperties.find(submodel->material->name);
       if (i != m_materialProperties.end()) {
@@ -321,11 +322,7 @@ void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNod
     auto mesh = cuboid(size, size, size, {});
     mesh->attributeBuffers.resize(2);
     mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition, BufferUsage::AttrNormal };
-    MaterialPtr material = std::make_unique<Material>(MaterialFeatureSet{
-      .hasTransparency = false,
-      .hasTexture = false,
-      .hasNormalMap = false
-    });
+    MaterialPtr material = std::make_unique<Material>(MaterialFeatureSet{});
     material->colour = { colour[0], colour[1], colour[2], 1.f };
 
     //light->meshes.push_back(MeshMaterialPair{

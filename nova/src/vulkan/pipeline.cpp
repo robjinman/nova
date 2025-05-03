@@ -45,12 +45,16 @@ VkFormat attributeFormat(BufferUsage usage)
 }
 
 std::vector<VkVertexInputAttributeDescription>
-  createAttributeDescriptions(const std::vector<BufferUsage> layout)
+  createAttributeDescriptions(const VertexLayout& layout)
 {
   std::vector<VkVertexInputAttributeDescription> attributes;
 
   const uint32_t first = static_cast<uint32_t>(BufferUsage::AttrPosition);
   for (auto& attribute : layout) {
+    if (attribute == BufferUsage::None) {
+      break;
+    }
+
     attributes.push_back(VkVertexInputAttributeDescription{
       .location = static_cast<uint32_t>(attribute) - first,
       .binding = 0,
@@ -361,12 +365,12 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   };
 
   m_vertexAttributeDescriptions = createAttributeDescriptions(meshFeatures.vertexLayout);
-  if (meshFeatures.isInstanced) {
+  if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     for (unsigned int i = 0; i < 4; ++i) {
       uint32_t offset = offsetof(MeshInstance, modelMatrix) + 4 * sizeof(float_t) * i;
   
       VkVertexInputAttributeDescription attr{
-        .location = LAST_ATTR_IDX + 1 + i,
+        .location = (LAST_ATTR_IDX - static_cast<uint32_t>(BufferUsage::AttrPosition)) + 1 + i,
         .binding = 1,
         .format = VK_FORMAT_R32G32B32A32_SFLOAT,
         .offset = offset
@@ -379,7 +383,7 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   m_vertexBindingDescriptions = {
     vertexBindingDescription
   };
-  if (meshFeatures.isInstanced) {
+  if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     m_vertexBindingDescriptions.push_back(VkVertexInputBindingDescription{
       .binding = 1,
       .stride = sizeof(MeshInstance),
@@ -398,7 +402,8 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   };
 
   m_inputAssemblyStateInfo = defaultInputAssemblyState();
-  m_rasterizationStateInfo = defaultRasterizationState(materialFeatures.isDoubleSided);
+  m_rasterizationStateInfo =
+    defaultRasterizationState(materialFeatures.flags.test(MaterialFeatures::IsDoubleSided));
   if (m_renderPass == RenderPass::Shadow) {
     //m_rasterizationStateInfo.depthBiasEnable = VK_TRUE;
     //m_rasterizationStateInfo.depthBiasConstantFactor = 1.25f;
@@ -413,14 +418,16 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     m_renderResources.getTransformsDescriptorSetLayout(),
     m_renderResources.getMaterialDescriptorSetLayout()
   };
-  if (!meshFeatures.isSkybox) {
+  if (!meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
     m_descriptorSetLayouts.push_back(m_renderResources.getLightingDescriptorSetLayout());
   }
   if (m_renderPass == RenderPass::Main) {
     m_descriptorSetLayouts.push_back(m_renderResources.getShadowPassDescriptorSetLayout());
   }
 
-  if (!meshFeatures.isInstanced && !meshFeatures.isSkybox) {
+  if (!meshFeatures.flags.test(MeshFeatures::IsInstanced)
+    && !meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
+
     m_pushConstantRanges = {
       VkPushConstantRange{
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
@@ -525,7 +532,7 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
   }
   std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer };
-  if (node.mesh.features.isInstanced) {
+  if (node.mesh.features.flags.test(MeshFeatures::IsInstanced)) {
     vertexBuffers.push_back(buffers.instanceBuffer);
   }
   std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
@@ -537,7 +544,7 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     transformsDescriptorSet,
     materialDescriptorSet
   };
-  if (!node.mesh.features.isSkybox) {
+  if (!node.mesh.features.flags.test(MeshFeatures::IsSkybox)) {
     descriptorSets.push_back(lightingDescriptorSet);
   }
 
@@ -548,13 +555,15 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
       static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
   }
-  if (!node.mesh.features.isInstanced && !node.mesh.features.isSkybox) {
+  if (!node.mesh.features.flags.test(MeshFeatures::IsInstanced)
+    && !node.mesh.features.flags.test(MeshFeatures::IsSkybox)) {
+
     auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
 
     vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4x4f),
       &defaultNode.modelMatrix);
   }
-  if (node.mesh.features.isInstanced) {
+  if (node.mesh.features.flags.test(MeshFeatures::IsInstanced)) {
     vkCmdDrawIndexed(commandBuffer, buffers.numIndices, buffers.numInstances, 0, 0, 0);
   }
   else {
@@ -581,7 +590,7 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
     }
   }
 
-  if (meshFeatures.isInstanced) {
+  if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     defines.push_back("ATTR_MODEL_MATRIX");
   }
   if (renderPass == RenderPass::Shadow) {
@@ -592,18 +601,23 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
     defines.push_back("FEATURE_LIGHTING");
     defines.push_back("FEATURE_MATERIALS");
 
-    if (meshFeatures.isSkybox) {
+    if (meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
       defines.push_back("VERT_MAIN_PASSTHROUGH");
       defines.push_back("FRAG_MAIN_SKYBOX");
     }
-    if (materialFeatures.hasNormalMap) {
-      assert(meshFeatures.hasTangents);
+    if (materialFeatures.flags.test(MaterialFeatures::HasNormalMap)) {
+      assert(meshFeatures.flags.test(MeshFeatures::HasTangents));
       defines.push_back("FEATURE_NORMAL_MAPPING");
     }
-    if (materialFeatures.hasTexture) {
+    if (materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
       defines.push_back("FEATURE_TEXTURE_MAPPING");
     }
   }
+
+  m_logger.info(STR("Compiling shaders with options: " << defines));
+  m_logger.info(STR("Render pass: " << static_cast<int>(renderPass)));
+  m_logger.info(STR("Mesh features: " << meshFeatures));
+  m_logger.info(STR("Material features: " << materialFeatures));
 
   ShaderProgram program;
 
@@ -622,8 +636,6 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
 std::vector<uint32_t> PipelineImpl::compileShader(const std::string& name,
   const std::vector<char>& source, ShaderType type, const std::vector<std::string>& defines)
 {
-  m_logger.info(STR("Compiling '" << name << "' shader with options: " << defines));
-
   shaderc_shader_kind kind = shaderc_shader_kind::shaderc_glsl_vertex_shader;
   switch (type) {
     case ShaderType::Vertex: kind = shaderc_shader_kind::shaderc_glsl_vertex_shader; break;

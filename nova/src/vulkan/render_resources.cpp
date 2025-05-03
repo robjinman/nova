@@ -380,8 +380,8 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
   data->mesh = std::move(mesh);
   data->vertexBuffer = createVertexBuffer(*data->mesh, data->vertexBufferMemory);
   data->indexBuffer = createIndexBuffer(data->mesh->indexBuffer, data->indexBufferMemory);
-  if (data->mesh->featureSet.isInstanced) {
-    data->instanceBuffer = createInstanceBuffer(data->mesh->featureSet.maxInstances,
+  if (data->mesh->featureSet.flags.test(MeshFeatures::IsInstanced)) {
+    data->instanceBuffer = createInstanceBuffer(data->mesh->maxInstances,
       data->instanceBufferMemory);
   }
 
@@ -429,9 +429,9 @@ void RenderResourcesImpl::updateMeshInstances(RenderItemId id,
   DBG_TRACE(m_logger);
 
   auto& mesh = m_meshes.at(id);
-  ASSERT(mesh->mesh->featureSet.isInstanced, "Can't instance a non-instanced mesh");
-  ASSERT(instances.size() <= mesh->mesh->featureSet.maxInstances,
-    "Max instances exceeded for this mesh");
+  ASSERT(mesh->mesh->featureSet.flags.test(MeshFeatures::IsInstanced),
+    "Can't instance a non-instanced mesh");
+  ASSERT(instances.size() <= mesh->mesh->maxInstances, "Max instances exceeded for this mesh");
 
   mesh->numInstances = static_cast<uint32_t>(instances.size());
   updateInstanceBuffer(instances, mesh->instanceBuffer);
@@ -520,17 +520,17 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
   memcpy(materialData->uboMapped, &ubo, sizeof(ubo));
 
   // TODO: Use array of descriptors for textures, normal maps, etc.?
-  if (material->featureSet.hasTexture) {
+  if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
     VkImageView imageView = m_textures.at(material->texture.id)->imageView;
     addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_textureSampler,
       static_cast<uint32_t>(MaterialDescriptorSetBindings::TextureSampler));
   }
-  if (material->featureSet.hasNormalMap) {
+  if (material->featureSet.flags.test(MaterialFeatures::HasNormalMap)) {
     VkImageView imageView = m_textures.at(material->normalMap.id)->imageView;
     addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_normalMapSampler,
       static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler));
   }
-  if (material->featureSet.hasCubeMap) {
+  if (material->featureSet.flags.test(MaterialFeatures::HasCubeMap)) {
     VkImageView imageView = m_cubeMaps.at(material->cubeMap.id)->imageView;
     addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_cubeMapSampler,
       static_cast<uint32_t>(MaterialDescriptorSetBindings::CubeMapSampler));

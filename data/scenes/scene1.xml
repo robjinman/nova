@@ -1,9 +1,11 @@
 <scene map="maps/map1.svg">
   <materials>
     <material name="long_grass" has-transparency="true"/>
+    <material name="glass" has-transparency="true"/>
   </materials>
   <models>
     <model name="cube" casts-shadow="true" instanced="false"/>
+    <model name="glass_cube" casts-shadow="true" instanced="false"/>
     <model name="monkey" casts-shadow="true" instanced="false"/>
     <model name="tree" casts-shadow="true" instanced="false"/>
     <model name="long_grass" casts-shadow="false" instanced="true" max-instances="10000"/>
@@ -14,6 +16,7 @@
   <entities>
     <entity name="light"/>
     <entity name="cube"/>
+    <entity name="glass_cube"/>
     <entity name="monkey"/>
     <entity name="tree"/>
     <entity name="grass"/>

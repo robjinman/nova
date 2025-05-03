@@ -1,6 +1,6 @@
 {
 	"asset":{
-		"generator":"Khronos glTF Blender I/O v4.4.55",
+		"generator":"Khronos glTF Blender I/O v4.3.47",
 		"version":"2.0"
 	},
 	"scene":0,
@@ -20,15 +20,16 @@
 	],
 	"materials":[
 		{
-			"doubleSided":false,
-			"name":"cube",
-			"normalTexture":{
-				"index":0
-			},
+			"alphaMode":"BLEND",
+			"doubleSided":true,
+			"name":"glass",
 			"pbrMetallicRoughness":{
-				"baseColorTexture":{
-					"index":1
-				},
+				"baseColorFactor":[
+					0.08811677247285843,
+					0.48381006717681885,
+					0.801577091217041,
+					0.5
+				],
 				"metallicFactor":0,
 				"roughnessFactor":0.5
 			}
@@ -48,28 +49,6 @@
 					"material":0
 				}
 			]
-		}
-	],
-	"textures":[
-		{
-			"sampler":0,
-			"source":0
-		},
-		{
-			"sampler":0,
-			"source":1
-		}
-	],
-	"images":[
-		{
-			"mimeType":"image/png",
-			"name":"bricks_normal",
-			"uri":"bricks_normal.png"
-		},
-		{
-			"mimeType":"image/png",
-			"name":"red",
-			"uri":"bricks_colour.png"
 		}
 	],
 	"accessors":[
@@ -134,16 +113,10 @@
 			"target":34963
 		}
 	],
-	"samplers":[
-		{
-			"magFilter":9729,
-			"minFilter":9987
-		}
-	],
 	"buffers":[
 		{
 			"byteLength":840,
-			"uri":"cube.bin"
+			"uri":"glass_cube.bin"
 		}
 	]
 }

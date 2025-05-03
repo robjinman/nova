@@ -134,7 +134,7 @@ class RendererImpl : public Renderer
     void createDepthResources();
     void createCommandBuffers();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-    void doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    void doShadowRenderPass(VkCommandBuffer commandBuffer);
     void doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void updateResources();
@@ -278,7 +278,7 @@ void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
       m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
     }
 
-    if (meshFeatures.castsShadow) {
+    if (meshFeatures.flags.test(MeshFeatures::CastsShadow)) {
       key = PipelineKey{
         .renderPass = RenderPass::Shadow,
         .meshFeatures = meshFeatures,
@@ -321,17 +321,17 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(MeshHandle mesh,
   };
   auto pipelineHash = std::hash<PipelineKey>{}(pipelineKey);
 
-  if (mesh.features.isInstanced) {
+  if (mesh.features.flags.test(MeshFeatures::IsInstanced)) {
     return RenderGraph::Key{
-      static_cast<RenderGraphKey>(material.features.hasTransparency),
+      static_cast<RenderGraphKey>(material.features.flags.test(MaterialFeatures::HasTransparency)),
       static_cast<RenderGraphKey>(pipelineHash),
       static_cast<RenderGraphKey>(mesh.id),
       static_cast<RenderGraphKey>(material.id)
     };
   }
-  else if (mesh.features.isSkybox) {
+  else if (mesh.features.flags.test(MeshFeatures::IsSkybox)) {
     return RenderGraph::Key{
-      static_cast<RenderGraphKey>(material.features.hasTransparency),
+      static_cast<RenderGraphKey>(material.features.flags.test(MaterialFeatures::HasTransparency)),
       static_cast<RenderGraphKey>(pipelineHash)
     };
   }
@@ -339,7 +339,7 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(MeshHandle mesh,
     static RenderGraphKey nextId = 0;
 
     return RenderGraph::Key{
-      static_cast<RenderGraphKey>(material.features.hasTransparency),
+      static_cast<RenderGraphKey>(material.features.flags.test(MaterialFeatures::HasTransparency)),
       static_cast<RenderGraphKey>(pipelineHash),
       static_cast<RenderGraphKey>(mesh.id),
       static_cast<RenderGraphKey>(material.id),
@@ -1024,7 +1024,7 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
   return *i->second;
 };
 
-void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
 {
   VkImageMemoryBarrier barrier1{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -1085,7 +1085,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t im
   const auto& renderGraph = state.graph;
   BindState bindState{};
   for (auto& node : renderGraph) {
-    if (node->mesh.features.castsShadow) {
+    if (node->mesh.features.flags.test(MeshFeatures::CastsShadow)) {
       auto& pipeline = choosePipeline(RenderPass::Shadow, *node);
       pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
     }
@@ -1151,7 +1151,7 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
     .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
     .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
     .clearValue = VkClearValue{
-      .color = VkClearColorValue{ 0.f, 0.f, 1.f, 1.f }
+      .color = VkClearColorValue{ .float32 = { 0.f, 0.f, 1.f, 1.f } }
     }
   };
 
@@ -1238,7 +1238,7 @@ void RendererImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
   VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo),
     "Failed to begin recording command buffer");
 
-  doShadowRenderPass(commandBuffer, imageIndex);
+  doShadowRenderPass(commandBuffer);
   doMainRenderPass(commandBuffer, imageIndex);
   doSsrRenderPass(commandBuffer, imageIndex);
 

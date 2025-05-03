@@ -19,7 +19,9 @@ layout(location = 5) in vec3 inBitangent;
 #include "fragment/materials.glsl"
 #endif
 
+#ifndef RENDER_PASS_SHADOW
 layout(location = 0) out vec4 outColour;
+#endif
 
 #if defined(FRAG_MAIN_SKYBOX)
 #include "fragment/main_skybox.glsl"

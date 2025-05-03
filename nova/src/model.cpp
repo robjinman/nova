@@ -88,20 +88,25 @@ BufferUsage getUsage(gltf::ElementType type)
   }
 }
 
-std::vector<BufferUsage> getVertexLayout(const gltf::MeshDesc& meshDesc, bool hasTangents)
+VertexLayout getVertexLayout(const gltf::MeshDesc& meshDesc, bool hasTangents)
 {
-  std::vector<BufferUsage> layout;
+  VertexLayout layout{};
 
+  size_t i = 0;
   for (auto& b : meshDesc.buffers) {
     if (gltf::isAttribute(b.type)) {
-      layout.push_back(getUsage(b.type));
+      layout[i++] = getUsage(b.type);
     }
   }
   if (hasTangents) {
-    layout.push_back(BufferUsage::AttrTangent);
+    layout[i] = BufferUsage::AttrTangent;
   }
 
-  std::sort(layout.begin(), layout.end());
+  std::sort(layout.begin(), layout.end(), [](auto a, auto b) {
+    // Use arithmetic underflow to make 0 (BuffeUsage::None) the largest value
+    return static_cast<uint8_t>(static_cast<uint8_t>(a) - 1) <
+      static_cast<uint8_t>(static_cast<uint8_t>(b) - 1);
+  });
 
   return layout;
 }
@@ -109,26 +114,25 @@ std::vector<BufferUsage> getVertexLayout(const gltf::MeshDesc& meshDesc, bool ha
 MeshFeatureSet createMeshFeatureSet(const gltf::MeshDesc& meshDesc)
 {
   bool hasTangents = !meshDesc.material.normalMap.empty();
-  return MeshFeatureSet{
+
+  MeshFeatureSet features{
     .vertexLayout = getVertexLayout(meshDesc, hasTangents),
-    .isInstanced = false, // TODO
-    .isSkybox = false,
-    .isAnimated = false, // TODO
-    .hasTangents = hasTangents,
-    .castsShadow = true,
-    .maxInstances = 0 // TODO
+    .flags = MeshFeatures::CastsShadow
   };
+  features.flags.set(MeshFeatures::HasTangents, hasTangents);
+
+  return features;
 }
 
 MaterialFeatureSet createMaterialFeatureSet(const gltf::MaterialDesc& materialDesc)
 {
-  return MaterialFeatureSet{
-    .hasTransparency = false, // TODO
-    .hasTexture = !materialDesc.baseColourTexture.empty(),
-    .hasNormalMap = !materialDesc.normalMap.empty(),
-    .hasCubeMap = false,
-    .isDoubleSided = materialDesc.isDoubleSided
-  };
+  MaterialFeatureSet features;
+
+  features.flags.set(MaterialFeatures::HasTexture, !materialDesc.baseColourTexture.empty());
+  features.flags.set(MaterialFeatures::HasNormalMap, !materialDesc.normalMap.empty());
+  features.flags.set(MaterialFeatures::IsDoubleSided, materialDesc.isDoubleSided);
+
+  return features;
 }
 
 MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
@@ -253,6 +257,21 @@ void computeMeshTangents(Mesh& mesh)
 }
 
 } // namespace
+
+std::ostream& operator<<(std::ostream& stream, const MeshFeatureSet& features)
+{
+  stream << features.vertexLayout << std::endl;
+  stream << features.flags;
+
+  return stream;
+}
+
+std::ostream& operator<<(std::ostream& stream, const MaterialFeatureSet& features)
+{
+  stream << features.flags;
+
+  return stream;
+}
 
 TexturePtr loadTexture(const std::vector<char>& data)
 {
@@ -454,7 +473,7 @@ ModelPtr loadModel(const FileSystem& fileSystem, const std::string& filePath)
     submodel->mesh = constructMesh(meshDesc, dataBuffers);
     submodel->material = constructMaterial(meshDesc.material);
 
-    if (submodel->mesh->featureSet.hasTangents) {
+    if (submodel->mesh->featureSet.flags.test(MeshFeatures::HasTangents)) {
       computeMeshTangents(*submodel->mesh);
     }
 

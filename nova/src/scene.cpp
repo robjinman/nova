@@ -98,7 +98,7 @@ void SceneBuilder::constructSky()
   auto mesh = cuboid(9999, 9999, 9999, Vec2f{ 1, 1 });
   mesh->attributeBuffers.resize(1); // Just keep the positions
   mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition };
-  mesh->featureSet.isSkybox = true;
+  mesh->featureSet.flags.set(MeshFeatures::IsSkybox, true);
   uint16_t* indexData = reinterpret_cast<uint16_t*>(mesh->indexBuffer.data.data());
   std::reverse(indexData, indexData + mesh->indexBuffer.data.size() / sizeof(uint16_t));
   std::array<TexturePtr, 6> textures{
@@ -109,12 +109,8 @@ void SceneBuilder::constructSky()
     loadTexture(m_fileSystem.readFile("resources/textures/skybox/front.png")),
     loadTexture(m_fileSystem.readFile("resources/textures/skybox/back.png"))
   };
-  auto material = std::make_unique<Material>(MaterialFeatureSet{
-    .hasTransparency = false,
-    .hasTexture = false,
-    .hasNormalMap = false,
-    .hasCubeMap = true
-  });
+  auto material = std::make_unique<Material>(MaterialFeatureSet{});
+  material->featureSet.flags.set(MaterialFeatures::HasCubeMap);
   material->cubeMap.id = m_renderSystem.addCubeMap(std::move(textures));
   m_renderSystem.compileShader(mesh->featureSet, material->featureSet);
   render->meshes = {
@@ -138,11 +134,7 @@ void SceneBuilder::constructOriginMarkers()
     float_t d = metresToWorldUnits(1);
     float_t h = metresToWorldUnits(20);
 
-    MaterialPtr material = std::make_unique<Material>(MaterialFeatureSet{
-      .hasTransparency = false,
-      .hasTexture = false,
-      .hasNormalMap = false
-    });
+    MaterialPtr material = std::make_unique<Material>(MaterialFeatureSet{});
     material->colour = colour;
 
     MeshPtr mesh = cuboid(w, h, d, Vec2f{ 1, 1 });

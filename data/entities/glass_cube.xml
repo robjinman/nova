@@ -1,0 +1,9 @@
+<entity name="glass_cube">
+  <spatial-component radius="1.0">
+    <transform scale="6">
+      <pos x="0" y="0.5" z="0"/>
+      <ori x="0" y="0" z="0"/>
+    </transform>
+  </spatial-component>
+  <render-component model="glass_cube" type="regular"/>
+</entity>
