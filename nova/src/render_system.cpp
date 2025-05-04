@@ -62,9 +62,12 @@ class RenderSystemImpl : public RenderSystem
     std::map<EntityId, CRenderPtr> m_components;
     std::set<EntityId> m_lights;
 
+    using DrawFilter = std::function<bool(const MeshMaterialPair&)>;
+
     std::vector<Vec2f> computeFrustumPerimeter(const Vec3f& viewPos, const Vec3f& viewDir,
       float_t hFov) const;
-    void drawEntities(const std::unordered_set<EntityId>& entities);
+    void drawEntities(const std::unordered_set<EntityId>& entities,
+      const DrawFilter& filter = [](const MeshMaterialPair&) { return true; });
     void doShadowPass();
     void doMainPass();
 };
@@ -203,7 +206,8 @@ const Camera& RenderSystemImpl::camera() const
   return m_camera;
 }
 
-void RenderSystemImpl::drawEntities(const std::unordered_set<EntityId>& entities)
+void RenderSystemImpl::drawEntities(const std::unordered_set<EntityId>& entities,
+  const std::function<bool(const MeshMaterialPair&)>& filter)
 {
   for (EntityId id : entities) {
     auto entry = m_components.find(id);
@@ -217,20 +221,26 @@ void RenderSystemImpl::drawEntities(const std::unordered_set<EntityId>& entities
     switch(component.type) {
       case CRenderType::Instance: {
         for (auto& mesh : component.meshes) {
-          m_renderer.drawInstance(mesh.mesh, mesh.material, spatial.absTransform());
+          if (filter(mesh)) {
+            m_renderer.drawInstance(mesh.mesh, mesh.material, spatial.absTransform());
+          }
         }
         break;
       }
       case CRenderType::Regular: {
         for (auto& mesh : component.meshes) {
-          m_renderer.drawModel(mesh.mesh, mesh.material,
-            spatial.absTransform() * mesh.mesh.transform);
+          if (filter(mesh)) {
+            m_renderer.drawModel(mesh.mesh, mesh.material,
+              spatial.absTransform() * mesh.mesh.transform);
+          }
         }
         break;
       }
       case CRenderType::Skybox: {
         ASSERT(component.meshes.size() == 1, "Expected skybox to have exactly 1 mesh");
-        m_renderer.drawSkybox(component.meshes[0].mesh, component.meshes[0].material);
+        if (filter(component.meshes[0])) {
+          m_renderer.drawSkybox(component.meshes[0].mesh, component.meshes[0].material);
+        }
         break;
       }
       case CRenderType::Light: break;
@@ -240,31 +250,34 @@ void RenderSystemImpl::drawEntities(const std::unordered_set<EntityId>& entities
 
 void RenderSystemImpl::doShadowPass()
 {
-  m_renderer.beginPass(RenderPass::Shadow, m_camera.getMatrix());
-
-  // TODO: Separate pass for every shadow casting light
+  // TODO: Separate pass for every shadow-casting light
   const CRenderLight& firstLight =
     dynamic_cast<const CRenderLight&>(*m_components.at(*m_lights.begin()));
   const CSpatial& firstLightSpatial = m_spatialSystem.getComponent(firstLight.id());
-  auto firstLightPos = getTranslation(firstLightSpatial.absTransform());
+  auto firstLightTransform = firstLightSpatial.absTransform();
+  auto firstLightPos = getTranslation(firstLightTransform);
+  auto firstLightDir = getDirection(firstLightTransform);
+  auto firstLightMatrix = lookAt(firstLightPos, firstLightPos + firstLightDir);
 
-  // TODO
-  auto frustum = computeFrustumPerimeter(firstLightPos, Vec3f{ 1.f, -0.2f, 1.f }.normalise(),
-    degreesToRadians(90.f));
+  auto frustum = computeFrustumPerimeter(firstLightPos, firstLightDir, degreesToRadians(90.f));
   auto visible = m_spatialSystem.getIntersecting(frustum);
 
-  drawEntities(visible);
+  m_renderer.beginPass(RenderPass::Shadow, firstLightPos, firstLightMatrix);
+
+  drawEntities(visible, [](const MeshMaterialPair& x) {
+    return x.mesh.features.flags.test(MeshFeatures::CastsShadow);
+  });
 
   m_renderer.endPass();
 }
 
 void RenderSystemImpl::doMainPass()
 {
-  m_renderer.beginPass(RenderPass::Main, m_camera.getMatrix());
-
   auto frustum = computeFrustumPerimeter(m_camera.getPosition(), m_camera.getDirection(),
     m_renderer.getViewParams().hFov);
   auto visible = m_spatialSystem.getIntersecting(frustum);
+
+  m_renderer.beginPass(RenderPass::Main, m_camera.getPosition(), m_camera.getMatrix());
 
   drawEntities(visible);
 
@@ -273,7 +286,7 @@ void RenderSystemImpl::doMainPass()
     const auto& spatial = m_spatialSystem.getComponent(id);
     const auto& transform = spatial.absTransform();
 
-    m_renderer.drawLight(light.colour, light.ambient, light.specular, getTranslation(transform));
+    m_renderer.drawLight(light.colour, light.ambient, light.specular, transform);
 
     if (light.meshes.size() > 0) {
       for (auto& mesh : light.meshes) {

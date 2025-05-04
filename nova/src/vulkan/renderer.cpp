@@ -94,11 +94,11 @@ class RendererImpl : public Renderer
     // Per frame draw functions
     //
     void beginFrame() override;
-    void beginPass(RenderPass renderPass, const Mat4x4f& viewMatrix) override;
+    void beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix) override;
     void drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
     void drawLight(const Vec3f& colour, float_t ambient, float_t specular,
-      const Vec3f& worldPos) override;
+      const Mat4x4f& transform) override;
     void drawSkybox(MeshHandle mesh, MaterialHandle material) override;
     void endPass() override;
     void endFrame() override;
@@ -138,7 +138,10 @@ class RendererImpl : public Renderer
     void doShadowRenderPass(VkCommandBuffer commandBuffer);
     void doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-    void updateResources(RenderPass renderPass);
+    void updateLightingUbo();
+    void updateInstanceBuffers(RenderPass renderPass);
+    void updateLightTransformsUbo();
+    void updateCameraTransformsUbo();
     void finishFrame();
     void createSyncObjects();
     void renderLoop();
@@ -186,10 +189,25 @@ class RendererImpl : public Renderer
       Mat4x4f viewMatrix;
     };
 
+    struct LightState
+    {
+      Vec3f position;
+      Vec3f direction;
+      Vec3f colour;
+      float_t ambient;
+      float_t specular;
+    };
+
+    struct LightingState
+    {
+      uint32_t numLights;
+      LightState lights[MAX_LIGHTS];
+    };
+
     struct FrameState
     {
       std::map<RenderPass, RenderPassState> renderPasses;
-      LightingUbo lighting;
+      LightingState lighting;
       std::optional<RenderPass> currentRenderPass;
     };
 
@@ -402,16 +420,17 @@ void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat
 }
 
 void RendererImpl::drawLight(const Vec3f& colour, float_t ambient, float_t specular,
-  const Vec3f& worldPos)
+  const Mat4x4f& transform)
 {
   FrameState& frameState = m_frameStates.getWritable();
   ASSERT(frameState.lighting.numLights < MAX_LIGHTS, "Exceeded max lights");
 
-  Light& light = frameState.lighting.lights[frameState.lighting.numLights++];
+  LightState& light = frameState.lighting.lights[frameState.lighting.numLights++];
   light.colour = colour;
   light.ambient = ambient;
   light.specular = specular;
-  light.worldPos = worldPos;
+  light.position = getTranslation(transform);
+  light.direction = getDirection(transform);
 }
 
 void RendererImpl::drawSkybox(MeshHandle mesh, MaterialHandle material)
@@ -437,12 +456,12 @@ void RendererImpl::beginFrame()
   DBG_TRACE(m_logger);
 
   auto& state = m_frameStates.getWritable();
-  state.lighting = LightingUbo{};
+  state.lighting = LightingState{};
   state.currentRenderPass = std::nullopt;
   state.renderPasses.clear();
 }
 
-void RendererImpl::beginPass(RenderPass renderPass, const Mat4x4f& viewMatrix)
+void RendererImpl::beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix)
 {
   DBG_TRACE(m_logger);
 
@@ -450,7 +469,7 @@ void RendererImpl::beginPass(RenderPass renderPass, const Mat4x4f& viewMatrix)
   state.currentRenderPass = renderPass;
 
   auto& renderPassState = state.renderPasses[renderPass];
-  renderPassState.viewPos = -getTranslation(viewMatrix);
+  renderPassState.viewPos = viewPos;
   renderPassState.viewMatrix = viewMatrix;
 }
 
@@ -517,10 +536,37 @@ void RendererImpl::renderLoop()
   cleanUp();
 }
 
-void RendererImpl::updateResources(RenderPass renderPass)
+void RendererImpl::updateCameraTransformsUbo()
 {
   auto& frameState = m_frameStates.getReadable();
-  auto& renderGraph = frameState.renderPasses.at(renderPass).graph;
+  auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
+
+  CameraTransformsUbo cameraTransformsUbo{
+    .viewMatrix = renderPassState.viewMatrix,
+    .projMatrix = m_projectionMatrix
+  };
+  m_resources->updateCameraTransformsUbo(cameraTransformsUbo, m_currentFrame);
+}
+
+void RendererImpl::updateLightTransformsUbo()
+{
+  auto& frameState = m_frameStates.getReadable();
+  auto& renderPassState = frameState.renderPasses.at(RenderPass::Shadow);
+
+  // TODO: Currently only the first light can cast shadows
+  const LightState& light = frameState.lighting.lights[0];
+  LightTransformsUbo lightTransformsUbo{
+    .viewMatrix = lookAt(light.position, light.position + light.direction),
+    .projMatrix = perspective(PIf / 2.f, PIf / 2.f, m_viewParams.nearPlane, m_viewParams.farPlane)
+  };
+  m_resources->updateLightTransformsUbo(lightTransformsUbo, m_currentFrame);
+}
+
+void RendererImpl::updateInstanceBuffers(RenderPass renderPass)
+{
+  auto& frameState = m_frameStates.getReadable();
+  auto& renderPassState = frameState.renderPasses.at(renderPass);
+  auto& renderGraph = renderPassState.graph;
 
   for (auto& node : renderGraph) {
     switch (node->type) {
@@ -533,6 +579,30 @@ void RendererImpl::updateResources(RenderPass renderPass)
       default: break;
     }
   }
+}
+
+void RendererImpl::updateLightingUbo()
+{
+  auto& frameState = m_frameStates.getReadable();
+  auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
+
+  LightingUbo lightingUbo{
+    .viewPos = renderPassState.viewPos,
+    .numLights = frameState.lighting.numLights,
+    .lights{}
+  };
+  for (uint32_t i = 0; i < frameState.lighting.numLights; ++i) {
+    auto& light = frameState.lighting.lights[i];
+
+    lightingUbo.lights[i] = Light{
+      .worldPos = light.position,
+      .colour = light.colour,
+      .ambient = light.ambient,
+      .specular = light.specular
+    };
+  }
+
+  m_resources->updateLightingUbo(lightingUbo, m_currentFrame);
 }
 
 void RendererImpl::endPass()
@@ -1053,20 +1123,8 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
 
 void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
 {
-  auto& frameState = m_frameStates.getReadable();
-  auto& renderPassState = frameState.renderPasses.at(RenderPass::Shadow);
-
-  // TODO: Currently only the first light can cast shadows
-  const Light& light = frameState.lighting.lights[0];
-  Vec3f lightDir = Vec3f{ 1.f, -0.2f, 1.f }.normalise(); // TODO
-  LightTransformsUbo lightTransformsUbo{
-    .viewMatrix = lookAt(light.worldPos, light.worldPos + lightDir),
-    .projMatrix = perspective(PIf / 2.f, PIf / 2.f, m_viewParams.nearPlane,
-      m_viewParams.farPlane)
-  };
-  m_resources->updateLightTransformsUbo(lightTransformsUbo, m_currentFrame);
-
-  updateResources(RenderPass::Shadow);
+  updateInstanceBuffers(RenderPass::Shadow);
+  updateLightTransformsUbo();
 
   VkImageMemoryBarrier barrier1{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -1123,13 +1181,17 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
 
   vkCmdBeginRenderingFn(commandBuffer, &renderingInfo);
 
+  auto& frameState = m_frameStates.getReadable();
+  auto& renderPassState = frameState.renderPasses.at(RenderPass::Shadow);
   const auto& renderGraph = renderPassState.graph;
+
   BindState bindState{};
   for (auto& node : renderGraph) {
-    if (node->mesh.features.flags.test(MeshFeatures::CastsShadow)) {
-      auto& pipeline = choosePipeline(RenderPass::Shadow, *node);
-      pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
-    }
+    DBG_ASSERT(node->mesh.features.flags.test(MeshFeatures::CastsShadow),
+      "Attempt to draw non-shadow-casting object during shadow pass");
+
+    auto& pipeline = choosePipeline(RenderPass::Shadow, *node);
+    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
   }
 
   vkCmdEndRenderingFn(commandBuffer);
@@ -1159,17 +1221,9 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
 
 void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
-  auto& frameState = m_frameStates.getReadable();
-  auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
-  m_resources->updateLightingUbo(frameState.lighting, m_currentFrame);
-
-  CameraTransformsUbo cameraTransformsUbo{
-    .viewMatrix = renderPassState.viewMatrix,
-    .projMatrix = m_projectionMatrix
-  };
-  m_resources->updateCameraTransformsUbo(cameraTransformsUbo, m_currentFrame);
-
-  updateResources(RenderPass::Main);
+  updateInstanceBuffers(RenderPass::Main);
+  updateCameraTransformsUbo();
+  updateLightingUbo();
 
   VkImageMemoryBarrier barrier1{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -1241,7 +1295,10 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
 
   vkCmdBeginRenderingFn(commandBuffer, &renderingInfo);
 
+  auto& frameState = m_frameStates.getReadable();
+  auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
   const auto& renderGraph = renderPassState.graph;
+
   BindState bindState{};
   for (auto& node : renderGraph) {
     auto& pipeline = choosePipeline(RenderPass::Main, *node);

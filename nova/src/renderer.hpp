@@ -54,12 +54,13 @@ class Renderer
     // Per frame draw functions
     //
     virtual void beginFrame() = 0;
-    virtual void beginPass(RenderPass renderPass, const Mat4x4f& viewMatrix) = 0;
+    virtual void beginPass(RenderPass renderPass, const Vec3f& viewPos,
+      const Mat4x4f& viewMatrix) = 0;
     virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) = 0;
     virtual void drawInstance(MeshHandle mesh, MaterialHandle material,
       const Mat4x4f& transform) = 0;
     virtual void drawLight(const Vec3f& colour, float_t ambient, float_t specular,
-      const Vec3f& worldPos) = 0;
+      const Mat4x4f& transform) = 0;
     virtual void drawSkybox(MeshHandle mesh, MaterialHandle cubeMap) = 0;
     virtual void endPass() = 0;
     virtual void endFrame() = 0;

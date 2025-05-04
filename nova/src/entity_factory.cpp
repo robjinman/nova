@@ -279,18 +279,21 @@ float_t getValue(const ObjectData& data, const std::string& name, const float_t&
 }
 
 void EntityFactoryImpl::constructSpatialComponent(EntityId entityId, const XmlNode& node,
-  const ObjectData& data, const Mat4x4f& transform) const
+  const ObjectData& data, const Mat4x4f& fromMapTransform) const
 {
   auto strRadius = node.attribute("radius");
   float_t radius = !strRadius.empty() ? metresToWorldUnits(parseFloat<float_t>(strRadius)) : 0.f;
 
   auto i = node.child("transform");
-  auto m = i != node.end() ? transform * parseTransform(*i) : transform;
+  auto typeTransform = i != node.end() ? parseTransform(*i) : identityMatrix<float_t, 4>();
 
   float_t height = metresToWorldUnits(getValue<float_t>(data, "height", 0));
-  m.set(1, 3, m.at(1, 3) + height);
+  float_t tilt = degreesToRadians(getValue<float_t>(data, "tilt", 0));
+  auto instanceTransform = createTransform(Vec3f{ 0, height, 0 }, Vec3f{ tilt, 0, 0 });
 
-  auto spatial = std::make_unique<CSpatial>(entityId, m, radius);
+  auto transform = fromMapTransform * instanceTransform * typeTransform;
+
+  auto spatial = std::make_unique<CSpatial>(entityId, transform, radius);
 
   m_spatialSystem.addComponent(std::move(spatial));
 }

@@ -578,6 +578,16 @@ Vector<T, 3> getTranslation(const Matrix<T, 4, 4>& m)
 }
 
 template<typename T>
+Vector<T, 3> getDirection(const Matrix<T, 4, 4>& m)
+{
+  return (getRotation3x3(m) * Vector<T, 3>{
+    static_cast<T>(0),
+    static_cast<T>(0),
+    static_cast<T>(-1)
+  }).normalise();
+}
+
+template<typename T>
 void setTranslation(Matrix<T, 4, 4>& m, const Vector<T, 3>& t)
 {
   m.set(0, 3, t[0]);

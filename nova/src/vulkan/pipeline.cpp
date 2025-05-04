@@ -405,9 +405,11 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   m_rasterizationStateInfo =
     defaultRasterizationState(materialFeatures.flags.test(MaterialFeatures::IsDoubleSided));
   if (m_renderPass == RenderPass::Shadow) {
-    //m_rasterizationStateInfo.depthBiasEnable = VK_TRUE;
-    //m_rasterizationStateInfo.depthBiasConstantFactor = 1.25f;
-    //m_rasterizationStateInfo.depthBiasSlopeFactor = 1.75f;
+    m_rasterizationStateInfo.depthBiasEnable = VK_TRUE;
+    m_rasterizationStateInfo.depthClampEnable = VK_TRUE;
+    m_rasterizationStateInfo.depthBiasClamp = 0.f;
+    m_rasterizationStateInfo.depthBiasConstantFactor = 0.f;
+    m_rasterizationStateInfo.depthBiasSlopeFactor = 1.f;
     m_rasterizationStateInfo.cullMode = VK_CULL_MODE_FRONT_BIT;
   }
   m_multisampleStateInfo = defaultMultisamplingState();
