@@ -32,7 +32,7 @@ struct Light
 
 struct LightingUbo
 {
-  Vec3f cameraPos;
+  Vec3f viewPos;
   uint32_t numLights;
   Light lights[MAX_LIGHTS];
 };

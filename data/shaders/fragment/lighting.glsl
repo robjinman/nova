@@ -8,7 +8,7 @@ struct Light
 
 layout(std140, set = 2, binding = 0) uniform LightingUbo
 {
-  vec3 cameraPos;
+  vec3 viewPos;
   int numLights;
   Light lights[8];
 } lighting;
@@ -37,7 +37,7 @@ vec3 computeLight(vec3 worldPos, vec3 normal)
 
     vec3 lightDir = normalize(lighting.lights[i].worldPos - worldPos);
     float diffuse = max(dot(normal, lightDir), 0.0);
-    vec3 viewDir = normalize(lighting.cameraPos - worldPos);
+    vec3 viewDir = normalize(lighting.viewPos - worldPos);
     vec3 reflectDir = reflect(-lightDir, normal);
     float specular = lighting.lights[i].specular * pow(max(dot(viewDir, reflectDir), 0.0), 32);
     intensity += shadow * (diffuse + specular);

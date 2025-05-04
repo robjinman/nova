@@ -1,16 +1,10 @@
 #pragma once
 
 #include "tree_set.hpp"
-#include "render_resources.hpp"
+#include "renderer.hpp"
+#include "vulkan/render_resources.hpp"
 #include <vulkan/vulkan.h>
 #include <optional>
-
-enum class RenderPass
-{
-  Shadow,
-  Main,
-  Ssr
-};
 
 enum class RenderNodeType
 {

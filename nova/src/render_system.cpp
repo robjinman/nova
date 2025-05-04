@@ -62,7 +62,11 @@ class RenderSystemImpl : public RenderSystem
     std::map<EntityId, CRenderPtr> m_components;
     std::set<EntityId> m_lights;
 
-    std::vector<Vec2f> computeFrustumPerimeter() const;
+    std::vector<Vec2f> computeFrustumPerimeter(const Vec3f& viewPos, const Vec3f& viewDir,
+      float_t hFov) const;
+    void drawEntities(const std::unordered_set<EntityId>& entities);
+    void doShadowPass();
+    void doMainPass();
 };
 
 RenderSystemImpl::RenderSystemImpl(const SpatialSystem& spatialSystem, Renderer& renderer,
@@ -79,21 +83,20 @@ void RenderSystemImpl::compileShader(const MeshFeatureSet& meshFeatures,
   m_renderer.compileShader(meshFeatures, materialFeatures);
 }
 
-std::vector<Vec2f> RenderSystemImpl::computeFrustumPerimeter() const
+std::vector<Vec2f> RenderSystemImpl::computeFrustumPerimeter(const Vec3f& viewPos,
+  const Vec3f& viewDir, float_t hFov) const
 {
   auto params = m_renderer.getViewParams();
-  Vec3f A{ params.nearPlane * static_cast<float_t>(tan(0.5f * params.hFov)), params.nearPlane, 1 };
-  Vec3f B{ params.farPlane * static_cast<float_t>(tan(0.5f * params.hFov)), params.farPlane, 1 };
+  Vec3f A{ params.nearPlane * static_cast<float_t>(tan(0.5f * hFov)), params.nearPlane, 1 };
+  Vec3f B{ params.farPlane * static_cast<float_t>(tan(0.5f * hFov)), params.farPlane, 1 };
   Vec3f C{ -B[0], B[1], 1 };
   Vec3f D{ -A[0], A[1], 1 };
 
-  const Vec3f& camPos = m_camera.getPosition();
-  const Vec3f& camDir = m_camera.getDirection();
-  float_t a = atan2(camDir[2], camDir[0]) - 0.5f * PIf;
+  float_t a = atan2(viewDir[2], viewDir[0]) - 0.5f * PIf;
 
   Mat3x3f m{
-    cosine(a), -sine(a), camPos[0],
-    sine(a), cosine(a), camPos[2],
+    cosine(a), -sine(a), viewPos[0],
+    sine(a), cosine(a), viewPos[2],
     0, 0, 1
   };
 
@@ -200,57 +203,95 @@ const Camera& RenderSystemImpl::camera() const
   return m_camera;
 }
 
+void RenderSystemImpl::drawEntities(const std::unordered_set<EntityId>& entities)
+{
+  for (EntityId id : entities) {
+    auto entry = m_components.find(id);
+    if (entry == m_components.end()) {
+      continue;
+    }
+
+    const auto& component = *entry->second;
+    const auto& spatial = m_spatialSystem.getComponent(id);
+
+    switch(component.type) {
+      case CRenderType::Instance: {
+        for (auto& mesh : component.meshes) {
+          m_renderer.drawInstance(mesh.mesh, mesh.material, spatial.absTransform());
+        }
+        break;
+      }
+      case CRenderType::Regular: {
+        for (auto& mesh : component.meshes) {
+          m_renderer.drawModel(mesh.mesh, mesh.material,
+            spatial.absTransform() * mesh.mesh.transform);
+        }
+        break;
+      }
+      case CRenderType::Skybox: {
+        ASSERT(component.meshes.size() == 1, "Expected skybox to have exactly 1 mesh");
+        m_renderer.drawSkybox(component.meshes[0].mesh, component.meshes[0].material);
+        break;
+      }
+      case CRenderType::Light: break;
+    }
+  }
+}
+
+void RenderSystemImpl::doShadowPass()
+{
+  m_renderer.beginPass(RenderPass::Shadow, m_camera.getMatrix());
+
+  // TODO: Separate pass for every shadow casting light
+  const CRenderLight& firstLight =
+    dynamic_cast<const CRenderLight&>(*m_components.at(*m_lights.begin()));
+  const CSpatial& firstLightSpatial = m_spatialSystem.getComponent(firstLight.id());
+  auto firstLightPos = getTranslation(firstLightSpatial.absTransform());
+
+  // TODO
+  auto frustum = computeFrustumPerimeter(firstLightPos, Vec3f{ 1.f, -0.2f, 1.f }.normalise(),
+    degreesToRadians(90.f));
+  auto visible = m_spatialSystem.getIntersecting(frustum);
+
+  drawEntities(visible);
+
+  m_renderer.endPass();
+}
+
+void RenderSystemImpl::doMainPass()
+{
+  m_renderer.beginPass(RenderPass::Main, m_camera.getMatrix());
+
+  auto frustum = computeFrustumPerimeter(m_camera.getPosition(), m_camera.getDirection(),
+    m_renderer.getViewParams().hFov);
+  auto visible = m_spatialSystem.getIntersecting(frustum);
+
+  drawEntities(visible);
+
+  for (EntityId id : m_lights) {
+    const CRenderLight& light = dynamic_cast<const CRenderLight&>(*m_components.at(id));
+    const auto& spatial = m_spatialSystem.getComponent(id);
+    const auto& transform = spatial.absTransform();
+
+    m_renderer.drawLight(light.colour, light.ambient, light.specular, getTranslation(transform));
+
+    if (light.meshes.size() > 0) {
+      for (auto& mesh : light.meshes) {
+        m_renderer.drawModel(mesh.mesh, mesh.material, spatial.absTransform());
+      }
+    }
+  }
+
+  m_renderer.endPass();
+}
+
 void RenderSystemImpl::update()
 {
   try {
-    m_renderer.beginFrame(m_camera);
+    m_renderer.beginFrame();
 
-    auto visible = m_spatialSystem.getIntersecting(computeFrustumPerimeter());
-    for (EntityId id : visible) {
-      auto entry = m_components.find(id);
-      if (entry == m_components.end()) {
-        continue;
-      }
-
-      const auto& component = *entry->second;
-      const auto& spatial = m_spatialSystem.getComponent(id);
-
-      switch(component.type) {
-        case CRenderType::Instance: {
-          for (auto& mesh : component.meshes) {
-            m_renderer.drawInstance(mesh.mesh, mesh.material, spatial.absTransform());
-          }
-          break;
-        }
-        case CRenderType::Regular: {
-          for (auto& mesh : component.meshes) {
-            m_renderer.drawModel(mesh.mesh, mesh.material,
-              spatial.absTransform() * mesh.mesh.transform);
-          }
-          break;
-        }
-        case CRenderType::Skybox: {
-          ASSERT(component.meshes.size() == 1, "Expected skybox to have exactly 1 mesh");
-          m_renderer.drawSkybox(component.meshes[0].mesh, component.meshes[0].material);
-          break;
-        }
-        case CRenderType::Light: break;
-      }
-    }
-
-    for (EntityId id : m_lights) {
-      const CRenderLight& light = dynamic_cast<const CRenderLight&>(*m_components.at(id));
-      const auto& spatial = m_spatialSystem.getComponent(id);
-      const auto& transform = spatial.absTransform();
-
-      m_renderer.drawLight(light.colour, light.ambient, light.specular, getTranslation(transform));
-
-      if (light.meshes.size() > 0) {
-        for (auto& mesh : light.meshes) {
-          m_renderer.drawModel(mesh.mesh, mesh.material, spatial.absTransform());
-        }
-      }
-    }
+    doShadowPass();
+    doMainPass();
 
     m_renderer.endFrame();
     m_renderer.checkError();
