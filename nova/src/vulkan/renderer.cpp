@@ -734,14 +734,19 @@ VkPresentModeKHR RendererImpl::chooseSwapChainPresentMode(
 VkSurfaceFormatKHR RendererImpl::chooseSwapChainSurfaceFormat(
   const std::vector<VkSurfaceFormatKHR>& availableFormats) const
 {
+  m_logger.debug("Available surface formats:");
+  for (const auto& format : availableFormats) {
+    m_logger.debug(STR("Format = " << format.format << ", colourSpace = " << format.colorSpace));
+  }
+
   for (const auto& format : availableFormats) {
     if (format.format == VK_FORMAT_B8G8R8A8_SRGB &&
       format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
 
       return format;
     }
-    if (format.format == VK_FORMAT_R16G16B16A16_SFLOAT &&
-      format.colorSpace == VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT) {
+    if (format.format == VK_FORMAT_R8G8B8A8_UNORM &&
+      format.colorSpace == VK_COLOR_SPACE_DISPLAY_P3_LINEAR_EXT) {
 
       return format;
     }
