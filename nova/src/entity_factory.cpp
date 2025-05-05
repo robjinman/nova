@@ -325,13 +325,14 @@ void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNod
     auto mesh = cuboid(size, size, size, {});
     mesh->attributeBuffers.resize(2);
     mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition, BufferUsage::AttrNormal };
+    mesh->featureSet.flags.set(MeshFeatures::CastsShadow, false);
     MaterialPtr material = std::make_unique<Material>(MaterialFeatureSet{});
     material->colour = { colour[0], colour[1], colour[2], 1.f };
 
-    //light->meshes.push_back(MeshMaterialPair{
-    //  .mesh = m_renderSystem.addMesh(std::move(mesh)),
-    //  .material = m_renderSystem.addMaterial(std::move(material))
-    //});
+    light->meshes.push_back(MeshMaterialPair{
+      .mesh = m_renderSystem.addMesh(std::move(mesh)),
+      .material = m_renderSystem.addMaterial(std::move(material))
+    });
 
     render = std::move(light);
   }
