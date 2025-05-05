@@ -6,4 +6,10 @@
     </transform>
   </spatial-component>
   <render-component model="cube" type="regular"/>
+  <collision-component height="1.0">
+    <point x="-1" y="-1"/>
+    <point x="1" y="-1"/>
+    <point x="1" y="1"/>
+    <point x="-1" y="1"/>
+  </collision-component>
 </entity>

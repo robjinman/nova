@@ -2,8 +2,14 @@
   <spatial-component radius="5.0">
     <transform scale="4">
       <pos x="0" y="0" z="0"/>
-      <ori x="0" y="0" z="0"/>
+      <ori x="0" y="270" z="0"/>
     </transform>
   </spatial-component>
   <render-component model="dinosaur" type="regular"/>
+  <collision-component height="6.0">
+    <point x="-4" y="-4"/>
+    <point x="4" y="-4"/>
+    <point x="4" y="4"/>
+    <point x="-4" y="4"/>
+  </collision-component>
 </entity>

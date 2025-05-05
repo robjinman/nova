@@ -53,7 +53,7 @@ class SpatialSystemImpl : public SpatialSystem
 
 SpatialSystemImpl::SpatialSystemImpl(Logger& logger)
   : m_logger(logger)
-  , m_grid(Vec2f{-400.f, -400.f}, Vec2f{1200.f, 1200.f}) // TODO
+  , m_grid(Vec2f{-400.f, -400.f}, Vec2f{1600.f, 1600.f}) // TODO
 {
 }
 
