@@ -64,8 +64,10 @@ class RenderSystemImpl : public RenderSystem
 
     using DrawFilter = std::function<bool(const MeshMaterialPair&)>;
 
-    std::vector<Vec2f> computeFrustumPerimeter(const Vec3f& viewPos, const Vec3f& viewDir,
-      float_t hFov) const;
+    std::vector<Vec2f> computePerspectiveFrustumPerimeter(const Vec3f& viewPos,
+      const Vec3f& viewDir, float_t hFov) const;
+    std::vector<Vec2f> computeOrthographicFrustumPerimeter(const Vec3f& viewPos,
+      const Vec3f& viewDir, float_t hFov, float_t zFar) const;
     void drawEntities(const std::unordered_set<EntityId>& entities,
       const DrawFilter& filter = [](const MeshMaterialPair&) { return true; });
     void doShadowPass();
@@ -86,12 +88,32 @@ void RenderSystemImpl::compileShader(const MeshFeatureSet& meshFeatures,
   m_renderer.compileShader(meshFeatures, materialFeatures);
 }
 
-std::vector<Vec2f> RenderSystemImpl::computeFrustumPerimeter(const Vec3f& viewPos,
+std::vector<Vec2f> RenderSystemImpl::computePerspectiveFrustumPerimeter(const Vec3f& viewPos,
   const Vec3f& viewDir, float_t hFov) const
 {
   auto params = m_renderer.getViewParams();
   Vec3f A{ params.nearPlane * static_cast<float_t>(tan(0.5f * hFov)), params.nearPlane, 1 };
   Vec3f B{ params.farPlane * static_cast<float_t>(tan(0.5f * hFov)), params.farPlane, 1 };
+  Vec3f C{ -B[0], B[1], 1 };
+  Vec3f D{ -A[0], A[1], 1 };
+
+  float_t a = atan2(viewDir[2], viewDir[0]) - 0.5f * PIf;
+
+  Mat3x3f m{
+    cosine(a), -sine(a), viewPos[0],
+    sine(a), cosine(a), viewPos[2],
+    0, 0, 1
+  };
+
+  return std::vector<Vec2f>{(m * A).sub<2>(), (m * B).sub<2>(), (m * C).sub<2>(), (m * D).sub<2>()};
+}
+
+std::vector<Vec2f> RenderSystemImpl::computeOrthographicFrustumPerimeter(const Vec3f& viewPos,
+  const Vec3f& viewDir, float_t hFov, float_t zFar) const
+{
+  float_t w = zFar * tan(0.5 * hFov);
+  Vec3f A{ w, 0.f, 1 };
+  Vec3f B{ w, zFar, 1 };
   Vec3f C{ -B[0], B[1], 1 };
   Vec3f D{ -A[0], A[1], 1 };
 
@@ -259,7 +281,8 @@ void RenderSystemImpl::doShadowPass()
   auto firstLightDir = getDirection(firstLightTransform);
   auto firstLightMatrix = lookAt(firstLightPos, firstLightPos + firstLightDir);
 
-  auto frustum = computeFrustumPerimeter(firstLightPos, firstLightDir, degreesToRadians(90.f));
+  auto frustum = computeOrthographicFrustumPerimeter(firstLightPos, firstLightDir,
+    degreesToRadians(90.f), firstLight.zFar);
   auto visible = m_spatialSystem.getIntersecting(frustum);
 
   m_renderer.beginPass(RenderPass::Shadow, firstLightPos, firstLightMatrix);
@@ -273,7 +296,7 @@ void RenderSystemImpl::doShadowPass()
 
 void RenderSystemImpl::doMainPass()
 {
-  auto frustum = computeFrustumPerimeter(m_camera.getPosition(), m_camera.getDirection(),
+  auto frustum = computePerspectiveFrustumPerimeter(m_camera.getPosition(), m_camera.getDirection(),
     m_renderer.getViewParams().hFov);
   auto visible = m_spatialSystem.getIntersecting(frustum);
 
@@ -286,7 +309,7 @@ void RenderSystemImpl::doMainPass()
     const auto& spatial = m_spatialSystem.getComponent(id);
     const auto& transform = spatial.absTransform();
 
-    m_renderer.drawLight(light.colour, light.ambient, light.specular, transform);
+    m_renderer.drawLight(light.colour, light.ambient, light.specular, light.zFar, transform);
 
     if (light.meshes.size() > 0) {
       for (auto& mesh : light.meshes) {

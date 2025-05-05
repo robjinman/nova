@@ -77,9 +77,11 @@ TEST_F(GridTest, gridCellsBetweenPoints_out_of_bounds)
   auto cells = grid.test_gridCellsBetweenPoints({ -0.1f, 8.1f }, { 1.8f, 10.3f });
 
   GridCellList expected{
+    { -1, 8 },
     { 0, 8 },
     { 0, 9 },
-    { 1, 9 }
+    { 1, 9 },
+    { 1, 10 }
   };
 
   EXPECT_EQ(expected, cells);

@@ -189,31 +189,50 @@ Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre)
   m.set(1, 0, u[0]);
   m.set(1, 1, u[1]);
   m.set(1, 2, u[2]);
-  m.set(2, 0, -f[0]);
-  m.set(2, 1, -f[1]);
-  m.set(2, 2, -f[2]);
+  m.set(2, 0, f[0]);
+  m.set(2, 1, f[1]);
+  m.set(2, 2, f[2]);
   m.set(0, 3, -s.dot(eye));
   m.set(1, 3, -u.dot(eye));
-  m.set(2, 3, f.dot(eye));
+  m.set(2, 3, -f.dot(eye));
   return m;
 }
 
-Mat4x4f perspective(float_t fovX, float_t fovY, float_t near, float_t far)
+Mat4x4f perspective(float_t fovX, float_t fovY, float_t n, float_t f)
 {
   Mat4x4f m;
-  const float_t t = -near * tan(fovY * 0.5f);
+  const float_t t = n * tan(fovY * 0.5f);
   const float_t b = -t;
-  const float_t r = near * tan(fovX * 0.5f);
+  const float_t r = n * tan(fovX * 0.5f);
   const float_t l = -r;
 
-  m.set(0, 0, 2.f * near / (r - l));
-  m.set(0, 2, (r + l) / (r - l));
-  m.set(1, 1, -2.f * near / (b - t));
-  m.set(1, 2, (b + t) / (b - t));
-  m.set(2, 2, -far / (far - near));
-  m.set(2, 3, -far * near / (far - near));
-  m.set(3, 2, -1.f);
+  m.set(0, 0, 2.f * n / (r - l));
+  m.set(0, 2, (r + l) / (l - r));
+  m.set(1, 1, -2.f * n / (t - b));
+  m.set(1, 2, (t + b) / (b - t));
+  m.set(2, 2, f / (f - n));
+  m.set(2, 3, f * n / (n - f));
+  m.set(3, 2, 1.f);
   m.set(3, 3, 0.f);
+
+  return m;
+}
+
+Mat4x4f orthographic(float_t fovX, float_t fovY, float_t n, float_t f)
+{
+  Mat4x4f m;
+  const float_t t = f * tan(fovY * 0.5f);
+  const float_t b = -t;
+  const float_t r = f * tan(fovX * 0.5f);
+  const float_t l = -r;
+
+  m.set(0, 0, 2.f / (r - l));
+  m.set(0, 3, (r + l) / (l - r));
+  m.set(1, 1, 2.f / (b - t));
+  m.set(1, 3, (b + t) / (b - t));
+  m.set(2, 2, 1.f / (f - n));
+  m.set(2, 3, -n / (f - n));
+  m.set(3, 3, 1.f);
 
   return m;
 }
@@ -222,3 +241,4 @@ Mat2x2f inverse(const Mat2x2f& M)
 {
   return adjoint(M) / determinant(M);
 }
+ 

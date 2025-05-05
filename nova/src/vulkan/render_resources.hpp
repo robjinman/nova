@@ -4,8 +4,8 @@
 #include <vulkan/vulkan.h>
 
 const uint32_t MAX_LIGHTS = 4;
-const uint32_t SHADOW_MAP_W = 2048;
-const uint32_t SHADOW_MAP_H = 2048;
+const uint32_t SHADOW_MAP_W = 4096;
+const uint32_t SHADOW_MAP_H = 4096;
 
 #pragma pack(push, 4)
 struct CameraTransformsUbo

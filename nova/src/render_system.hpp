@@ -40,6 +40,7 @@ struct CRenderLight : public CRender
   Vec3f colour;
   float_t ambient = 0.f;
   float_t specular = 0.f;
+  float_t zFar = 1500.f; // TODO
 };
 
 // TODO

@@ -51,7 +51,7 @@ class Grid
     void boundsCheck(const Vec2f& p) const;
     Vec2i worldToGridCoords(const Vec2f& p) const;
     GridCellList gridCellsBetweenPoints(const Vec2f& A, const Vec2f& B) const;
-    bool clipToGrid(Vec2f& A, Vec2f& B) const;
+    bool cellInRange(const Vec2i& cell) const;
 };
 
 template<typename T, size_t GRID_W, size_t GRID_H>
@@ -79,7 +79,9 @@ void Grid<T, GRID_W, GRID_H>::addItemByPerimeter(const std::vector<Vec2f>& poly,
 
     auto cells = gridCellsBetweenPoints(p1, p2);
     for (auto& cell : cells) {
-      m_items[cell[0]][cell[1]].insert(item);
+      if (cellInRange(cell)) {
+        m_items[cell[0]][cell[1]].insert(item);
+      }
     }
   }
 }
@@ -160,7 +162,7 @@ std::unordered_set<T> Grid<T, GRID_W, GRID_H>::getItems(const std::vector<Vec2f>
     return items;
   }
 
-  Vec2i minGridCoord{ GRID_W, GRID_H };
+  Vec2i minGridCoord{ GRID_W - 1, GRID_H - 1 };
   Vec2i maxGridCoord{ 0, 0 };
 
   const size_t n = poly.size();
@@ -170,20 +172,22 @@ std::unordered_set<T> Grid<T, GRID_W, GRID_H>::getItems(const std::vector<Vec2f>
 
     auto cells = gridCellsBetweenPoints(p1, p2);
     for (auto& cell : cells) {
-      auto& list = m_items[cell[0]][cell[1]];
-      items.insert(list.begin(), list.end());
+      if (cellInRange(cell)) {
+        auto& list = m_items[cell[0]][cell[1]];
+        items.insert(list.begin(), list.end());
+      }
 
       if (cell[0] < minGridCoord[0]) {
-        minGridCoord[0] = cell[0];
+        minGridCoord[0] = std::max(cell[0], 0);
       }
       if (cell[0] > maxGridCoord[0]) {
-        maxGridCoord[0] = cell[0];
+        maxGridCoord[0] = std::min(cell[0], static_cast<int>(GRID_W - 1));
       }
       if (cell[1] < minGridCoord[1]) {
-        minGridCoord[1] = cell[1];
+        minGridCoord[1] = std::max(cell[1], 0);
       }
       if (cell[1] > maxGridCoord[1]) {
-        maxGridCoord[1] = cell[1];
+        maxGridCoord[1] = std::min(cell[1], static_cast<int>(GRID_H - 1));
       }
     }
   }
@@ -206,6 +210,13 @@ std::unordered_set<T> Grid<T, GRID_W, GRID_H>::getItems(const std::vector<Vec2f>
 }
 
 template<typename T, size_t GRID_W, size_t GRID_H>
+bool Grid<T, GRID_W, GRID_H>::cellInRange(const Vec2i& cell) const
+{
+  return cell[0] >= 0 && cell[0] < static_cast<int>(GRID_W) &&
+    cell[1] >= 0 && cell[1] < static_cast<int>(GRID_H);
+}
+
+template<typename T, size_t GRID_W, size_t GRID_H>
 bool Grid<T, GRID_W, GRID_H>::withinBounds(const Vec2f& p) const
 {
   if (p[0] < m_worldMin[0] || p[0] > m_worldMax[0]) { return false; }
@@ -223,71 +234,18 @@ template<typename T, size_t GRID_W, size_t GRID_H>
 Vec2i Grid<T, GRID_W, GRID_H>::worldToGridCoords(const Vec2f& p) const
 {
   return {
-    static_cast<int>((p[0] - m_worldMin[0]) / m_cellW),
-    static_cast<int>((p[1] - m_worldMin[1]) / m_cellH)
+    static_cast<int>(floor((p[0] - m_worldMin[0]) / m_cellW)),
+    static_cast<int>(floor((p[1] - m_worldMin[1]) / m_cellH))
   };
 }
 
 template<typename T, size_t GRID_W, size_t GRID_H>
-bool Grid<T, GRID_W, GRID_H>::clipToGrid(Vec2f& A, Vec2f& B) const
-{
-  bool aIsInBounds = withinBounds(A);
-  bool bIsInBounds = withinBounds(B);
-
-  if (aIsInBounds && bIsInBounds) {
-    return true;
-  }
-
-  auto moveP = [this](Vec2f& P, const Vec2f& Q, int i) {
-    const float_t epsilon = 0.001f;
-    auto v = Q - P;
-
-    if (P[i] < m_worldMin[i]) {
-      float_t t = (m_worldMin[i] - P[i]) / fabs(v[i]) + epsilon;
-      P = P + v * t;
-    }
-  
-    if (P[i] > m_worldMax[i]) {
-      float_t t = (P[i] - m_worldMax[i]) / fabs(v[i]) + epsilon;
-      P = P + v * t;
-    }
-  };
-
-  if (!aIsInBounds) {
-    moveP(A, B, 0);
-    moveP(A, B, 1);
-
-    if (!withinBounds(A)) {
-      return false;
-    }
-  }
-  if (!bIsInBounds) {
-    moveP(B, A, 0);
-    moveP(B, A, 1);
-  }
-  return withinBounds(B);
-}
-
-template<typename T, size_t GRID_W, size_t GRID_H>
-GridCellList Grid<T, GRID_W, GRID_H>::gridCellsBetweenPoints(const Vec2f& A_, const Vec2f& B_) const
+GridCellList Grid<T, GRID_W, GRID_H>::gridCellsBetweenPoints(const Vec2f& A, const Vec2f& B) const
 {
   GridCellList cells;
 
-  auto A = A_;
-  auto B = B_;
-
-  if (!clipToGrid(A, B)) {
-    return cells;
-  }
-
-  Vec2i startCell{
-    static_cast<int>((A[0] - m_worldMin[0]) / m_cellW),
-    static_cast<int>((A[1] - m_worldMin[1]) / m_cellH)
-  };
-  Vec2i endCell{
-    static_cast<int>((B[0] - m_worldMin[0]) / m_cellW),
-    static_cast<int>((B[1] - m_worldMin[1]) / m_cellH)
-  };
+  Vec2i startCell = worldToGridCoords(A);
+  Vec2i endCell = worldToGridCoords(B);
 
   cells.insert(startCell);
 
@@ -300,9 +258,8 @@ GridCellList Grid<T, GRID_W, GRID_H>::gridCellsBetweenPoints(const Vec2f& A_, co
 
   Vec2f delta = B - A;
 
-  auto gridA = worldToGridCoords(A);
-  float_t nextVertical = m_worldMin[0] + m_cellW * (gridA[0] + (stepX > 0 ? 1 : 0));
-  float_t nextHorizontal = m_worldMin[1] + m_cellH * (gridA[1] + (stepY > 0 ? 1 : 0));
+  float_t nextVertical = m_worldMin[0] + m_cellW * (startCell[0] + (stepX > 0 ? 1 : 0));
+  float_t nextHorizontal = m_worldMin[1] + m_cellH * (startCell[1] + (stepY > 0 ? 1 : 0));
 
   float_t tx = fabs(delta[0]) > 0.f ?
     (nextVertical - A[0]) / delta[0] :

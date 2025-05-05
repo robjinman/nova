@@ -83,6 +83,7 @@ void GameImpl::onKeyDown(KeyboardKey key)
       break;
     case KeyboardKey::P:
       m_freeflyMode = !m_freeflyMode;
+      m_logger.info(STR("Freefly mode: " << (m_freeflyMode ? "ON" : "OFF")));
       break;
     default: break;
   }

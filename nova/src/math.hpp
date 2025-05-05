@@ -613,6 +613,7 @@ struct Line
 
 Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre);
 Mat4x4f perspective(float_t fovX, float_t fovY, float_t near, float_t far);
+Mat4x4f orthographic(float_t fovX, float_t fovY, float_t n, float_t f);
 bool lineIntersect(const Line& l1, const Line& l2, Vec2f& p);
 Vec2f projectionOntoLine(const Line& line, const Vec2f& p);
 bool lineSegmentCircleIntersect(const LineSegment& lseg, const Vec2f& centre, float_t radius);

@@ -15,6 +15,26 @@ layout(std140, set = 2, binding = 0) uniform LightingUbo
 
 layout(set = 3, binding = 0) uniform sampler2D shadowMapSampler;
 
+float sampleShadowMap(vec2 uv)
+{
+  ivec2 shadowMapSize = textureSize(shadowMapSampler, 0);
+  float scale = 1.0;
+	float dx = scale / float(shadowMapSize.x);
+	float dy = scale / float(shadowMapSize.y);
+  int w = 2;
+
+  float shadowFactor = 0.0;
+
+  for (int i = -w; i <= w; ++i) {
+    for (int j = -w; j <= w; ++j) {
+      shadowFactor += texture(shadowMapSampler, uv + vec2(i * dx, j * dy)).r;
+    }
+  }
+
+  int W = w * 2 + 1;
+  return shadowFactor / (W * W);
+}
+
 vec3 computeLight(vec3 worldPos, vec3 normal)
 {
   vec3 light = vec3(0, 0, 0);
@@ -26,7 +46,7 @@ vec3 computeLight(vec3 worldPos, vec3 normal)
     if (i == 0) {
       vec3 lightSpacePos = (inLightSpacePos / inLightSpacePos.w).xyz;
       vec2 lightSpaceXy = lightSpacePos.xy * 0.5 + 0.5;
-      float minDistanceFromLight = texture(shadowMapSampler, lightSpaceXy).r;
+      float minDistanceFromLight = sampleShadowMap(lightSpaceXy);
 
       if (lightSpacePos.z > minDistanceFromLight) {
         shadow = 0.0;

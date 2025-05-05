@@ -97,7 +97,7 @@ class RendererImpl : public Renderer
     void beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix) override;
     void drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
-    void drawLight(const Vec3f& colour, float_t ambient, float_t specular,
+    void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
       const Mat4x4f& transform) override;
     void drawSkybox(MeshHandle mesh, MaterialHandle material) override;
     void endPass() override;
@@ -196,6 +196,7 @@ class RendererImpl : public Renderer
       Vec3f colour;
       float_t ambient;
       float_t specular;
+      float_t zFar;
     };
 
     struct LightingState
@@ -420,7 +421,7 @@ void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat
 }
 
 void RendererImpl::drawLight(const Vec3f& colour, float_t ambient, float_t specular,
-  const Mat4x4f& transform)
+  float_t zFar, const Mat4x4f& transform)
 {
   FrameState& frameState = m_frameStates.getWritable();
   ASSERT(frameState.lighting.numLights < MAX_LIGHTS, "Exceeded max lights");
@@ -431,6 +432,7 @@ void RendererImpl::drawLight(const Vec3f& colour, float_t ambient, float_t specu
   light.specular = specular;
   light.position = getTranslation(transform);
   light.direction = getDirection(transform);
+  light.zFar = zFar;
 }
 
 void RendererImpl::drawSkybox(MeshHandle mesh, MaterialHandle material)
@@ -557,7 +559,7 @@ void RendererImpl::updateLightTransformsUbo()
   const LightState& light = frameState.lighting.lights[0];
   LightTransformsUbo lightTransformsUbo{
     .viewMatrix = lookAt(light.position, light.position + light.direction),
-    .projMatrix = perspective(PIf / 2.f, PIf / 2.f, m_viewParams.nearPlane, m_viewParams.farPlane)
+    .projMatrix = orthographic(PIf / 2.f, PIf / 2.f, 0.f, light.zFar)
   };
   m_resources->updateLightTransformsUbo(lightTransformsUbo, m_currentFrame);
 }
