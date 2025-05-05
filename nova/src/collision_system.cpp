@@ -7,8 +7,8 @@
 #include <list>
 #include <set>
 
-const size_t GRID_W = 100;
-const size_t GRID_H = 100;
+const size_t GRID_W = 50;
+const size_t GRID_H = 50;
 
 CCollision::CCollision(EntityId entityId)
   : Component(entityId)

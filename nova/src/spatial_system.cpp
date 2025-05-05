@@ -46,7 +46,7 @@ class SpatialSystemImpl : public SpatialSystem
   private:
     Logger& m_logger;
     std::map<EntityId, CSpatialPtr> m_components;
-    Grid<EntityId, 100, 100> m_grid;
+    Grid<EntityId, 50, 50> m_grid;
 };
 
 } // namespace
