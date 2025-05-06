@@ -7,6 +7,7 @@
 #include "utils.hpp"
 #include <map>
 #include <cassert>
+#include <functional>
 
 namespace
 {
@@ -28,7 +29,6 @@ class RenderSystemImpl : public RenderSystem
 
     // Initialisation
     //
-
     void compileShader(const MeshFeatureSet& meshFeatures,
       const MaterialFeatureSet& materialFeatures) override;
 
@@ -111,7 +111,7 @@ std::vector<Vec2f> RenderSystemImpl::computePerspectiveFrustumPerimeter(const Ve
 std::vector<Vec2f> RenderSystemImpl::computeOrthographicFrustumPerimeter(const Vec3f& viewPos,
   const Vec3f& viewDir, float_t hFov, float_t zFar) const
 {
-  float_t w = zFar * tan(0.5 * hFov);
+  float_t w = zFar * tan(0.5f * hFov);
   Vec3f A{ w, 0.f, 1 };
   Vec3f B{ w, zFar, 1 };
   Vec3f C{ -B[0], B[1], 1 };
@@ -321,6 +321,7 @@ void RenderSystemImpl::doMainPass()
   m_renderer.endPass();
 }
 
+// TODO: Hot path. Optimise
 void RenderSystemImpl::update()
 {
   try {

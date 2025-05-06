@@ -23,6 +23,8 @@ class CSpatial : public Component
 
 using CSpatialPtr = std::unique_ptr<CSpatial>;
 
+// TODO: Provide efficient way to traverse visible entities, computing absolute transforms during
+// traversal
 class SpatialSystem : public System
 {
   public:

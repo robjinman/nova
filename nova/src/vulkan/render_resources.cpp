@@ -423,6 +423,7 @@ MeshBuffers RenderResourcesImpl::getMeshBuffers(RenderItemId id) const
   };
 }
 
+// TODO: This is far too slow
 void RenderResourcesImpl::updateMeshInstances(RenderItemId id,
   const std::vector<MeshInstance>& instances)
 {
