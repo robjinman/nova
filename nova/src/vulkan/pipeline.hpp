@@ -21,6 +21,7 @@ struct RenderNode
   RenderNodeType type;
   MeshHandle mesh;
   MaterialHandle material;
+  RenderItemId jointTransforms = NULL_ID;
 
   virtual ~RenderNode() = default;
 };

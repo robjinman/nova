@@ -1,6 +1,6 @@
 #pragma once
 
-#include "model.hpp"
+#include "renderer.hpp"
 #include <vulkan/vulkan.h>
 
 const uint32_t MAX_LIGHTS = 4;
@@ -58,6 +58,14 @@ struct MeshBuffers
   uint32_t numInstances;
 };
 
+enum class DescriptorSetNumber : uint32_t
+{
+  Global = 0,
+  RenderPass = 1,
+  Material = 2,
+  Object = 3
+};
+
 class RenderResources
 {
   public:
@@ -68,6 +76,15 @@ class RenderResources
     virtual RenderItemId addCubeMap(std::array<TexturePtr, 6> textures) = 0;
     virtual void removeTexture(RenderItemId id) = 0;
     virtual void removeCubeMap(RenderItemId id) = 0;
+
+    // Descriptor sets
+    //
+    virtual VkDescriptorSetLayout getDescriptorSetLayout(DescriptorSetNumber number) const = 0;
+    virtual VkDescriptorSet getGlobalDescriptorSet(size_t currentFrame) const = 0;
+    virtual VkDescriptorSet getRenderPassDescriptorSet(RenderPass renderpass,
+      size_t currentFrame) const = 0;
+    virtual VkDescriptorSet getMaterialDescriptorSet(RenderItemId id) const = 0;
+    //virtual VkDescriptorSet getObjectDescriptorSet(RenderItemId id) const = 0;
 
     // Meshes
     //
@@ -82,14 +99,16 @@ class RenderResources
     //
     virtual MaterialHandle addMaterial(MaterialPtr material) = 0;
     virtual void removeMaterial(RenderItemId id) = 0;
-    virtual VkDescriptorSetLayout getMaterialDescriptorSetLayout() const = 0;
-    virtual VkDescriptorSet getMaterialDescriptorSet(RenderItemId id) const = 0;
     virtual const MaterialFeatureSet& getMaterialFeatures(RenderItemId id) const = 0;
+
+    // Skeletal animation
+    //
+    virtual RenderItemId addJointTransforms(const std::vector<Mat4x4f>& joints) = 0;
+    virtual void updateJointTransforms(RenderItemId id, const std::vector<Mat4x4f>& joints) = 0;
+    virtual void removeJointTransforms(RenderItemId id) = 0;
 
     // Transforms
     //
-    virtual VkDescriptorSetLayout getTransformsDescriptorSetLayout() const = 0;
-    virtual VkDescriptorSet getTransformsDescriptorSet(size_t currentFrame) const = 0;
     // > Camera
     virtual void updateCameraTransformsUbo(const CameraTransformsUbo& ubo, size_t currentFrame) = 0;
     // > Light
@@ -98,13 +117,9 @@ class RenderResources
     // Lighting
     //
     virtual void updateLightingUbo(const LightingUbo& ubo, size_t currentFrame) = 0;
-    virtual VkDescriptorSetLayout getLightingDescriptorSetLayout() const = 0;
-    virtual VkDescriptorSet getLightingDescriptorSet(size_t currentFrame) const = 0;
 
     // Shadow pass
     //
-    virtual VkDescriptorSetLayout getShadowPassDescriptorSetLayout() const = 0;
-    virtual VkDescriptorSet getShadowPassDescriptorSet() const = 0;
     virtual VkImage getShadowMapImage() const = 0;
     virtual VkImageView getShadowMapImageView() const = 0;
 

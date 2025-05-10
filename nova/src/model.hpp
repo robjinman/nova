@@ -9,6 +9,7 @@
 #include <optional>
 #include <array>
 #include <bitset>
+#include <map>
 
 using RenderItemId = long;
 const RenderItemId NULL_ID = -1;
@@ -212,6 +213,13 @@ inline size_t calcOffsetInVertex(const VertexLayout& layout, BufferUsage attribu
   return sum;
 }
 
+struct Skin
+{
+  RenderItemId skeleton = NULL_ID;
+};
+
+using SkinPtr = std::unique_ptr<Skin>;
+
 struct Mesh
 {
   Mesh(const MeshFeatureSet& features)
@@ -223,6 +231,7 @@ struct Mesh
   std::vector<Buffer> attributeBuffers;
   Buffer indexBuffer;
   uint32_t maxInstances = 0;
+  SkinPtr skin;
 };
 
 using MeshPtr = std::unique_ptr<Mesh>;
@@ -277,7 +286,7 @@ struct Joint
   std::array<uint32_t, JOINT_MAX_CHILDREN> children;
 };
 
-enum class TransformationType
+enum class TransformType
 {
   Rotation,
   Translation,
@@ -286,10 +295,10 @@ enum class TransformationType
 
 struct AnimationChannel
 {
-  size_t joint;
-  TransformationType type;
-  std::vector<float_t> times;
-  std::vector<Vec4f> values;
+  size_t jointIndex;
+  TransformType transformType;
+  std::vector<float_t> timestamps;
+  std::vector<Vec4f> transforms;
 };
 
 struct Animation
@@ -297,18 +306,11 @@ struct Animation
   std::vector<AnimationChannel> channels;
 };
 
-struct Armature
-{
-  std::vector<Joint> joints;
-  std::vector<Animation> animations;
-};
-
-using ArmaturePtr = std::unique_ptr<Armature>;
-
 struct Model
 {
   std::vector<SubmodelPtr> submodels;
-  ArmaturePtr armature;
+  Joint skeleton;
+  std::map<std::string, Animation> animations;
 };
 
 using ModelPtr = std::unique_ptr<Model>;

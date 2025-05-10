@@ -91,12 +91,20 @@ class RendererImpl : public Renderer
     MaterialHandle addMaterial(MaterialPtr material) override;
     void removeMaterial(RenderItemId id) override;
 
+    // Skeletal animation
+    //
+    RenderItemId addJointTransforms(const std::vector<Mat4x4f>& joints) override;
+    void updateJointTransforms(RenderItemId id, const std::vector<Mat4x4f>& joints) override;
+    void removeJointTransforms(RenderItemId id) override;
+
     // Per frame draw functions
     //
     void beginFrame() override;
     void beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix) override;
-    void drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
-    void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
+    void drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
+      RenderItemId jointTransforms) override;
+    void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
+      RenderItemId jointTransforms) override;
     void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
       const Mat4x4f& transform) override;
     void drawSkybox(MeshHandle mesh, MaterialHandle material) override;
@@ -376,7 +384,23 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(MeshHandle mesh,
   }
 }
 
-void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform)
+RenderItemId RendererImpl::addJointTransforms(const std::vector<Mat4x4f>& joints)
+{
+  return m_resources->addJointTransforms(joints);
+}
+
+void RendererImpl::updateJointTransforms(RenderItemId id, const std::vector<Mat4x4f>& joints)
+{
+  m_resources->updateJointTransforms(id, joints);
+}
+
+void RendererImpl::removeJointTransforms(RenderItemId id)
+{
+  m_resources->removeJointTransforms(id);
+}
+
+void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
+  RenderItemId jointTransforms)
 {
   //DBG_TRACE(m_logger);
 
@@ -401,7 +425,8 @@ void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const 
   node->instances.push_back(MeshInstance{transform * mesh.transform});
 }
 
-void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform)
+void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
+  RenderItemId jointTransforms)
 {
   //DBG_TRACE(m_logger);
 
@@ -412,6 +437,7 @@ void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat
   auto node = std::make_unique<DefaultModelNode>();
   node->mesh = mesh;
   node->material = material;
+  node->jointTransforms = jointTransforms;
   node->modelMatrix = transform;
 
   auto key = generateRenderGraphKey(mesh, material);

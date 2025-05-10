@@ -241,4 +241,3 @@ Mat2x2f inverse(const Mat2x2f& M)
 {
   return adjoint(M) / determinant(M);
 }
- 

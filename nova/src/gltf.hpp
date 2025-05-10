@@ -75,11 +75,11 @@ struct MeshDesc
   Mat4x4f transform;
 };
 
-struct JointDesc
+struct NodeDesc
 {
   unsigned long nodeIndex;
   Mat4x4f transform;
-  std::vector<JointDesc> children;
+  std::vector<NodeDesc> children;
 };
 
 enum class TransformationType
@@ -110,7 +110,7 @@ struct SkinDesc
 
 struct ArmatureDesc
 {
-  JointDesc root;
+  NodeDesc root;
   std::vector<AnimationDesc> animations;
   SkinDesc skin;
 };

@@ -1,3 +1,16 @@
+vec4 computeVertexPosition(mat4 modelMatrix)
+{
+#ifdef FEATURE_VERTEX_SKINNING
+  mat4 transform = mat4(1.0);
+  for (int i = 0; i < 4; ++i) {
+    transform += inWeights[i] * joints.transforms[inJoints[i]];
+  }
+  return transform * modelMatrix * vec4(inPos, 1.0);
+#else
+  return modelMatrix * vec4(inPos, 1.0);
+#endif
+}
+
 void main()
 {
 #ifdef ATTR_MODEL_MATRIX
@@ -6,7 +19,7 @@ void main()
   mat4 modelMatrix = constants.modelMatrix;
 #endif
 
-  vec4 worldPos = modelMatrix * vec4(inPos, 1.0);
+  vec4 worldPos = computeVertexPosition(modelMatrix);
 #ifdef RENDER_PASS_SHADOW
   gl_Position = light.projMatrix * light.viewMatrix * worldPos;
 #else

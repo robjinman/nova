@@ -1,3 +1,7 @@
+#include "common.glsl"
+
+#define MAX_LIGHTS 8
+
 struct Light
 {
   vec3 worldPos;
@@ -6,14 +10,14 @@ struct Light
   float specular;
 };
 
-layout(std140, set = 2, binding = 0) uniform LightingUbo
+layout(std140, set = DESCRIPTOR_SET_RENDER_PASS, binding = 0) uniform LightingUbo
 {
   vec3 viewPos;
   int numLights;
-  Light lights[8];
+  Light lights[MAX_LIGHTS];
 } lighting;
 
-layout(set = 3, binding = 0) uniform sampler2D shadowMapSampler;
+layout(set = DESCRIPTOR_SET_RENDER_PASS, binding = 1) uniform sampler2D shadowMapSampler;
 
 float sampleShadowMap(vec2 uv)
 {

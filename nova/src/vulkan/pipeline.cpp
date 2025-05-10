@@ -9,7 +9,6 @@
 #include <array>
 #include <numeric>
 #include <cstring>
-#include <iostream>
 
 namespace
 {
@@ -406,7 +405,7 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     defaultRasterizationState(materialFeatures.flags.test(MaterialFeatures::IsDoubleSided));
   if (m_renderPass == RenderPass::Shadow) {
     m_rasterizationStateInfo.depthBiasEnable = VK_TRUE;
-    m_rasterizationStateInfo.depthClampEnable = VK_TRUE;
+    m_rasterizationStateInfo.depthClampEnable = VK_FALSE;
     m_rasterizationStateInfo.depthBiasClamp = 0.f;
     m_rasterizationStateInfo.depthBiasConstantFactor = 0.f;
     m_rasterizationStateInfo.depthBiasSlopeFactor = 0.1f;
@@ -417,15 +416,11 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   m_depthStencilStateInfo = defaultDepthStencilState();
 
   m_descriptorSetLayouts = {
-    m_renderResources.getTransformsDescriptorSetLayout(),
-    m_renderResources.getMaterialDescriptorSetLayout()
+    m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Global),
+    m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::RenderPass),
+    m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Material),
+    //m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Object)
   };
-  if (!meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
-    m_descriptorSetLayouts.push_back(m_renderResources.getLightingDescriptorSetLayout());
-  }
-  if (m_renderPass == RenderPass::Main) {
-    m_descriptorSetLayouts.push_back(m_renderResources.getShadowPassDescriptorSetLayout());
-  }
 
   if (!meshFeatures.flags.test(MeshFeatures::IsInstanced)
     && !meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
@@ -525,9 +520,10 @@ void PipelineImpl::onViewportResize(VkExtent2D swapchainExtent)
 void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
   BindState& bindState, size_t currentFrame)
 {
-  auto transformsDescriptorSet = m_renderResources.getTransformsDescriptorSet(currentFrame);
+  auto globalDescriptorSet = m_renderResources.getGlobalDescriptorSet(currentFrame);
+  auto renderPassDescriptorSet = m_renderResources.getRenderPassDescriptorSet(m_renderPass,
+    currentFrame);
   auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material.id);
-  auto lightingDescriptorSet = m_renderResources.getLightingDescriptorSet(currentFrame);
   auto buffers = m_renderResources.getMeshBuffers(node.mesh.id);
 
   if (m_pipeline != bindState.pipeline) {
@@ -541,18 +537,13 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   vkCmdBindVertexBuffers(commandBuffer, 0, static_cast<uint32_t>(vertexBuffers.size()),
     vertexBuffers.data(), offsets.data());
   vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-  // TODO: Optimise descriptor set order
+
   std::vector<VkDescriptorSet> descriptorSets{
-    transformsDescriptorSet,
+    globalDescriptorSet,
+    renderPassDescriptorSet,
     materialDescriptorSet
   };
-  if (!node.mesh.features.flags.test(MeshFeatures::IsSkybox)) {
-    descriptorSets.push_back(lightingDescriptorSet);
-  }
 
-  if (m_renderPass == RenderPass::Main) {
-    descriptorSets.push_back(m_renderResources.getShadowPassDescriptorSet());
-  }
   if (descriptorSets != bindState.descriptorSets) {
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
       static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
@@ -594,6 +585,9 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
 
   if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     defines.push_back("ATTR_MODEL_MATRIX");
+  }
+  if (meshFeatures.flags.test(MeshFeatures::IsAnimated)) {
+    //defines.push_back("FEATURE_VERTEX_SKINNING");
   }
   if (renderPass == RenderPass::Shadow) {
     defines.push_back("RENDER_PASS_SHADOW");

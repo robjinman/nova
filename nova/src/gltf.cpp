@@ -192,30 +192,33 @@ void extractMeshHierarchy(const nlohmann::json& root, unsigned long nodeIndex,
   }
 }
 
-JointDesc extractJointHierarchy(const nlohmann::json& nodes, unsigned long nodeIndex)
+NodeDesc extractNodeHierarchy(const nlohmann::json& nodes, unsigned long nodeIndex)
 {
   auto& node = nodes[nodeIndex];
 
-  JointDesc jointDesc;
-  jointDesc.nodeIndex = nodeIndex;
-  jointDesc.transform = extractTransform(node);
+  NodeDesc NodeDesc;
+  NodeDesc.nodeIndex = nodeIndex;
+  NodeDesc.transform = extractTransform(node);
 
   auto iChildren = node.find("children");
   if (iChildren != node.end()) {
     auto& children = *iChildren;
     for (auto index : children) {
-      jointDesc.children.push_back(extractJointHierarchy(nodes, index));
+      NodeDesc.children.push_back(extractNodeHierarchy(nodes, index));
     }
   }
 
-  return jointDesc;
+  return NodeDesc;
 }
 
 std::vector<AnimationDesc> extractAnimations(const nlohmann::json& root)
 {
   std::vector<AnimationDesc> animationDescs;
 
-  // TODO
+  auto animations = root.at("animations");
+  for (auto& animation : animations) {
+    // TODO
+  }
 
   return animationDescs;
 }
@@ -225,7 +228,7 @@ ArmatureDesc extractArmature(const nlohmann::json& root, unsigned long rootNodeI
   auto& nodes = root.at("nodes");
 
   ArmatureDesc armatureDesc;
-  armatureDesc.root = extractJointHierarchy(nodes, rootNodeIndex);
+  armatureDesc.root = extractNodeHierarchy(nodes, rootNodeIndex);
 
   auto iSkins = root.find("skins");
   if (iSkins != root.end()) {
@@ -235,8 +238,11 @@ ArmatureDesc extractArmature(const nlohmann::json& root, unsigned long rootNodeI
     auto& skin = skins[0];
 
     auto inverseBindMatricesIndex = skin.at("inverseBindMatrices").get<unsigned long>();
-    armatureDesc.skin.inverseBindMatricesBuffer = extractBuffer(root, inverseBindMatricesIndex,
-      ElementType::JointInvertedBindMatrices);
+    armatureDesc.skin = SkinDesc{
+      .joints = skin.at("joints").get<std::vector<unsigned long>>(),
+      .inverseBindMatricesBuffer = extractBuffer(root, inverseBindMatricesIndex,
+        ElementType::JointInvertedBindMatrices)
+    };
 
     armatureDesc.animations = extractAnimations(root);
   }

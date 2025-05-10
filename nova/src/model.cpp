@@ -71,7 +71,8 @@ void copyToBuffer(const std::vector<std::vector<char>>& srcBuffers, char* dstBuf
 
   char* dstPtr = dstBuffer;
   for (unsigned long i = 0; i < desc.size; ++i) {
-    dstPtr += convert(src + i * srcElemSize, desc.type, desc.componentType, desc.dimensions, dstPtr);
+    dstPtr += convert(src + i * srcElemSize, desc.type, desc.componentType, desc.dimensions,
+      dstPtr);
   }
 }
 

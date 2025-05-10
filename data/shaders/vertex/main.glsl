@@ -1,18 +1,28 @@
 #version 450
 
+#include "common.glsl"
 #include "vertex/attributes.glsl"
 
-layout(std140, set = 0, binding = 0) uniform CameraTransformsUbo
+layout(std140, set = DESCRIPTOR_SET_GLOBAL, binding = 0) uniform CameraTransformsUbo
 {
   mat4 viewMatrix;
   mat4 projMatrix;
 } camera;
 
-layout(std140, set = 0, binding = 1) uniform LightTransformsUbo
+layout(std140, set = DESCRIPTOR_SET_GLOBAL, binding = 1) uniform LightTransformsUbo
 {
   mat4 viewMatrix;
   mat4 projMatrix;
 } light;
+
+#ifdef FEATURE_VERTEX_SKINNING
+#define MAX_JOINTS 128
+
+layout(std140, set = DESCRIPTOR_SET_OBJECT, binding = 0) uniform JointTransformsUbo
+{
+  mat4 transforms[MAX_JOINTS];
+} joints;
+#endif
 
 layout(push_constant) uniform PushConstants
 {
