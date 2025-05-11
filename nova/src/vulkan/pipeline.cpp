@@ -419,7 +419,7 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Global),
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::RenderPass),
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Material),
-    //m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Object)
+    m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Object)
   };
 
   if (!meshFeatures.flags.test(MeshFeatures::IsInstanced)
@@ -524,6 +524,8 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   auto renderPassDescriptorSet = m_renderResources.getRenderPassDescriptorSet(m_renderPass,
     currentFrame);
   auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material.id);
+  auto objectDescriptorSet = m_renderResources.getObjectDescriptorSet(node.mesh.id, currentFrame);
+
   auto buffers = m_renderResources.getMeshBuffers(node.mesh.id);
 
   if (m_pipeline != bindState.pipeline) {
@@ -541,7 +543,8 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   std::vector<VkDescriptorSet> descriptorSets{
     globalDescriptorSet,
     renderPassDescriptorSet,
-    materialDescriptorSet
+    materialDescriptorSet,
+    objectDescriptorSet
   };
 
   if (descriptorSets != bindState.descriptorSets) {
@@ -587,7 +590,7 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
     defines.push_back("ATTR_MODEL_MATRIX");
   }
   if (meshFeatures.flags.test(MeshFeatures::IsAnimated)) {
-    //defines.push_back("FEATURE_VERTEX_SKINNING");
+    defines.push_back("FEATURE_VERTEX_SKINNING");
   }
   if (renderPass == RenderPass::Shadow) {
     defines.push_back("RENDER_PASS_SHADOW");

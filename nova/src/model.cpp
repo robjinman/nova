@@ -116,11 +116,14 @@ MeshFeatureSet createMeshFeatureSet(const gltf::MeshDesc& meshDesc)
 {
   bool hasTangents = !meshDesc.material.normalMap.empty();
 
+  MeshFeatures::Flags flags{};
+  flags.set(MeshFeatures::CastsShadow, true);
+  flags.set(MeshFeatures::HasTangents, hasTangents);
+
   MeshFeatureSet features{
     .vertexLayout = getVertexLayout(meshDesc, hasTangents),
-    .flags = MeshFeatures::CastsShadow
+    .flags = flags
   };
-  features.flags.set(MeshFeatures::HasTangents, hasTangents);
 
   return features;
 }

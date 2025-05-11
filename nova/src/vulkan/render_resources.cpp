@@ -21,6 +21,10 @@ struct MeshData
   VkBuffer instanceBuffer = VK_NULL_HANDLE;
   VkDeviceMemory instanceBufferMemory = VK_NULL_HANDLE;
   uint32_t numInstances = 0;
+  std::vector<VkBuffer> jointsUboBuffers;
+  std::vector<VkDeviceMemory> jointsUboMemory;
+  std::vector<void*> jointsUboMapped;
+  std::vector<VkDescriptorSet> objectDescriptorSets;
 };
 
 using MeshDataPtr = std::unique_ptr<MeshData>;
@@ -51,7 +55,7 @@ struct MaterialData
   VkDescriptorSet descriptorSet;
   VkBuffer uboBuffer;
   VkDeviceMemory uboMemory;
-  void* uboMapped = nullptr;  // TOOD: Remove mapping to host memory
+  void* uboMapped = nullptr;  // TODO: Remove mapping to host memory
 };
 
 using MaterialDataPtr = std::unique_ptr<MaterialData>;
@@ -78,7 +82,7 @@ enum class MaterialDescriptorSetBindings : uint32_t
 
 enum class ObjectDescriptorSetBindings : uint32_t
 {
-  // TODO
+  JointTransformsUbo = 0
 };
 
 class RenderResourcesImpl : public RenderResources
@@ -94,7 +98,7 @@ class RenderResourcesImpl : public RenderResources
     VkDescriptorSet getRenderPassDescriptorSet(RenderPass renderPass,
       size_t currentFrame) const override;
     VkDescriptorSet getMaterialDescriptorSet(RenderItemId id) const override;
-    //VkDescriptorSet getObjectDescriptorSet(RenderItemId id) const override;
+    VkDescriptorSet getObjectDescriptorSet(RenderItemId id, size_t currentFrame) const override;
 
     // Resources
     //
@@ -108,6 +112,8 @@ class RenderResourcesImpl : public RenderResources
     //
     MeshHandle addMesh(MeshPtr mesh) override;
     void removeMesh(RenderItemId id) override;
+    void updateJointTransforms(RenderItemId meshId, const std::vector<Mat4x4f>& joints,
+      size_t currentFrame) override;
     MeshBuffers getMeshBuffers(RenderItemId id) const override;
     void updateMeshInstances(RenderItemId id, const std::vector<MeshInstance>& instances) override;
     const MeshFeatureSet& getMeshFeatures(RenderItemId id) const override;
@@ -117,12 +123,6 @@ class RenderResourcesImpl : public RenderResources
     MaterialHandle addMaterial(MaterialPtr material) override;
     void removeMaterial(RenderItemId id) override;
     const MaterialFeatureSet& getMaterialFeatures(RenderItemId id) const override;
-
-    // Skeletal animation
-    //
-    RenderItemId addJointTransforms(const std::vector<Mat4x4f>& joints) override;
-    void updateJointTransforms(RenderItemId id, const std::vector<Mat4x4f>& joints) override;
-    void removeJointTransforms(RenderItemId id) override;
 
     // Transforms
     //
@@ -205,16 +205,15 @@ class RenderResourcesImpl : public RenderResources
     void addSamplerToDescriptorSet(VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler,
       uint32_t binding);
 
-    void createGlobalDescriptorSet();
-    void createMainPassDescriptorSet();
-    //void createShadowPassDescriptorSet();
-    void createMaterialDescriptorSet();
-
     void createGlobalDescriptorSetLayout();
     void createRenderPassDescriptorSetLayout();
     void createMaterialDescriptorSetLayout();
     void createObjectDescriptorSetLayout();
-  
+
+    void createGlobalDescriptorSet();
+    void createMainPassDescriptorSet();
+    //void createShadowPassDescriptorSet();
+
     void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
       uint32_t layerCount);
     VkCommandBuffer beginSingleTimeCommands();
@@ -232,11 +231,12 @@ RenderResourcesImpl::RenderResourcesImpl(VkPhysicalDevice physicalDevice, VkDevi
   DBG_TRACE(m_logger);
 
   createDescriptorPool();
-  createMaterialDescriptorSet();
+  createMaterialDescriptorSetLayout();
   createGlobalDescriptorSet();
   createRenderPassDescriptorSetLayout();
   createMainPassDescriptorSet();
   //createShadowPassDescriptorSet();
+  createObjectDescriptorSetLayout();
 }
 
 RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture, VkFormat format)
@@ -399,6 +399,46 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
       data->instanceBufferMemory);
   }
 
+  createPerFrameUbos(sizeof(JointTransformsUbo), data->jointsUboBuffers, data->jointsUboMemory,
+    data->jointsUboMapped);
+
+  std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_objectDescriptorSetLayout);
+
+  VkDescriptorSetAllocateInfo allocInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .pNext = nullptr,
+    .descriptorPool = m_descriptorPool,
+    .descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
+    .pSetLayouts = layouts.data()
+  };
+
+  data->objectDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+  VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, data->objectDescriptorSets.data()),
+    "Failed to allocate descriptor sets");
+
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+    VkDescriptorBufferInfo bufferInfo{
+      .buffer = data->jointsUboBuffers[i],
+      .offset = 0,
+      .range = sizeof(JointTransformsUbo)
+    };
+
+    VkWriteDescriptorSet descriptorWrite{
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .pNext = nullptr,
+      .dstSet = data->objectDescriptorSets[i],
+      .dstBinding = static_cast<uint32_t>(ObjectDescriptorSetBindings::JointTransformsUbo),
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pImageInfo = nullptr,
+      .pBufferInfo = &bufferInfo,
+      .pTexelBufferView = nullptr
+    };
+
+    vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
+  }
+
   handle.id = nextMeshId++;
   m_meshes[handle.id] = std::move(data);
 
@@ -419,6 +459,10 @@ void RenderResourcesImpl::removeMesh(RenderItemId id)
   if (i->second->instanceBuffer != VK_NULL_HANDLE) {
     vkDestroyBuffer(m_device, i->second->instanceBuffer, nullptr);
     vkFreeMemory(m_device, i->second->instanceBufferMemory, nullptr);
+  }
+  for (size_t j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j) {
+    vkDestroyBuffer(m_device, i->second->jointsUboBuffers[j], nullptr);
+    vkFreeMemory(m_device, i->second->jointsUboMemory[j], nullptr);
   }
 
   m_meshes.erase(i);
@@ -452,19 +496,14 @@ void RenderResourcesImpl::updateMeshInstances(RenderItemId id,
   updateInstanceBuffer(instances, mesh->instanceBuffer);
 }
 
-RenderItemId RenderResourcesImpl::addJointTransforms(const std::vector<Mat4x4f>& joints)
+void RenderResourcesImpl::updateJointTransforms(RenderItemId id, const std::vector<Mat4x4f>& joints,
+  size_t currentFrame)
 {
-  // TODO
-}
+  DBG_ASSERT(joints.size() <= MAX_JOINTS, "Max number of joints exceeded");
 
-void RenderResourcesImpl::updateJointTransforms(RenderItemId id, const std::vector<Mat4x4f>& joints)
-{
-  // TODO
-}
-
-void RenderResourcesImpl::removeJointTransforms(RenderItemId id)
-{
-  // TODO
+  auto p = m_meshes.at(id)->jointsUboMapped[currentFrame];
+  JointTransformsUbo* ubo = reinterpret_cast<JointTransformsUbo*>(p);
+  memcpy(ubo->transforms, joints.data(), joints.size() * sizeof(Mat4x4f));
 }
 
 const MeshFeatureSet& RenderResourcesImpl::getMeshFeatures(RenderItemId id) const
@@ -591,6 +630,13 @@ VkDescriptorSet RenderResourcesImpl::getMaterialDescriptorSet(RenderItemId id) c
   return m_materials.at(id)->descriptorSet;
 }
 
+VkDescriptorSet RenderResourcesImpl::getObjectDescriptorSet(RenderItemId id,
+  size_t currentFrame) const
+{
+  // TODO: Currently assume object is a mesh
+  return m_meshes.at(id)->objectDescriptorSets[currentFrame];
+}
+
 const MaterialFeatureSet& RenderResourcesImpl::getMaterialFeatures(RenderItemId id) const
 {
   return m_materials.at(id)->material->featureSet;
@@ -656,7 +702,7 @@ void RenderResourcesImpl::createDescriptorPool()
   std::array<VkDescriptorPoolSize, 2> poolSizes{};
 
   poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  poolSizes[0].descriptorCount = 50; // TODO
+  poolSizes[0].descriptorCount = 100; // TODO
 
   poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   poolSizes[1].descriptorCount = 100; // TODO
@@ -665,7 +711,7 @@ void RenderResourcesImpl::createDescriptorPool()
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
     .pNext = nullptr,
     .flags = 0,
-    .maxSets = 100, // TODO
+    .maxSets = 200, // TODO
     .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
     .pPoolSizes = poolSizes.data()
   };
@@ -963,6 +1009,10 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
 {
   DBG_TRACE(m_logger);
 
+  createTextureSampler();
+  createNormalMapSampler();
+  createCubeMapSampler();
+
   VkDescriptorSetLayoutBinding uboLayoutBinding{
     .binding = static_cast<uint32_t>(MaterialDescriptorSetBindings::Ubo),
     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -1030,12 +1080,33 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
     &m_materialDescriptorSetLayout), "Failed to create descriptor set layout");
 }
 
-void RenderResourcesImpl::createMaterialDescriptorSet()
+void RenderResourcesImpl::createObjectDescriptorSetLayout()
 {
-  createTextureSampler();
-  createNormalMapSampler();
-  createCubeMapSampler();
-  createMaterialDescriptorSetLayout();
+  DBG_TRACE(m_logger);
+
+  VkDescriptorSetLayoutBinding jointTransformsUboLayoutBinding{
+    .binding = static_cast<uint32_t>(ObjectDescriptorSetBindings::JointTransformsUbo),
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
+  std::vector<VkDescriptorSetLayoutBinding> bindings{
+    jointTransformsUboLayoutBinding,
+    // ...
+  };
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .bindingCount = static_cast<uint32_t>(bindings.size()),
+    .pBindings = bindings.data()
+  };
+  
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
+    &m_objectDescriptorSetLayout), "Failed to create descriptor set layout");
 }
 
 void RenderResourcesImpl::createGlobalDescriptorSet()
@@ -1416,7 +1487,7 @@ RenderResourcesImpl::~RenderResourcesImpl()
   vkDestroyDescriptorSetLayout(m_device, m_globalDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_renderPassDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_materialDescriptorSetLayout, nullptr);
-  //vkDestroyDescriptorSetLayout(m_device, m_objectDescriptorSetLayout, nullptr);
+  vkDestroyDescriptorSetLayout(m_device, m_objectDescriptorSetLayout, nullptr);
 
   vkDestroySampler(m_device, m_shadowMapSampler, nullptr);
   vkDestroyImageView(m_device, m_shadowMapImageView, nullptr);

@@ -44,6 +44,7 @@ class Renderer
     // Meshes
     //
     virtual MeshHandle addMesh(MeshPtr mesh) = 0;
+    virtual void updateJointTransforms(RenderItemId meshId, const std::vector<Mat4x4f>& joints) = 0;
     virtual void removeMesh(RenderItemId id) = 0;
 
     // Materials
@@ -51,21 +52,14 @@ class Renderer
     virtual MaterialHandle addMaterial(MaterialPtr material) = 0;
     virtual void removeMaterial(RenderItemId id) = 0;
 
-    // Skeletal animation
-    //
-    virtual RenderItemId addJointTransforms(const std::vector<Mat4x4f>& joints) = 0;
-    virtual void updateJointTransforms(RenderItemId id, const std::vector<Mat4x4f>& joints) = 0;
-    virtual void removeJointTransforms(RenderItemId id) = 0;
-
     // Per-frame draw functions
     //
     virtual void beginFrame() = 0;
     virtual void beginPass(RenderPass renderPass, const Vec3f& viewPos,
       const Mat4x4f& viewMatrix) = 0;
-    virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
-      RenderItemId jointTransforms = NULL_ID) = 0;
+    virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) = 0;
     virtual void drawInstance(MeshHandle mesh, MaterialHandle material,
-      const Mat4x4f& transform, RenderItemId jointTransforms = NULL_ID) = 0;
+      const Mat4x4f& transform) = 0;
     virtual void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
       const Mat4x4f& transform) = 0;
     virtual void drawSkybox(MeshHandle mesh, MaterialHandle cubeMap) = 0;

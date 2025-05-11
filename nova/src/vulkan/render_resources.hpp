@@ -6,7 +6,9 @@
 const uint32_t MAX_LIGHTS = 4;
 const uint32_t SHADOW_MAP_W = 4096;
 const uint32_t SHADOW_MAP_H = 4096;
+const uint32_t MAX_JOINTS = 128;
 
+// TODO: Hide these inside cpp file?
 #pragma pack(push, 4)
 struct CameraTransformsUbo
 {
@@ -41,6 +43,11 @@ struct MaterialUbo
 {
   Vec4f colour;
   // TODO: PBR properties
+};
+
+struct JointTransformsUbo
+{
+  Mat4x4f transforms[MAX_JOINTS];
 };
 
 struct MeshInstance
@@ -84,12 +91,14 @@ class RenderResources
     virtual VkDescriptorSet getRenderPassDescriptorSet(RenderPass renderpass,
       size_t currentFrame) const = 0;
     virtual VkDescriptorSet getMaterialDescriptorSet(RenderItemId id) const = 0;
-    //virtual VkDescriptorSet getObjectDescriptorSet(RenderItemId id) const = 0;
+    virtual VkDescriptorSet getObjectDescriptorSet(RenderItemId id, size_t currentFrame) const = 0;
 
     // Meshes
     //
     virtual MeshHandle addMesh(MeshPtr mesh) = 0;
     virtual void removeMesh(RenderItemId id) = 0;
+    virtual void updateJointTransforms(RenderItemId meshId, const std::vector<Mat4x4f>& joints,
+      size_t currentFrame) = 0;
     virtual MeshBuffers getMeshBuffers(RenderItemId id) const = 0;
     virtual void updateMeshInstances(RenderItemId id,
       const std::vector<MeshInstance>& instances) = 0;
@@ -100,12 +109,6 @@ class RenderResources
     virtual MaterialHandle addMaterial(MaterialPtr material) = 0;
     virtual void removeMaterial(RenderItemId id) = 0;
     virtual const MaterialFeatureSet& getMaterialFeatures(RenderItemId id) const = 0;
-
-    // Skeletal animation
-    //
-    virtual RenderItemId addJointTransforms(const std::vector<Mat4x4f>& joints) = 0;
-    virtual void updateJointTransforms(RenderItemId id, const std::vector<Mat4x4f>& joints) = 0;
-    virtual void removeJointTransforms(RenderItemId id) = 0;
 
     // Transforms
     //
