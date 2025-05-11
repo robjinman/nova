@@ -23,6 +23,7 @@ struct MaterialCustomisation
 struct ModelResources
 {
   std::vector<MeshMaterialPair> submodels;
+  JointPtr skeleton;
 };
 
 Vec3f parseVec3f(const std::string s)
@@ -164,6 +165,8 @@ ModelResources EntityFactoryImpl::gpuLoadModel(ModelPtr model)
 
     resources.submodels.push_back(pair);
   }
+
+  resources.skeleton = std::move(model->skeleton);
 
   return resources;
 }
@@ -347,6 +350,9 @@ void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNod
     for (auto& submodel : resources.submodels) {
       render->meshes.push_back(submodel);
     }
+
+    // Clone the model's skeleton, so each entity gets its own copy
+    render->skeleton = std::make_unique<Joint>(*resources.skeleton);
   }
 
   m_renderSystem.addComponent(std::move(render));

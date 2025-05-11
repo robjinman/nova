@@ -216,6 +216,8 @@ inline size_t calcOffsetInVertex(const VertexLayout& layout, BufferUsage attribu
 struct Skin
 {
   RenderItemId skeleton = NULL_ID;
+  std::vector<uint32_t> joints; // Indices into skeleton joints
+  std::vector<Mat4x4f> jointTransforms;
 };
 
 using SkinPtr = std::unique_ptr<Skin>;
@@ -278,13 +280,13 @@ struct Submodel
 
 using SubmodelPtr = std::unique_ptr<Submodel>;
 
-const size_t JOINT_MAX_CHILDREN = 8;
-
 struct Joint
 {
   Mat4x4f transform;
-  std::array<uint32_t, JOINT_MAX_CHILDREN> children;
+  std::vector<Joint> children;
 };
+
+using JointPtr = std::unique_ptr<Joint>;
 
 enum class TransformType
 {
@@ -295,7 +297,7 @@ enum class TransformType
 
 struct AnimationChannel
 {
-  size_t jointIndex;
+  size_t jointIndex;  // Index into skin
   TransformType transformType;
   std::vector<float_t> timestamps;
   std::vector<Vec4f> transforms;
@@ -306,11 +308,13 @@ struct Animation
   std::vector<AnimationChannel> channels;
 };
 
+using AnimationPtr = std::unique_ptr<Animation>;
+
 struct Model
 {
   std::vector<SubmodelPtr> submodels;
-  Joint skeleton;
-  std::map<std::string, Animation> animations;
+  JointPtr skeleton;
+  std::map<std::string, AnimationPtr> animations;
 };
 
 using ModelPtr = std::unique_ptr<Model>;

@@ -399,44 +399,46 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
       data->instanceBufferMemory);
   }
 
-  createPerFrameUbos(sizeof(JointTransformsUbo), data->jointsUboBuffers, data->jointsUboMemory,
-    data->jointsUboMapped);
+  if (data->mesh->featureSet.flags.test(MeshFeatures::IsAnimated)) {
+    createPerFrameUbos(sizeof(JointTransformsUbo), data->jointsUboBuffers, data->jointsUboMemory,
+      data->jointsUboMapped);
 
-  std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_objectDescriptorSetLayout);
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_objectDescriptorSetLayout);
 
-  VkDescriptorSetAllocateInfo allocInfo{
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-    .pNext = nullptr,
-    .descriptorPool = m_descriptorPool,
-    .descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
-    .pSetLayouts = layouts.data()
-  };
-
-  data->objectDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-  VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, data->objectDescriptorSets.data()),
-    "Failed to allocate descriptor sets");
-
-  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-    VkDescriptorBufferInfo bufferInfo{
-      .buffer = data->jointsUboBuffers[i],
-      .offset = 0,
-      .range = sizeof(JointTransformsUbo)
-    };
-
-    VkWriteDescriptorSet descriptorWrite{
-      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    VkDescriptorSetAllocateInfo allocInfo{
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
       .pNext = nullptr,
-      .dstSet = data->objectDescriptorSets[i],
-      .dstBinding = static_cast<uint32_t>(ObjectDescriptorSetBindings::JointTransformsUbo),
-      .dstArrayElement = 0,
-      .descriptorCount = 1,
-      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      .pImageInfo = nullptr,
-      .pBufferInfo = &bufferInfo,
-      .pTexelBufferView = nullptr
+      .descriptorPool = m_descriptorPool,
+      .descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
+      .pSetLayouts = layouts.data()
     };
 
-    vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
+    data->objectDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+    VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, data->objectDescriptorSets.data()),
+      "Failed to allocate descriptor sets");
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+      VkDescriptorBufferInfo bufferInfo{
+        .buffer = data->jointsUboBuffers[i],
+        .offset = 0,
+        .range = sizeof(JointTransformsUbo)
+      };
+
+      VkWriteDescriptorSet descriptorWrite{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = data->objectDescriptorSets[i],
+        .dstBinding = static_cast<uint32_t>(ObjectDescriptorSetBindings::JointTransformsUbo),
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .pImageInfo = nullptr,
+        .pBufferInfo = &bufferInfo,
+        .pTexelBufferView = nullptr
+      };
+
+      vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
+    }
   }
 
   handle.id = nextMeshId++;
@@ -460,7 +462,7 @@ void RenderResourcesImpl::removeMesh(RenderItemId id)
     vkDestroyBuffer(m_device, i->second->instanceBuffer, nullptr);
     vkFreeMemory(m_device, i->second->instanceBufferMemory, nullptr);
   }
-  for (size_t j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j) {
+  for (size_t j = 0; j < i->second->jointsUboBuffers.size(); ++j) {
     vkDestroyBuffer(m_device, i->second->jointsUboBuffers[j], nullptr);
     vkFreeMemory(m_device, i->second->jointsUboMemory[j], nullptr);
   }
@@ -501,7 +503,10 @@ void RenderResourcesImpl::updateJointTransforms(RenderItemId id, const std::vect
 {
   DBG_ASSERT(joints.size() <= MAX_JOINTS, "Max number of joints exceeded");
 
-  auto p = m_meshes.at(id)->jointsUboMapped[currentFrame];
+  auto& mesh = *m_meshes.at(id);
+  DBG_ASSERT(!mesh.jointsUboBuffers.empty(), "Mesh is not animated");
+
+  auto p = mesh.jointsUboMapped[currentFrame];
   JointTransformsUbo* ubo = reinterpret_cast<JointTransformsUbo*>(p);
   memcpy(ubo->transforms, joints.data(), joints.size() * sizeof(Mat4x4f));
 }
@@ -634,7 +639,10 @@ VkDescriptorSet RenderResourcesImpl::getObjectDescriptorSet(RenderItemId id,
   size_t currentFrame) const
 {
   // TODO: Currently assume object is a mesh
-  return m_meshes.at(id)->objectDescriptorSets[currentFrame];
+  auto& mesh = *m_meshes.at(id);
+  return mesh.objectDescriptorSets.size() > 0 ?
+    mesh.objectDescriptorSets[currentFrame] :
+    VK_NULL_HANDLE;
 }
 
 const MaterialFeatureSet& RenderResourcesImpl::getMaterialFeatures(RenderItemId id) const

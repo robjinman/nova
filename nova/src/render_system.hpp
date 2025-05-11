@@ -29,6 +29,8 @@ struct CRender : public Component
 
   CRenderType type;
   std::vector<MeshMaterialPair> meshes;
+  JointPtr skeleton;
+  std::vector<RenderItemId> animations;
 };
 
 struct CRenderLight : public CRender
@@ -63,6 +65,9 @@ class RenderSystem : public System
     virtual void start() = 0;
     virtual double frameRate() const = 0;
 
+    virtual Camera& camera() = 0;
+    virtual const Camera& camera() const = 0;
+
     CRender& getComponent(EntityId entityId) override = 0;
     const CRender& getComponent(EntityId entityId) const override = 0;
 
@@ -90,8 +95,10 @@ class RenderSystem : public System
     virtual MaterialHandle addMaterial(MaterialPtr material) = 0;
     virtual void removeMaterial(RenderItemId id) = 0;
 
-    virtual Camera& camera() = 0;
-    virtual const Camera& camera() const = 0;
+    // Animations
+    //
+    virtual RenderItemId addAnimation(AnimationPtr animation) = 0;
+    virtual void playAnimation(EntityId entityId, RenderItemId animationId) = 0;
 
     virtual ~RenderSystem() {}
 };

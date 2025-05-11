@@ -20,6 +20,9 @@ class RenderSystemImpl : public RenderSystem
     void start() override;
     double frameRate() const override;
 
+    Camera& camera() override;
+    const Camera& camera() const override;
+
     void addComponent(ComponentPtr component) override;
     void removeComponent(EntityId entityId) override;
     bool hasComponent(EntityId entityId) const override;
@@ -51,8 +54,10 @@ class RenderSystemImpl : public RenderSystem
     MaterialHandle addMaterial(MaterialPtr material) override;
     void removeMaterial(RenderItemId id) override;
 
-    Camera& camera() override;
-    const Camera& camera() const override;
+    // Animations
+    //
+    RenderItemId addAnimation(AnimationPtr animation) override;
+    void playAnimation(EntityId entityId, RenderItemId animationId) override;
 
   private:
     Logger& m_logger;
@@ -72,6 +77,7 @@ class RenderSystemImpl : public RenderSystem
       const DrawFilter& filter = [](const MeshMaterialPair&) { return true; });
     void doShadowPass();
     void doMainPass();
+    void updateAnimations();
 };
 
 RenderSystemImpl::RenderSystemImpl(const SpatialSystem& spatialSystem, Renderer& renderer,
@@ -218,6 +224,16 @@ void RenderSystemImpl::removeMesh(RenderItemId id)
   m_renderer.removeMesh(id);
 }
 
+RenderItemId addAnimation(AnimationPtr animation)
+{
+  // TODO
+}
+
+void playAnimation(EntityId entityId, RenderItemId animationId)
+{
+  // TODO
+}
+
 Camera& RenderSystemImpl::camera()
 {
   return m_camera;
@@ -321,10 +337,17 @@ void RenderSystemImpl::doMainPass()
   m_renderer.endPass();
 }
 
+void RenderSystemImpl::updateAnimations()
+{
+
+}
+
 // TODO: Hot path. Optimise
 void RenderSystemImpl::update()
 {
   try {
+    updateAnimations();
+
     m_renderer.beginFrame();
 
     doShadowPass();

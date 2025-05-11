@@ -543,9 +543,11 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   std::vector<VkDescriptorSet> descriptorSets{
     globalDescriptorSet,
     renderPassDescriptorSet,
-    materialDescriptorSet,
-    objectDescriptorSet
+    materialDescriptorSet
   };
+  if (objectDescriptorSet != VK_NULL_HANDLE) {
+    descriptorSets.push_back(objectDescriptorSet);
+  }
 
   if (descriptorSets != bindState.descriptorSets) {
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
