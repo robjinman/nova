@@ -21,11 +21,13 @@ class EntityFactory
 
 using EntityFactoryPtr = std::unique_ptr<EntityFactory>;
 
+class ModelLoader;
 class SpatialSystem;
 class RenderSystem;
 class CollisionSystem;
 class FileSystem;
 class Logger;
 
-EntityFactoryPtr createEntityFactory(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
-  CollisionSystem& collisionSystem, const FileSystem& fileSystem, Logger& logger);
+EntityFactoryPtr createEntityFactory(ModelLoader& modelLoader, SpatialSystem& spatialSystem,
+  RenderSystem& renderSystem, CollisionSystem& collisionSystem, const FileSystem& fileSystem,
+  Logger& logger);

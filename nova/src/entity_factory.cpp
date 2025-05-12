@@ -5,12 +5,19 @@
 #include "units.hpp"
 #include "xml.hpp"
 #include "spatial_system.hpp"
-#include "render_system.hpp"
+#include "model_loader.hpp"
 #include "collision_system.hpp"
 #include "file_system.hpp"
 #include "map_parser.hpp"
 #include <map>
 #include <regex>
+
+using render::Material;
+using render::MaterialPtr;
+namespace MeshFeatures = render::MeshFeatures;
+namespace MaterialFeatures = render::MaterialFeatures;
+using render::MaterialFeatureSet;
+using render::BufferUsage;
 
 namespace
 {
@@ -18,12 +25,6 @@ namespace
 struct MaterialCustomisation
 {
   bool hasTransparency = false;
-};
-
-struct ModelResources
-{
-  std::vector<MeshMaterialPair> submodels;
-  JointPtr skeleton;
 };
 
 Vec3f parseVec3f(const std::string s)
@@ -50,8 +51,9 @@ void customiseMaterial(Material& material, const MaterialCustomisation& props)
 class EntityFactoryImpl : public EntityFactory
 {
   public:
-    EntityFactoryImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
-      CollisionSystem& CollisionSystem, const FileSystem& fileSystem, Logger& logger);
+    EntityFactoryImpl(ModelLoader& modelLoader, SpatialSystem& spatialSystem,
+      RenderSystem& renderSystem, CollisionSystem& CollisionSystem, const FileSystem& fileSystem,
+      Logger& logger);
 
     void loadEntityDefinitions(const XmlNode& entities) override;
     void loadMaterials(const XmlNode& materials) override;
@@ -60,13 +62,13 @@ class EntityFactoryImpl : public EntityFactory
 
   private:
     Logger& m_logger;
+    ModelLoader& m_modelLoader;
     const FileSystem& m_fileSystem;
     SpatialSystem& m_spatialSystem;
     RenderSystem& m_renderSystem;
     CollisionSystem& m_collisionSystem;
 
-    std::map<std::string, RenderItemId> m_materialResources;
-    std::map<std::string, ModelResources> m_models;
+    std::map<std::string, CRenderModelPtr> m_renderComponents;
     std::map<std::string, XmlNodePtr> m_definitions;
     std::map<std::string, MaterialCustomisation> m_materialProperties;
 
@@ -74,15 +76,15 @@ class EntityFactoryImpl : public EntityFactory
       const Mat4x4f& transform) const;
     void constructRenderComponent(EntityId entityId, const XmlNode& node,
       const ObjectData& data) const;
-    ModelResources gpuLoadModel(ModelPtr model);
-    MaterialHandle gpuLoadMaterial(MaterialPtr material);
     void constructCollisionComponent(EntityId entityId, const XmlNode& node) const;
     Mat4x4f parseTransform(const XmlNode& node) const;
 };
 
-EntityFactoryImpl::EntityFactoryImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
-  CollisionSystem& collisionSystem, const FileSystem& fileSystem, Logger& logger)
+EntityFactoryImpl::EntityFactoryImpl(ModelLoader& modelLoader, SpatialSystem& spatialSystem,
+  RenderSystem& renderSystem, CollisionSystem& collisionSystem, const FileSystem& fileSystem,
+  Logger& logger)
   : m_logger(logger)
+  , m_modelLoader(modelLoader)
   , m_fileSystem(fileSystem)
   , m_spatialSystem(spatialSystem)
   , m_renderSystem(renderSystem)
@@ -134,7 +136,7 @@ void EntityFactoryImpl::loadModels(const XmlNode& modelsData)
     bool castsShadow = modelData.attribute("casts-shadow") == "true";
 
     auto path = STR("resources/models/" << name << ".gltf");
-    auto model = ::loadModel(m_fileSystem, path);
+    auto model = m_modelLoader.loadModelData(path);
   
     for (auto& submodel : model->submodels) {
       submodel->mesh->featureSet.flags.set(MeshFeatures::IsInstanced, isInstanced);
@@ -147,65 +149,9 @@ void EntityFactoryImpl::loadModels(const XmlNode& modelsData)
         customiseMaterial(*submodel->material, i->second);
       }
     }
-  
-    m_models[name] = gpuLoadModel(std::move(model));
+
+    m_renderComponents[name] = m_modelLoader.createRenderComponent(std::move(model), isInstanced);
   }
-}
-
-ModelResources EntityFactoryImpl::gpuLoadModel(ModelPtr model)
-{
-  ModelResources resources;
-
-  for (auto& submodel : model->submodels) {
-    m_renderSystem.compileShader(submodel->mesh->featureSet, submodel->material->featureSet);
-
-    MeshMaterialPair pair;
-    pair.mesh = m_renderSystem.addMesh(std::move(submodel->mesh));
-    pair.material = gpuLoadMaterial(std::move(submodel->material));
-
-    resources.submodels.push_back(pair);
-  }
-
-  resources.skeleton = std::move(model->skeleton);
-
-  return resources;
-}
-
-MaterialHandle EntityFactoryImpl::gpuLoadMaterial(MaterialPtr material)
-{
-  auto textureFileName = material->texture.fileName;
-  if (textureFileName != "") {
-    auto texturePath = STR("resources/textures/" << textureFileName);
-
-    auto i = m_materialResources.find(textureFileName);
-    if (i == m_materialResources.end()) {
-      auto texture = loadTexture(m_fileSystem.readFile(texturePath));
-      material->texture.id = m_renderSystem.addTexture(std::move(texture));
-      m_materialResources[textureFileName] = material->texture.id;
-    }
-    else {
-      material->texture.id = i->second;
-    }
-  }
-
-  // TODO: Remove duplication
-  auto normalMapFileName = material->normalMap.fileName;
-  if (normalMapFileName != "") {
-    auto texturePath = STR("resources/textures/" << normalMapFileName);
-
-    auto i = m_materialResources.find(normalMapFileName);
-    if (i == m_materialResources.end()) {
-      auto texture = loadTexture(m_fileSystem.readFile(texturePath));
-      material->normalMap.id = m_renderSystem.addNormalMap(std::move(texture));
-      m_materialResources[normalMapFileName] = material->normalMap.id;
-    }
-    else {
-      material->normalMap.id = i->second;
-    }
-  }
-  // TODO: Repeat the above for cube maps
-
-  return m_renderSystem.addMaterial(std::move(material));
 }
 
 EntityId EntityFactoryImpl::constructEntity(const ObjectData& data, const Mat4x4f& transform) const
@@ -303,10 +249,10 @@ void EntityFactoryImpl::constructSpatialComponent(EntityId entityId, const XmlNo
 
 CRenderType parseCRenderType(const std::string& type)
 {
-  if (type == "regular") return CRenderType::Regular;
-  else if (type == "instance") return CRenderType::Instance;
+  if (type == "model") return CRenderType::Model;
   else if (type == "light") return CRenderType::Light;
   else if (type == "skybox") return CRenderType::Skybox;
+  // TODO: Particle emitter
   else EXCEPTION(STR("Unrecognised render component type '" << type << "'"));
 }
 
@@ -325,34 +271,27 @@ void EntityFactoryImpl::constructRenderComponent(EntityId entityId, const XmlNod
     light->ambient = parseFloat<float_t>(data.values.at("ambient"));
     light->specular = parseFloat<float_t>(data.values.at("specular"));
 
-    auto mesh = cuboid(size, size, size, {});
+    auto mesh = render::cuboid(size, size, size, {});
     mesh->attributeBuffers.resize(2);
     mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition, BufferUsage::AttrNormal };
     mesh->featureSet.flags.set(MeshFeatures::CastsShadow, false);
     MaterialPtr material = std::make_unique<Material>(MaterialFeatureSet{});
     material->colour = { colour[0], colour[1], colour[2], 1.f };
 
-    light->meshes.push_back(MeshMaterialPair{
+    light->submodels.push_back(Submodel{
       .mesh = m_renderSystem.addMesh(std::move(mesh)),
-      .material = m_renderSystem.addMaterial(std::move(material))
+      .material = m_renderSystem.addMaterial(std::move(material)),
+      .skin = {}
     });
 
     render = std::move(light);
   }
   else {
-    render = std::make_unique<CRender>(entityId, type);
-  }
-
-  auto model = node.attribute("model");
-  if (!model.empty()) {
-    auto& resources = m_models.at(model);
-
-    for (auto& submodel : resources.submodels) {
-      render->meshes.push_back(submodel);
+    auto modelName = node.attribute("model");
+    if (!modelName.empty()) {
+      auto& prototype = *m_renderComponents.at(modelName);
+      render = std::make_unique<CRenderModel>(prototype, entityId);
     }
-
-    // Clone the model's skeleton, so each entity gets its own copy
-    render->skeleton = std::make_unique<Joint>(*resources.skeleton);
   }
 
   m_renderSystem.addComponent(std::move(render));
@@ -380,9 +319,10 @@ void EntityFactoryImpl::constructCollisionComponent(EntityId entityId, const Xml
 
 }
 
-EntityFactoryPtr createEntityFactory(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
-  CollisionSystem& collisionSystem, const FileSystem& fileSystem, Logger& logger)
+EntityFactoryPtr createEntityFactory(ModelLoader& modelLoader, SpatialSystem& spatialSystem,
+  RenderSystem& renderSystem, CollisionSystem& collisionSystem, const FileSystem& fileSystem,
+  Logger& logger)
 {
-  return std::make_unique<EntityFactoryImpl>(spatialSystem, renderSystem, collisionSystem,
-    fileSystem, logger);
+  return std::make_unique<EntityFactoryImpl>(modelLoader, spatialSystem, renderSystem,
+    collisionSystem, fileSystem, logger);
 }

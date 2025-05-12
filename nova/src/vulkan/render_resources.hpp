@@ -3,6 +3,11 @@
 #include "renderer.hpp"
 #include <vulkan/vulkan.h>
 
+class Logger;
+
+namespace render
+{
+
 const uint32_t MAX_LIGHTS = 4;
 const uint32_t SHADOW_MAP_W = 4096;
 const uint32_t SHADOW_MAP_H = 4096;
@@ -131,7 +136,7 @@ class RenderResources
 
 using RenderResourcesPtr = std::unique_ptr<RenderResources>;
 
-class Logger;
-
 RenderResourcesPtr createRenderResources(VkPhysicalDevice physicalDevice, VkDevice device,
   VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger);
+
+} // namespace render

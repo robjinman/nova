@@ -5,5 +5,5 @@
       <ori x="0" y="0" z="0"/>
     </transform>
   </spatial-component>
-  <render-component model="glass_cube" type="regular"/>
+  <render-component model="glass_cube" type="model"/>
 </entity>

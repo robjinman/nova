@@ -5,7 +5,7 @@
       <ori x="0" y="180" z="0"/>
     </transform>
   </spatial-component>
-  <render-component model="monkey" type="regular"/>
+  <render-component model="monkey" type="model"/>
   <collision-component height="2.0">
     <point x="-1" y="-1"/>
     <point x="1" y="-1"/>

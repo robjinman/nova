@@ -24,6 +24,8 @@
 #include <cassert>
 #include <iostream>
 
+namespace render
+{
 namespace
 {
 
@@ -1635,9 +1637,11 @@ RendererImpl::~RendererImpl()
 }
 
 } // namespace
+} // namespace render
 
-RendererPtr createRenderer(const FileSystem& fileSystem, WindowDelegate& window, Logger& logger)
+render::RendererPtr createRenderer(const FileSystem& fileSystem, WindowDelegate& window,
+  Logger& logger)
 {
-  return std::make_unique<RendererImpl>(fileSystem, dynamic_cast<VulkanWindowDelegate&>(window),
-    logger);
+  return std::make_unique<render::RendererImpl>(fileSystem,
+    dynamic_cast<VulkanWindowDelegate&>(window), logger);
 }

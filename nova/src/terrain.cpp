@@ -11,6 +11,16 @@
 #include <cassert>
 #include <random>
 
+using render::BufferUsage;
+using render::Mesh;
+using render::MeshPtr;
+using render::MeshFeatureSet;
+namespace MeshFeatures = render::MeshFeatures;
+using render::Material;
+using render::MaterialHandle;
+using render::MaterialFeatureSet;
+namespace MaterialFeatures = render::MaterialFeatures;
+
 namespace
 {
 
@@ -59,10 +69,10 @@ void centreObject(ObjectData& object)
 
 void createSideFaces(Mesh& mesh)
 {
-  auto positions = fromBytes<Vec3f>(mesh.attributeBuffers[0].data);
-  auto normals = fromBytes<Vec3f>(mesh.attributeBuffers[1].data);
-  auto texCoords = fromBytes<Vec2f>(mesh.attributeBuffers[2].data);
-  auto indices = fromBytes<uint16_t>(mesh.indexBuffer.data);
+  auto positions = render::fromBytes<Vec3f>(mesh.attributeBuffers[0].data);
+  auto normals = render::fromBytes<Vec3f>(mesh.attributeBuffers[1].data);
+  auto texCoords = render::fromBytes<Vec2f>(mesh.attributeBuffers[2].data);
+  auto indices = render::fromBytes<uint16_t>(mesh.indexBuffer.data);
 
   Vec2f textureSize = metresToWorldUnits(Vec2f{ 4, 4 });
 
@@ -108,10 +118,10 @@ void createSideFaces(Mesh& mesh)
     indices.push_back(idx + 3);  // D
   }
 
-  mesh.attributeBuffers[0].data = toBytes(positions);
-  mesh.attributeBuffers[1].data = toBytes(normals);
-  mesh.attributeBuffers[2].data = toBytes(texCoords);
-  mesh.indexBuffer.data = toBytes(indices);
+  mesh.attributeBuffers[0].data = render::toBytes(positions);
+  mesh.attributeBuffers[1].data = render::toBytes(normals);
+  mesh.attributeBuffers[2].data = render::toBytes(texCoords);
+  mesh.indexBuffer.data = render::toBytes(indices);
 }
 
 MeshPtr createBottomFace(const std::vector<Vec4f>& points, const MeshFeatureSet& meshFeatures)
@@ -269,12 +279,12 @@ void TerrainImpl::createTerrainMaterials()
 
   m_renderSystem.compileShader(meshFeatures, materialFeatures);
 
-  auto groundTexture = loadTexture(m_fileSystem.readFile("resources/textures/ground.png"));
+  auto groundTexture = render::loadTexture(m_fileSystem.readFile("resources/textures/ground.png"));
   auto groundMaterial = std::make_unique<Material>(materialFeatures);
   groundMaterial->texture.id = m_renderSystem.addTexture(std::move(groundTexture));
   m_groundMaterial = m_renderSystem.addMaterial(std::move(groundMaterial));
 
-  auto wallTexture = loadTexture(m_fileSystem.readFile("resources/textures/bricks.png"));
+  auto wallTexture = render::loadTexture(m_fileSystem.readFile("resources/textures/bricks.png"));
   auto wallMaterial = std::make_unique<Material>(materialFeatures);
   wallMaterial->texture.id = m_renderSystem.addTexture(std::move(wallTexture));
   m_wallMaterial = m_renderSystem.addMaterial(std::move(wallMaterial));
@@ -318,15 +328,16 @@ void TerrainImpl::constructWall(const ObjectData& obj, const Mat4x4f& parentTran
 
     EntityId entityId = System::nextId();
 
-    CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::Regular);
-    auto mesh = cuboid(wallThickness, wallHeight, distance, textureSize);
+    CRenderModelPtr render = std::make_unique<CRenderModel>(entityId);
+    auto mesh = render::cuboid(wallThickness, wallHeight, distance, textureSize);
     mesh->featureSet = m_meshFeatures;
     auto positions = getConstBufferData<Vec3f>(mesh->attributeBuffers[0]);
     float_t radius = computeRadius(positions);
-    render->meshes = {
-      MeshMaterialPair{
+    render->submodels = {
+      Submodel{
         .mesh = m_renderSystem.addMesh(std::move(mesh)),
-        .material = m_wallMaterial
+        .material = m_wallMaterial,
+        .skin = {}
       }
     };
     m_renderSystem.addComponent(std::move(render));
@@ -371,11 +382,12 @@ Mat4x4f TerrainImpl::constructZone(const ObjectData& obj, const Mat4x4f& parentT
   auto positions = getConstBufferData<Vec3f>(mesh->attributeBuffers[0]);
   float_t radius = computeRadius(positions);
 
-  CRenderPtr render = std::make_unique<CRender>(entityId, CRenderType::Regular);
-  render->meshes = {
-    MeshMaterialPair{
+  CRenderModelPtr render = std::make_unique<CRenderModel>(entityId);
+  render->submodels = {
+    Submodel{
       .mesh = m_renderSystem.addMesh(std::move(mesh)),
-      .material = m_groundMaterial
+      .material = m_groundMaterial,
+      .skin = {}
     }
   };
   m_renderSystem.addComponent(std::move(render));

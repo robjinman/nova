@@ -1,6 +1,9 @@
 #pragma once
 
-#include "model.hpp"
+#include "renderables.hpp"
+
+namespace render
+{
 
 struct ViewParams
 {
@@ -71,8 +74,11 @@ class Renderer
 
 using RendererPtr = std::unique_ptr<Renderer>;
 
+} // namespace render
+
 class FileSystem;
 class WindowDelegate;
 class Logger;
 
-RendererPtr createRenderer(const FileSystem& fileSystem, WindowDelegate& window, Logger& logger);
+render::RendererPtr createRenderer(const FileSystem& fileSystem, WindowDelegate& window,
+  Logger& logger);

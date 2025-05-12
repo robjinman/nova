@@ -2,23 +2,59 @@
 
 #include "math.hpp"
 #include "system.hpp"
-#include "model.hpp"
+#include "renderables.hpp"
 #include <set>
-#include <memory>
+#include <map>
+
+struct Skin
+{
+  std::vector<uint32_t> joints; // Indices into skeleton joints
+};
+
+struct AnimationChannel
+{
+  size_t jointIndex;  // Index into skin
+  std::vector<float_t> timestamps;
+  std::vector<Mat4x4f> transforms;
+};
+
+struct Animation
+{
+  std::string name;
+  // TODO: Duration
+  std::vector<AnimationChannel> channels;
+};
+
+using AnimationPtr = std::unique_ptr<Animation>;
+
+struct Joint
+{
+  Mat4x4f transform;
+  std::vector<uint32_t> children;
+};
+
+struct Skeleton
+{
+  std::vector<Joint> joints;
+};
+
+using SkeletonPtr = std::unique_ptr<Skeleton>;
 
 enum class CRenderType
 {
-  Regular,
-  Instance,
+  Model,
   Light,
-  Skybox
+  Skybox,
+  ParticleEmitter
 };
 
-struct MeshMaterialPair
+struct AnimationSet
 {
-  MeshHandle mesh;
-  MaterialHandle material;
+  SkeletonPtr skeleton;
+  std::map<std::string, AnimationPtr> animations;
 };
+
+using AnimationSetPtr = std::unique_ptr<AnimationSet>;
 
 struct CRender : public Component
 {
@@ -28,10 +64,50 @@ struct CRender : public Component
   {}
 
   CRenderType type;
-  std::vector<MeshMaterialPair> meshes;
-  JointPtr skeleton;
-  std::vector<RenderItemId> animations;
+
+  virtual ~CRender() = 0;
 };
+
+using CRenderPtr = std::unique_ptr<CRender>;
+
+struct Submodel
+{
+  render::MeshHandle mesh;
+  render::MaterialHandle material;
+  Skin skin;
+};
+
+struct CRenderModel : public CRender
+{
+  CRenderModel(EntityId entityId)
+    : CRender(entityId, CRenderType::Model)
+  {}
+
+  CRenderModel(const CRenderModel& cpy, EntityId entityId)
+    : CRender(entityId, CRenderType::Model)
+  {
+    isInstanced = cpy.isInstanced;
+    animations = cpy.animations;
+    submodels = cpy.submodels;
+  }
+
+  bool isInstanced = false;
+  RenderItemId animations = NULL_ID;
+  std::vector<Submodel> submodels;
+};
+
+using CRenderModelPtr = std::unique_ptr<CRenderModel>;
+
+struct CRenderSkybox : public CRender
+{
+  CRenderSkybox(EntityId entityId)
+    : CRender(entityId, CRenderType::Skybox)
+  {}
+
+  Submodel model;
+};
+
+using CRenderSkyboxPtr = std::unique_ptr<CRenderSkybox>;
 
 struct CRenderLight : public CRender
 {
@@ -39,23 +115,24 @@ struct CRenderLight : public CRender
     : CRender(entityId, CRenderType::Light)
   {}
 
+  std::vector<Submodel> submodels;
   Vec3f colour;
   float_t ambient = 0.f;
   float_t specular = 0.f;
   float_t zFar = 1500.f; // TODO
 };
 
-// TODO
-struct CRenderUiSprite
-{
-  RenderItemId image;
+using CRenderLightPtr = std::unique_ptr<CRenderLight>;
 
-  // Screen space
-  Vec2f position;
-  Vec2f size;
+// TODO
+struct CRenderParticleEmitter : public CRender
+{
+  CRenderParticleEmitter(EntityId entityId)
+    : CRender(entityId, CRenderType::ParticleEmitter)
+  {}
 };
 
-using CRenderPtr = std::unique_ptr<CRender>;
+using CRenderParticleEmitterPtr = std::unique_ptr<CRenderParticleEmitter>;
 
 class Camera;
 
@@ -71,43 +148,49 @@ class RenderSystem : public System
     CRender& getComponent(EntityId entityId) override = 0;
     const CRender& getComponent(EntityId entityId) const override = 0;
 
+    // Animations
+    //
+    virtual RenderItemId addAnimations(AnimationSetPtr animations) = 0;
+    virtual void removeAnimations(RenderItemId id) = 0;
+    virtual void playAnimation(EntityId entityId, RenderItemId animationSet,
+      const std::string& name) = 0;
+
+    virtual ~RenderSystem() {}
+
+    //
+    // Pass through to Renderer
+    // ------------------------
+
     // Initialisation
     //
-    virtual void compileShader(const MeshFeatureSet& meshFeatures,
-      const MaterialFeatureSet& materialFeatures) = 0;
+    virtual void compileShader(const render::MeshFeatureSet& meshFeatures,
+      const render::MaterialFeatureSet& materialFeatures) = 0;
 
     // Resources
     //
-    virtual RenderItemId addTexture(TexturePtr texture) = 0;
-    virtual RenderItemId addNormalMap(TexturePtr texture) = 0;
-    virtual RenderItemId addCubeMap(std::array<TexturePtr, 6>&& textures) = 0;
+    virtual RenderItemId addTexture(render::TexturePtr texture) = 0;
+    virtual RenderItemId addNormalMap(render::TexturePtr texture) = 0;
+    virtual RenderItemId addCubeMap(std::array<render::TexturePtr, 6>&& textures) = 0;
 
     virtual void removeTexture(RenderItemId id) = 0;
     virtual void removeCubeMap(RenderItemId id) = 0;
 
     // Meshes
     //
-    virtual MeshHandle addMesh(MeshPtr mesh) = 0;
+    virtual render::MeshHandle addMesh(render::MeshPtr mesh) = 0;
     virtual void removeMesh(RenderItemId id) = 0;
 
     // Materials
     //
-    virtual MaterialHandle addMaterial(MaterialPtr material) = 0;
+    virtual render::MaterialHandle addMaterial(render::MaterialPtr material) = 0;
     virtual void removeMaterial(RenderItemId id) = 0;
-
-    // Animations
-    //
-    virtual RenderItemId addAnimation(AnimationPtr animation) = 0;
-    virtual void playAnimation(EntityId entityId, RenderItemId animationId) = 0;
-
-    virtual ~RenderSystem() {}
 };
 
 using RenderSystemPtr = std::unique_ptr<RenderSystem>;
 
 class SpatialSystem;
-class Renderer;
+namespace render { class Renderer; }
 class Logger;
 
-RenderSystemPtr createRenderSystem(const SpatialSystem& spatialSystem, Renderer& renderer,
+RenderSystemPtr createRenderSystem(const SpatialSystem& spatialSystem, render::Renderer& renderer,
   Logger& logger);

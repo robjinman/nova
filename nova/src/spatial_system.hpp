@@ -1,7 +1,7 @@
 #pragma once
 
-#include "model.hpp"
 #include "system.hpp"
+#include "math.hpp"
 #include <unordered_set>
 #include <memory>
 

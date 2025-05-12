@@ -1,5 +1,7 @@
-#include <model.hpp>
+#include <renderables.hpp>
 #include <gtest/gtest.h>
+
+using namespace render;
 
 class MeshTest : public testing::Test
 {

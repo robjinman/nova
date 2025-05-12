@@ -13,7 +13,7 @@ class Component
 
     virtual ~Component() = 0;
 
-  private:
+  protected:
     EntityId m_id;
 };
 

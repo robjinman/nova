@@ -6,6 +6,12 @@
 #include <vulkan/vulkan.h>
 #include <optional>
 
+class Logger;
+class FileSystem;
+
+namespace render
+{
+
 enum class RenderNodeType
 {
   DefaultModel,
@@ -36,15 +42,6 @@ struct PipelineKey
   std::optional<MaterialFeatureSet> materialFeatures;
 
   bool operator==(const PipelineKey& rhs) const = default;
-};
-
-template<>
-struct std::hash<PipelineKey>
-{
-  std::size_t operator()(const PipelineKey& key) const noexcept
-  {
-    return hashAll(key.renderPass, key.meshFeatures, key.materialFeatures);
-  }
 };
 
 struct DefaultModelNode : public RenderNode
@@ -78,8 +75,6 @@ struct BindState
   std::vector<VkDescriptorSet> descriptorSets;
 };
 
-class FileSystem;
-
 class Pipeline
 {
   public:
@@ -93,9 +88,18 @@ class Pipeline
 
 using PipelinePtr = std::unique_ptr<Pipeline>;
 
-class Logger;
-
 PipelinePtr createPipeline(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
   const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
   const RenderResources& renderResources, Logger& logger, VkDevice device,
   VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat);
+
+} // namespace render
+
+template<>
+struct std::hash<render::PipelineKey>
+{
+  std::size_t operator()(const render::PipelineKey& key) const noexcept
+  {
+    return hashAll(key.renderPass, key.meshFeatures, key.materialFeatures);
+  }
+};

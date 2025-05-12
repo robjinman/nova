@@ -6,6 +6,7 @@
 #include "spatial_system.hpp"
 #include "collision_system.hpp"
 #include "map_parser.hpp"
+#include "model_loader.hpp"
 #include "entity_factory.hpp"
 #include "time.hpp"
 #include "utils.hpp"
@@ -72,11 +73,12 @@ class Application
     Logger& m_logger;
     WindowDelegatePtr m_windowDelegate;
     FileSystemPtr m_fileSystem;
-    RendererPtr m_renderer;
+    render::RendererPtr m_renderer;
     SpatialSystemPtr m_spatialSystem;
     RenderSystemPtr m_renderSystem;
     CollisionSystemPtr m_collisionSystem;
     MapParserPtr m_mapParser;
+    ModelLoaderPtr m_modelLoader;
     EntityFactoryPtr m_entityFactory;
     GamePtr m_game;
     Vec2f m_leftStickDelta;
@@ -95,8 +97,9 @@ Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSys
   m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, m_logger);
   m_collisionSystem = createCollisionSystem(*m_spatialSystem, m_logger);
   m_mapParser = createMapParser(*m_fileSystem, m_logger);
-  m_entityFactory = createEntityFactory(*m_spatialSystem, *m_renderSystem, *m_collisionSystem,
-    *m_fileSystem, m_logger);
+  m_modelLoader = createModelLoader(*m_renderSystem, *m_fileSystem, *m_logger);
+  m_entityFactory = createEntityFactory(*m_modelLoader, *m_spatialSystem, *m_renderSystem,
+    *m_collisionSystem, *m_fileSystem, *m_logger);
 
   auto player = createScene(*m_entityFactory, *m_spatialSystem, *m_renderSystem, *m_collisionSystem,
     *m_mapParser, *m_fileSystem, m_logger);

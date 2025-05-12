@@ -3,13 +3,14 @@
 #include "vulkan/render_resources.hpp"
 #include "file_system.hpp"
 #include "utils.hpp"
-#include "model.hpp"
 #include "logger.hpp"
 #include <shaderc/shaderc.hpp>
 #include <array>
 #include <numeric>
 #include <cstring>
 
+namespace render
+{
 namespace
 {
 
@@ -697,3 +698,5 @@ PipelinePtr createPipeline(RenderPass renderPass, const MeshFeatureSet& meshFeat
     fileSystem, renderResources, logger, device, swapchainExtent, swapchainImageFormat,
     depthFormat);
 }
+
+} // namespace render

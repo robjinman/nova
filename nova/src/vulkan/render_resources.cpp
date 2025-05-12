@@ -8,6 +8,8 @@
 #include <cstring>
 #include <cassert>
 
+namespace render
+{
 namespace
 {
 
@@ -403,6 +405,14 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
     createPerFrameUbos(sizeof(JointTransformsUbo), data->jointsUboBuffers, data->jointsUboMemory,
       data->jointsUboMapped);
 
+    auto& joints = data->mesh->restPose;
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+      DBG_ASSERT(joints.size() <= MAX_JOINTS, "Max number of joints exceeded");
+
+      JointTransformsUbo* ubo = reinterpret_cast<JointTransformsUbo*>(data->jointsUboMapped[i]);
+      memcpy(ubo->transforms->data(), joints.data(), joints.size() * sizeof(Mat4x4f));
+    }
+
     std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_objectDescriptorSetLayout);
 
     VkDescriptorSetAllocateInfo allocInfo{
@@ -670,6 +680,7 @@ VkDescriptorSetLayout RenderResourcesImpl::getDescriptorSetLayout(DescriptorSetN
     case DescriptorSetNumber::Material: return m_materialDescriptorSetLayout;
     case DescriptorSetNumber::Object: return m_objectDescriptorSetLayout;
   };
+  EXCEPTION("Unknown descriptor set");
 }
 
 VkDescriptorSet RenderResourcesImpl::getGlobalDescriptorSet(size_t currentFrame) const
@@ -691,6 +702,7 @@ VkDescriptorSet RenderResourcesImpl::getRenderPassDescriptorSet(RenderPass rende
     case RenderPass::Shadow: return m_mainPassDescriptorSets[currentFrame];
     case RenderPass::Ssr: return m_mainPassDescriptorSets[currentFrame];
   }
+  EXCEPTION("Unknown render pass");
 }
 
 VkImageView RenderResourcesImpl::getShadowMapImageView() const
@@ -1527,3 +1539,5 @@ RenderResourcesPtr createRenderResources(VkPhysicalDevice physicalDevice, VkDevi
   return std::make_unique<RenderResourcesImpl>(physicalDevice, device, graphicsQueue, commandPool,
     logger);
 }
+
+} // namespace render

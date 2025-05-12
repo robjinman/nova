@@ -5,12 +5,33 @@
 #include "camera.hpp"
 #include "exception.hpp"
 #include "utils.hpp"
+#include "time.hpp"
 #include <map>
 #include <cassert>
 #include <functional>
 
+using render::Renderer;
+using render::MeshPtr;
+using render::MaterialPtr;
+using render::MeshFeatureSet;
+using render::MaterialFeatureSet;
+using render::MeshHandle;
+namespace MeshFeatures = render::MeshFeatures;
+using render::MaterialHandle;
+using render::TexturePtr;
+using render::RenderPass;
+
+CRender::~CRender() {}
+
 namespace
 {
+
+struct AnimationState
+{
+  RenderItemId animationSet;
+  std::string animationName;
+  Timer timer;
+};
 
 class RenderSystemImpl : public RenderSystem
 {
@@ -29,6 +50,17 @@ class RenderSystemImpl : public RenderSystem
     CRender& getComponent(EntityId entityId) override;
     const CRender& getComponent(EntityId entityId) const override;
     void update() override;
+
+    // Animations
+    //
+    RenderItemId addAnimations(AnimationSetPtr animations) override;
+    void removeAnimations(RenderItemId id) override;
+    void playAnimation(EntityId entityId, RenderItemId animationSet,
+      const std::string& name) override;
+
+    //
+    // Pass through to Renderer
+    // ------------------------
 
     // Initialisation
     //
@@ -54,11 +86,6 @@ class RenderSystemImpl : public RenderSystem
     MaterialHandle addMaterial(MaterialPtr material) override;
     void removeMaterial(RenderItemId id) override;
 
-    // Animations
-    //
-    RenderItemId addAnimation(AnimationPtr animation) override;
-    void playAnimation(EntityId entityId, RenderItemId animationId) override;
-
   private:
     Logger& m_logger;
     Camera m_camera;
@@ -66,15 +93,17 @@ class RenderSystemImpl : public RenderSystem
     Renderer& m_renderer;
     std::map<EntityId, CRenderPtr> m_components;
     std::set<EntityId> m_lights;
+    std::map<RenderItemId, AnimationSetPtr> m_animationSets;
+    std::map<EntityId, AnimationState> m_animationStates;
 
-    using DrawFilter = std::function<bool(const MeshMaterialPair&)>;
+    using DrawFilter = std::function<bool(const Submodel&)>;
 
     std::vector<Vec2f> computePerspectiveFrustumPerimeter(const Vec3f& viewPos,
       const Vec3f& viewDir, float_t hFov) const;
     std::vector<Vec2f> computeOrthographicFrustumPerimeter(const Vec3f& viewPos,
       const Vec3f& viewDir, float_t hFov, float_t zFar) const;
     void drawEntities(const std::unordered_set<EntityId>& entities,
-      const DrawFilter& filter = [](const MeshMaterialPair&) { return true; });
+      const DrawFilter& filter = [](const Submodel&) { return true; });
     void doShadowPass();
     void doMainPass();
     void updateAnimations();
@@ -224,14 +253,26 @@ void RenderSystemImpl::removeMesh(RenderItemId id)
   m_renderer.removeMesh(id);
 }
 
-RenderItemId addAnimation(AnimationPtr animation)
+RenderItemId RenderSystemImpl::addAnimations(AnimationSetPtr animations)
+{
+  static RenderItemId nextId = 0;
+
+  m_animationSets[nextId++] = std::move(animations);
+}
+
+void RenderSystemImpl::removeAnimations(RenderItemId id)
 {
   // TODO
 }
 
-void playAnimation(EntityId entityId, RenderItemId animationId)
+void RenderSystemImpl::playAnimation(EntityId entityId, RenderItemId animationSet,
+  const std::string& name)
 {
-  // TODO
+  m_animationStates[entityId] = AnimationState{
+    .animationSet = animationSet,
+    .animationName = name,
+    .timer{}
+  };
 }
 
 Camera& RenderSystemImpl::camera()
@@ -245,7 +286,7 @@ const Camera& RenderSystemImpl::camera() const
 }
 
 void RenderSystemImpl::drawEntities(const std::unordered_set<EntityId>& entities,
-  const std::function<bool(const MeshMaterialPair&)>& filter)
+  const std::function<bool(const Submodel&)>& filter)
 {
   for (EntityId id : entities) {
     auto entry = m_components.find(id);
@@ -257,27 +298,25 @@ void RenderSystemImpl::drawEntities(const std::unordered_set<EntityId>& entities
     const auto& spatial = m_spatialSystem.getComponent(id);
 
     switch(component.type) {
-      case CRenderType::Instance: {
-        for (auto& mesh : component.meshes) {
-          if (filter(mesh)) {
-            m_renderer.drawInstance(mesh.mesh, mesh.material, spatial.absTransform());
-          }
-        }
-        break;
-      }
-      case CRenderType::Regular: {
-        for (auto& mesh : component.meshes) {
-          if (filter(mesh)) {
-            m_renderer.drawModel(mesh.mesh, mesh.material,
-              spatial.absTransform() * mesh.mesh.transform);
+      case CRenderType::Model: {
+        auto& model = dynamic_cast<const CRenderModel&>(component);
+        for (auto& submodel : model.submodels) {
+          if (filter(submodel)) {
+            if (model.isInstanced) {
+              m_renderer.drawInstance(submodel.mesh, submodel.material, spatial.absTransform());
+            }
+            else {
+              m_renderer.drawModel(submodel.mesh, submodel.material,
+                spatial.absTransform() * submodel.mesh.transform);
+            }
           }
         }
         break;
       }
       case CRenderType::Skybox: {
-        ASSERT(component.meshes.size() == 1, "Expected skybox to have exactly 1 mesh");
-        if (filter(component.meshes[0])) {
-          m_renderer.drawSkybox(component.meshes[0].mesh, component.meshes[0].material);
+        auto& skybox = dynamic_cast<const CRenderSkybox&>(component);
+        if (filter(skybox.model)) {
+          m_renderer.drawSkybox(skybox.model.mesh, skybox.model.material);
         }
         break;
       }
@@ -303,7 +342,7 @@ void RenderSystemImpl::doShadowPass()
 
   m_renderer.beginPass(RenderPass::Shadow, firstLightPos, firstLightMatrix);
 
-  drawEntities(visible, [](const MeshMaterialPair& x) {
+  drawEntities(visible, [](const Submodel& x) {
     return x.mesh.features.flags.test(MeshFeatures::CastsShadow);
   });
 
@@ -327,9 +366,9 @@ void RenderSystemImpl::doMainPass()
 
     m_renderer.drawLight(light.colour, light.ambient, light.specular, light.zFar, transform);
 
-    if (light.meshes.size() > 0) {
-      for (auto& mesh : light.meshes) {
-        m_renderer.drawModel(mesh.mesh, mesh.material, spatial.absTransform());
+    if (light.submodels.size() > 0) {
+      for (auto& submodel : light.submodels) {
+        m_renderer.drawModel(submodel.mesh, submodel.material, spatial.absTransform());
       }
     }
   }
@@ -337,16 +376,39 @@ void RenderSystemImpl::doMainPass()
   m_renderer.endPass();
 }
 
+std::vector<Mat4x4f> computeJointTransforms(const Skeleton& skeleton, const Skin& skin,
+  const Animation& animation, AnimationState& state)
+{
+  for (auto& channel : animation.channels) {
+    auto& joint = skeleton.joints[skin.joints[channel.jointIndex]];
+
+    // TODO
+  }
+}
+
 void RenderSystemImpl::updateAnimations()
 {
+  for (auto& entry : m_animationStates) {
+    auto& component = *m_components.at(entry.first);
+    DBG_ASSERT(component.type == CRenderType::Model, "Can only play animation on models");
+    auto& model = dynamic_cast<const CRenderModel&>(component);
+    auto& state = entry.second;
+    auto& animationSet = *m_animationSets.at(state.animationSet);
+    auto& animation = *animationSet.animations.at(state.animationName); // TODO: Slow?
 
+    for (auto& submodel : model.submodels) {
+      auto& skeleton = *animationSet.skeleton;
+      auto joints = computeJointTransforms(skeleton, submodel.skin, animation, state);
+      m_renderer.updateJointTransforms(submodel.mesh.id, joints);
+    }
+  }
 }
 
 // TODO: Hot path. Optimise
 void RenderSystemImpl::update()
 {
   try {
-    updateAnimations();
+    //updateAnimations();
 
     m_renderer.beginFrame();
 

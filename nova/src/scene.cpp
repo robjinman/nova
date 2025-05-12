@@ -15,6 +15,16 @@
 #include <array>
 #include <cassert>
 
+using render::BufferUsage;
+namespace MeshFeatures = render::MeshFeatures;
+using render::MeshFeatureSet;
+namespace MaterialFeatures = render::MaterialFeatures;
+using render::MaterialFeatureSet;
+using render::TexturePtr;
+using render::Material;
+using render::MaterialPtr;
+using render::MeshPtr;
+
 namespace
 {
 
@@ -94,30 +104,29 @@ void SceneBuilder::constructSky()
 {
   EntityId entityId = System::nextId();
 
-  auto render = std::make_unique<CRender>(entityId, CRenderType::Skybox);
-  auto mesh = cuboid(9999, 9999, 9999, Vec2f{ 1, 1 });
+  auto render = std::make_unique<CRenderSkybox>(entityId);
+  auto mesh = render::cuboid(9999, 9999, 9999, Vec2f{ 1, 1 });
   mesh->attributeBuffers.resize(1); // Just keep the positions
   mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition };
   mesh->featureSet.flags.set(MeshFeatures::IsSkybox, true);
   uint16_t* indexData = reinterpret_cast<uint16_t*>(mesh->indexBuffer.data.data());
   std::reverse(indexData, indexData + mesh->indexBuffer.data.size() / sizeof(uint16_t));
   std::array<TexturePtr, 6> textures{
-    loadTexture(m_fileSystem.readFile("resources/textures/skybox/right.png")),
-    loadTexture(m_fileSystem.readFile("resources/textures/skybox/left.png")),
-    loadTexture(m_fileSystem.readFile("resources/textures/skybox/top.png")),
-    loadTexture(m_fileSystem.readFile("resources/textures/skybox/bottom.png")),
-    loadTexture(m_fileSystem.readFile("resources/textures/skybox/front.png")),
-    loadTexture(m_fileSystem.readFile("resources/textures/skybox/back.png"))
+    render::loadTexture(m_fileSystem.readFile("resources/textures/skybox/right.png")),
+    render::loadTexture(m_fileSystem.readFile("resources/textures/skybox/left.png")),
+    render::loadTexture(m_fileSystem.readFile("resources/textures/skybox/top.png")),
+    render::loadTexture(m_fileSystem.readFile("resources/textures/skybox/bottom.png")),
+    render::loadTexture(m_fileSystem.readFile("resources/textures/skybox/front.png")),
+    render::loadTexture(m_fileSystem.readFile("resources/textures/skybox/back.png"))
   };
   auto material = std::make_unique<Material>(MaterialFeatureSet{});
   material->featureSet.flags.set(MaterialFeatures::HasCubeMap);
   material->cubeMap.id = m_renderSystem.addCubeMap(std::move(textures));
   m_renderSystem.compileShader(mesh->featureSet, material->featureSet);
-  render->meshes = {
-    MeshMaterialPair{
-      .mesh = m_renderSystem.addMesh(std::move(mesh)),
-      .material = m_renderSystem.addMaterial(std::move(material))
-    }
+  render->model = Submodel{
+    .mesh = m_renderSystem.addMesh(std::move(mesh)),
+    .material = m_renderSystem.addMaterial(std::move(material)),
+    .skin = {}
   };
   m_renderSystem.addComponent(std::move(render));
 
@@ -137,16 +146,17 @@ void SceneBuilder::constructOriginMarkers()
     MaterialPtr material = std::make_unique<Material>(MaterialFeatureSet{});
     material->colour = colour;
 
-    MeshPtr mesh = cuboid(w, h, d, Vec2f{ 1, 1 });
+    MeshPtr mesh = render::cuboid(w, h, d, Vec2f{ 1, 1 });
     mesh->attributeBuffers.resize(2); // Keep just positions and normals
     mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition, BufferUsage::AttrNormal };
     m_renderSystem.compileShader(mesh->featureSet, material->featureSet);
     auto meshId = m_renderSystem.addMesh(std::move(mesh));
-    CRenderPtr render = std::make_unique<CRender>(id, CRenderType::Regular);
-    render->meshes = {
-      MeshMaterialPair{
+    CRenderModelPtr render = std::make_unique<CRenderModel>(id);
+    render->submodels = {
+      Submodel{
         .mesh = meshId,
-        .material = m_renderSystem.addMaterial(std::move(material))
+        .material = m_renderSystem.addMaterial(std::move(material)),
+        .skin = {}
       }
     };
     m_renderSystem.addComponent(std::move(render));

@@ -7,6 +7,7 @@
 #include "collision_system.hpp"
 #include "map_parser.hpp"
 #include "entity_factory.hpp"
+#include "model_loader.hpp"
 #include "time.hpp"
 #include "utils.hpp"
 #include "units.hpp"
@@ -78,11 +79,12 @@ class Application
     FileSystemPtr m_fileSystem;
     WindowDelegatePtr m_windowDelegate;
     LoggerPtr m_logger;
-    RendererPtr m_renderer;
+    render::RendererPtr m_renderer;
     SpatialSystemPtr m_spatialSystem;
     RenderSystemPtr m_renderSystem;
     CollisionSystemPtr m_collisionSystem;
     MapParserPtr m_mapParser;
+    ModelLoaderPtr m_modelLoader;
     EntityFactoryPtr m_entityFactory;
     GamePtr m_game;
 
@@ -156,8 +158,9 @@ Application::Application()
   m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_logger);
   m_collisionSystem = createCollisionSystem(*m_spatialSystem, *m_logger);
   m_mapParser = createMapParser(*m_fileSystem, *m_logger);
-  m_entityFactory = createEntityFactory(*m_spatialSystem, *m_renderSystem, *m_collisionSystem,
-    *m_fileSystem, *m_logger);
+  m_modelLoader = createModelLoader(*m_renderSystem, *m_fileSystem, *m_logger);
+  m_entityFactory = createEntityFactory(*m_modelLoader, *m_spatialSystem, *m_renderSystem,
+    *m_collisionSystem, *m_fileSystem, *m_logger);
 
   auto player = createScene(*m_entityFactory, *m_spatialSystem, *m_renderSystem, *m_collisionSystem,
     *m_mapParser, *m_fileSystem, *m_logger);
