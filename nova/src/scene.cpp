@@ -126,7 +126,7 @@ void SceneBuilder::constructSky()
   render->model = Submodel{
     .mesh = m_renderSystem.addMesh(std::move(mesh)),
     .material = m_renderSystem.addMaterial(std::move(material)),
-    .skin = {}
+    .skin = nullptr
   };
   m_renderSystem.addComponent(std::move(render));
 
@@ -152,13 +152,13 @@ void SceneBuilder::constructOriginMarkers()
     m_renderSystem.compileShader(mesh->featureSet, material->featureSet);
     auto meshId = m_renderSystem.addMesh(std::move(mesh));
     CRenderModelPtr render = std::make_unique<CRenderModel>(id);
-    render->submodels = {
+    render->submodels.push_back(
       Submodel{
         .mesh = meshId,
         .material = m_renderSystem.addMaterial(std::move(material)),
-        .skin = {}
+        .skin = nullptr
       }
-    };
+    );
     m_renderSystem.addComponent(std::move(render));
 
     CSpatialPtr spatial = std::make_unique<CSpatial>(id, translationMatrix4x4(Vec3f{ x, 0, z }),

@@ -9,13 +9,29 @@
 struct Skin
 {
   std::vector<uint32_t> joints; // Indices into skeleton joints
+  std::vector<Mat4x4f> inverseBindMatrices;
+};
+
+using SkinPtr = std::unique_ptr<Skin>;
+
+enum class TransformType
+{
+  Rotation,
+  Translation,
+  Scale
+};
+
+struct Transform
+{
+  TransformType type;
+  Vec4f data;
 };
 
 struct AnimationChannel
 {
   size_t jointIndex;  // Index into skin
   std::vector<float_t> timestamps;
-  std::vector<Mat4x4f> transforms;
+  std::vector<Transform> transforms;
 };
 
 struct Animation
@@ -30,6 +46,7 @@ using AnimationPtr = std::unique_ptr<Animation>;
 struct Joint
 {
   Mat4x4f transform;
+  Mat4x4f absTransform;
   std::vector<uint32_t> children;
 };
 
@@ -74,7 +91,7 @@ struct Submodel
 {
   render::MeshHandle mesh;
   render::MaterialHandle material;
-  Skin skin;
+  SkinPtr skin;
 };
 
 struct CRenderModel : public CRender
@@ -88,7 +105,13 @@ struct CRenderModel : public CRender
   {
     isInstanced = cpy.isInstanced;
     animations = cpy.animations;
-    submodels = cpy.submodels;
+    for (auto& m : cpy.submodels) {
+      submodels.push_back(Submodel{
+        .mesh = m.mesh,
+        .material = m.material,
+        .skin = m.skin == nullptr ? nullptr : std::make_unique<Skin>(*m.skin)
+      });
+    }
   }
 
   bool isInstanced = false;
@@ -152,8 +175,7 @@ class RenderSystem : public System
     //
     virtual RenderItemId addAnimations(AnimationSetPtr animations) = 0;
     virtual void removeAnimations(RenderItemId id) = 0;
-    virtual void playAnimation(EntityId entityId, RenderItemId animationSet,
-      const std::string& name) = 0;
+    virtual void playAnimation(EntityId entityId, const std::string& name) = 0;
 
     virtual ~RenderSystem() {}
 

@@ -1,5 +1,6 @@
 #include "game.hpp"
 #include "player.hpp"
+#include "render_system.hpp"
 #include "collision_system.hpp"
 #include "time.hpp"
 #include "camera.hpp"
@@ -30,7 +31,8 @@ KeyboardKey buttonToKey(GamepadButton button)
 class GameImpl : public Game
 {
   public:
-    GameImpl(PlayerPtr player, CollisionSystem& collisionSystem, Logger& logger);
+    GameImpl(PlayerPtr player, RenderSystem& renderSystem, CollisionSystem& collisionSystem,
+      Logger& logger);
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
@@ -43,6 +45,7 @@ class GameImpl : public Game
 
   private:
     Logger& m_logger;
+    RenderSystem& m_renderSystem;
     CollisionSystem& m_collisionSystem;
     PlayerPtr m_player;
     std::set<KeyboardKey> m_keysPressed;
@@ -61,8 +64,10 @@ class GameImpl : public Game
     float_t g() const; // World units per frame per frame
 };
 
-GameImpl::GameImpl(PlayerPtr player, CollisionSystem& collisionSystem, Logger& logger)
+GameImpl::GameImpl(PlayerPtr player, RenderSystem& renderSystem, CollisionSystem& collisionSystem,
+  Logger& logger)
   : m_logger(logger)
+  , m_renderSystem(renderSystem)
   , m_collisionSystem(collisionSystem)
   , m_player(std::move(player))
 {
@@ -78,13 +83,21 @@ void GameImpl::onKeyDown(KeyboardKey key)
   m_keysPressed.insert(key);
 
   switch (key) {
-    case KeyboardKey::F:
+    case KeyboardKey::F:{
       m_logger.info(STR("Simulation frame rate: " << m_measuredFrameRate));
       break;
-    case KeyboardKey::P:
+    }
+    case KeyboardKey::P: {
       m_freeflyMode = !m_freeflyMode;
       m_logger.info(STR("Freefly mode: " << (m_freeflyMode ? "ON" : "OFF")));
       break;
+    }
+    case KeyboardKey::M: {
+      m_logger.info("Playing 'bend' animation on 'richard' entity");
+      EntityId richard = System::idFromString("richard");
+      m_renderSystem.playAnimation(richard, "bend");
+      break;
+    }
     default: break;
   }
 }
@@ -224,7 +237,8 @@ void GameImpl::update()
 
 } // namespace
 
-GamePtr createGame(PlayerPtr player, CollisionSystem& collisionSystem, Logger& logger)
+GamePtr createGame(PlayerPtr player, RenderSystem& renderSystem, CollisionSystem& collisionSystem,
+  Logger& logger)
 {
-  return std::make_unique<GameImpl>(std::move(player), collisionSystem, logger);
+  return std::make_unique<GameImpl>(std::move(player), renderSystem, collisionSystem, logger);
 }

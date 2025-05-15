@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <set>
 
 using EntityId = size_t;
 
@@ -31,8 +32,12 @@ class System
 
     virtual ~System() {}
 
+    static EntityId idFromString(const std::string& name);
     static EntityId nextId();
 
   private:
     static EntityId m_nextId;
+    static std::set<EntityId> m_reservedIds;
 };
+
+using SystemPtr = std::unique_ptr<System>;

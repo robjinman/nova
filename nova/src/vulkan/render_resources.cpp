@@ -405,10 +405,8 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
     createPerFrameUbos(sizeof(JointTransformsUbo), data->jointsUboBuffers, data->jointsUboMemory,
       data->jointsUboMapped);
 
-    auto& joints = data->mesh->restPose;
+    std::vector<Mat4x4f> joints(MAX_JOINTS, identityMatrix<float_t, 4>());
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-      DBG_ASSERT(joints.size() <= MAX_JOINTS, "Max number of joints exceeded");
-
       JointTransformsUbo* ubo = reinterpret_cast<JointTransformsUbo*>(data->jointsUboMapped[i]);
       memcpy(ubo->transforms->data(), joints.data(), joints.size() * sizeof(Mat4x4f));
     }

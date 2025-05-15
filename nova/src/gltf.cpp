@@ -78,7 +78,8 @@ BufferDesc extractBuffer(const nlohmann::json& root, unsigned long accessorIndex
   auto numElements = accessor.at("count").get<unsigned long>();
   auto bufferViewIndex = accessor.at("bufferView").get<unsigned long>();
   auto type = accessor.at("type").get<std::string>();
-  auto componentType = accessor.at("componentType").get<unsigned long>();
+  auto componentType =
+    static_cast<ComponentType>(accessor.at("componentType").get<unsigned long>());
 
   auto& bufferView = bufferViews[bufferViewIndex];
   auto bufferIndex = bufferView.at("buffer").get<unsigned long>();
@@ -86,10 +87,15 @@ BufferDesc extractBuffer(const nlohmann::json& root, unsigned long accessorIndex
   auto byteLength = bufferView.at("byteLength").get<unsigned long>();
   auto byteOffset = bufferView.at("byteOffset").get<unsigned long>();
 
+  uint32_t numDimensions = dimensions(type);
+
+  ASSERT(byteLength == numElements * numDimensions * getSize(componentType),
+    "Buffer has unexpeced length");
+
   return BufferDesc{
     .type = elementType,
-    .dimensions = dimensions(type),
-    .componentType = static_cast<ComponentType>(componentType),
+    .dimensions = numDimensions,
+    .componentType = componentType,
     .size = numElements,
     .byteLength = byteLength,
     .offset = byteOffset,
@@ -172,14 +178,22 @@ void extractMeshHierarchy(const nlohmann::json& root, unsigned long nodeIndex,
       auto materialIndex = meshPrimitive.at("material").get<unsigned long>();
       meshDesc.material = extractMaterial(root, materialIndex);
 
+      auto iSkin = node.find("skin");
+      if (iSkin != node.end()) {
+        auto skinIndex = iSkin->get<unsigned long>();
+        auto& skins = root.at("skins");
+        auto& skin = skins[skinIndex];
+
+        auto inverseBindMatricesIndex = skin.at("inverseBindMatrices").get<unsigned long>();
+        meshDesc.skin = SkinDesc{
+          .nodeIndices = skin.at("joints").get<std::vector<unsigned long>>(),
+          .inverseBindMatricesBuffer = extractBuffer(root, inverseBindMatricesIndex,
+            ElementType::JointInverseBindMatrices)
+        };
+      }
+
       meshDescs.push_back(meshDesc);
     }
-  }
-
-  auto iSkin = node.find("skin");
-  if (iSkin != node.end()) {
-    auto skinIndex = iSkin->get<unsigned long>();
-    ASSERT(skinIndex == 0, "Currently, only models with a single skin are supported");
   }
 
   auto iChildren = node.find("children");
@@ -215,9 +229,61 @@ std::vector<AnimationDesc> extractAnimations(const nlohmann::json& root)
 {
   std::vector<AnimationDesc> animationDescs;
 
-  auto animations = root.at("animations");
+  auto& animations = root.at("animations");
+
+  // Map accessor index to position in animation's buffers array
+  std::map<size_t, size_t> bufferIndices;
+
+  auto elementTypeFromString = [](const std::string& s) {
+    if (s == "translation") {
+      return ElementType::JointTranslation;
+    }
+    else if (s == "rotation") {
+      return ElementType::JointRotation;
+    }
+    else if (s == "scale") {
+      return ElementType::JointScale;
+    }
+    EXCEPTION("Unrecognised joint transform type");
+  };
+
   for (auto& animation : animations) {
-    // TODO
+    AnimationDesc animDesc;
+    animDesc.name = animation.at("name").get<std::string>();
+
+    auto& channels = animation.at("channels");
+    auto& samplers = animation.at("samplers");
+
+    for (auto& channel : channels) {
+      AnimationChannelDesc channelDesc;
+      auto& target = channel.at("target");
+      auto samplerIndex = channel.at("sampler").get<unsigned long>();
+      auto& sampler = samplers[samplerIndex];
+      auto timesAccessorIndex = sampler.at("input").get<unsigned long>();
+      auto transformsAccessorIndex = sampler.at("output").get<unsigned long>();
+      auto transformType = elementTypeFromString(target.at("path").get<std::string>());
+
+      if (!bufferIndices.contains(timesAccessorIndex)) {
+        size_t i = animDesc.buffers.size();
+        animDesc.buffers.push_back(extractBuffer(root, timesAccessorIndex,
+          ElementType::AnimationTimestamps));
+        bufferIndices[timesAccessorIndex] = i;
+      }
+
+      if (!bufferIndices.contains(transformsAccessorIndex)) {
+        size_t i = animDesc.buffers.size();
+        animDesc.buffers.push_back(extractBuffer(root, transformsAccessorIndex, transformType));
+        bufferIndices[transformsAccessorIndex] = i;
+      }
+
+      channelDesc.timesBufferIndex = bufferIndices.at(timesAccessorIndex);
+      channelDesc.transformsBufferIndex = bufferIndices.at(transformsAccessorIndex);
+      channelDesc.nodeIndex = target.at("node").get<unsigned long>();
+
+      animDesc.channels.push_back(std::move(channelDesc));
+    }
+
+    animationDescs.push_back(std::move(animDesc));
   }
 
   return animationDescs;
@@ -230,20 +296,7 @@ ArmatureDesc extractArmature(const nlohmann::json& root, unsigned long rootNodeI
   ArmatureDesc armatureDesc;
   armatureDesc.root = extractNodeHierarchy(nodes, rootNodeIndex);
 
-  auto iSkins = root.find("skins");
-  if (iSkins != root.end()) {
-    auto& skins = *iSkins;
-    ASSERT(skins.size() == 1, "Currently, only models with a single skin are supported");
-
-    auto& skin = skins[0];
-
-    auto inverseBindMatricesIndex = skin.at("inverseBindMatrices").get<unsigned long>();
-    armatureDesc.skin = SkinDesc{
-      .joints = skin.at("joints").get<std::vector<unsigned long>>(),
-      .inverseBindMatricesBuffer = extractBuffer(root, inverseBindMatricesIndex,
-        ElementType::JointInvertedBindMatrices)
-    };
-
+  if (root.contains("animations")) {
     armatureDesc.animations = extractAnimations(root);
   }
 

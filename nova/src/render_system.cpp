@@ -9,6 +9,7 @@
 #include <map>
 #include <cassert>
 #include <functional>
+#include <iostream> // TODO
 
 using render::Renderer;
 using render::MeshPtr;
@@ -26,11 +27,18 @@ CRender::~CRender() {}
 namespace
 {
 
+struct AnimationChannelState
+{
+  bool stopped = false;
+  size_t frame;
+};
+
 struct AnimationState
 {
-  RenderItemId animationSet;
+  RenderItemId animationSet = NULL_ID;
   std::string animationName;
   Timer timer;
+  std::vector<AnimationChannelState> channels;
 };
 
 class RenderSystemImpl : public RenderSystem
@@ -55,8 +63,7 @@ class RenderSystemImpl : public RenderSystem
     //
     RenderItemId addAnimations(AnimationSetPtr animations) override;
     void removeAnimations(RenderItemId id) override;
-    void playAnimation(EntityId entityId, RenderItemId animationSet,
-      const std::string& name) override;
+    void playAnimation(EntityId entityId, const std::string& name) override;
 
     //
     // Pass through to Renderer
@@ -257,7 +264,10 @@ RenderItemId RenderSystemImpl::addAnimations(AnimationSetPtr animations)
 {
   static RenderItemId nextId = 0;
 
-  m_animationSets[nextId++] = std::move(animations);
+  auto id = nextId++;
+  m_animationSets[id] = std::move(animations);
+
+  return id;
 }
 
 void RenderSystemImpl::removeAnimations(RenderItemId id)
@@ -265,13 +275,17 @@ void RenderSystemImpl::removeAnimations(RenderItemId id)
   // TODO
 }
 
-void RenderSystemImpl::playAnimation(EntityId entityId, RenderItemId animationSet,
-  const std::string& name)
+void RenderSystemImpl::playAnimation(EntityId entityId, const std::string& name)
 {
+  auto& component = *m_components.at(entityId);
+  DBG_ASSERT(component.type == CRenderType::Model, "Can only play animation on models");
+  auto& model = dynamic_cast<const CRenderModel&>(component);
+
   m_animationStates[entityId] = AnimationState{
-    .animationSet = animationSet,
+    .animationSet = model.animations,
     .animationName = name,
-    .timer{}
+    .timer{},
+    .channels{}
   };
 }
 
@@ -376,14 +390,109 @@ void RenderSystemImpl::doMainPass()
   m_renderer.endPass();
 }
 
+Mat4x4f interpolate(const Transform& A, const Transform& B, float_t t)
+{
+  assert(A.type == B.type);
+
+  std::cout << "Interpolate, type = " << static_cast<int>(A.type) << "\n";
+  std::cout << "A: " << A.data << "\n";
+  std::cout << "B: " << B.data << "\n";
+  std::cout << "t = " << t << "\n";
+
+  Vec4f C = A.data + (B.data - A.data) * t;
+  std::cout << "C: " << C << "\n";
+
+  switch (A.type) {
+    case TransformType::Rotation: return rotationMatrix4x4(Vec4f{ C[3], C[0], C[1], C[2] });
+    case TransformType::Translation: return translationMatrix4x4(C.sub<3>());
+    case TransformType::Scale: return scaleMatrix<float_t, 4>(C.sub<3>(), true);
+  }
+}
+
+void computeAbsoluteJointTransforms(std::vector<Joint>& joints, const Mat4x4f& parentTransform,
+  size_t index)
+{
+  auto& joint = joints[index];
+  joint.absTransform = parentTransform * joint.transform;
+  for (auto child : joint.children) {
+    computeAbsoluteJointTransforms(joints, joint.absTransform, child);
+  }
+}
+
+void computeAbsoluteJointTransforms(std::vector<Joint>& joints)
+{
+  computeAbsoluteJointTransforms(joints, identityMatrix<float_t, 4>(), 0);
+}
+
+// TODO: Optimise
 std::vector<Mat4x4f> computeJointTransforms(const Skeleton& skeleton, const Skin& skin,
   const Animation& animation, AnimationState& state)
 {
-  for (auto& channel : animation.channels) {
-    auto& joint = skeleton.joints[skin.joints[channel.jointIndex]];
+  Skeleton pose = skeleton;
 
-    // TODO
+  if (state.channels.empty()) {
+    state.channels.resize(animation.channels.size());
   }
+
+  for (size_t i = 0; i < animation.channels.size(); ++i) {
+    auto& channel = animation.channels[i];
+    if (state.channels[i].stopped) {
+      continue;
+    }
+
+    auto& joint = pose.joints[skin.joints[channel.jointIndex]];
+
+    size_t numFrames = channel.timestamps.size();
+    float_t time = static_cast<float_t>(state.timer.elapsed());
+    size_t& frame = state.channels[i].frame;
+
+    assert(frame + 1 < numFrames);
+
+    while (time >= channel.timestamps[frame + 1]) {
+      ++frame;
+      if (frame + 1 == numFrames) {
+        frame = 0;
+        state.channels[i].stopped = true;
+        break;
+      }
+    }
+
+    float_t frameDuration = channel.timestamps[frame + 1] - channel.timestamps[frame];
+    float_t t = (time - channel.timestamps[frame]) / frameDuration;
+    assert(t >= 0.f && t <= 1.f);
+
+    const Transform& currentTransform = channel.transforms[frame];
+    Transform prevTransform;
+    prevTransform.type = channel.transforms[frame].type;
+    if (frame > 1) {
+      prevTransform.data = channel.transforms[frame - 1].data;
+    }
+    else {
+      prevTransform.data = prevTransform.type == TransformType::Scale ?
+        Vec4f{ 1.f, 1.f, 1.f, 0.f } :
+        Vec4f{ 0.f, 0.f, 0.f, 0.f };
+    }
+
+    Mat4x4f transform = interpolate(prevTransform, currentTransform, t);
+    joint.transform = joint.transform * transform;
+  }
+
+  computeAbsoluteJointTransforms(pose.joints);
+  std::vector<Mat4x4f> absTransforms;
+  for (auto& j : pose.joints) {
+    absTransforms.push_back(j.absTransform);
+  }
+
+  std::cout << "Final transforms:\n";
+
+  std::vector<Mat4x4f> finalTransforms;
+  assert(skin.joints.size() == skin.inverseBindMatrices.size());
+  for (size_t i = 0; i < skin.joints.size(); ++i) {
+    finalTransforms.push_back(absTransforms[skin.joints[i]] * skin.inverseBindMatrices[i]);
+    std::cout << finalTransforms.back() << "\n";
+  }
+
+  return finalTransforms;
 }
 
 void RenderSystemImpl::updateAnimations()
@@ -391,6 +500,7 @@ void RenderSystemImpl::updateAnimations()
   for (auto& entry : m_animationStates) {
     auto& component = *m_components.at(entry.first);
     DBG_ASSERT(component.type == CRenderType::Model, "Can only play animation on models");
+
     auto& model = dynamic_cast<const CRenderModel&>(component);
     auto& state = entry.second;
     auto& animationSet = *m_animationSets.at(state.animationSet);
@@ -398,7 +508,7 @@ void RenderSystemImpl::updateAnimations()
 
     for (auto& submodel : model.submodels) {
       auto& skeleton = *animationSet.skeleton;
-      auto joints = computeJointTransforms(skeleton, submodel.skin, animation, state);
+      auto joints = computeJointTransforms(skeleton, *submodel.skin, animation, state); // TODO: Don't modify state for every submodel
       m_renderer.updateJointTransforms(submodel.mesh.id, joints);
     }
   }
@@ -408,7 +518,7 @@ void RenderSystemImpl::updateAnimations()
 void RenderSystemImpl::update()
 {
   try {
-    //updateAnimations();
+    updateAnimations();
 
     m_renderer.beginFrame();
 

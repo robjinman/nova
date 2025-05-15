@@ -7,7 +7,7 @@ struct SubmodelData
 {
   render::MeshPtr mesh;
   render::MaterialPtr material;
-  Skin skin;
+  SkinPtr skin;
 };
 
 using SubmodelDataPtr = std::unique_ptr<SubmodelData>;

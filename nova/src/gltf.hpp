@@ -26,7 +26,8 @@ enum class ElementType
 
   VertexIndex,
 
-  JointInvertedBindMatrices,
+  AnimationTimestamps,
+  JointInverseBindMatrices,
   JointTranslation,
   JointRotation,
   JointScale
@@ -48,13 +49,13 @@ inline bool isAttribute(ElementType type)
 
 struct BufferDesc
 {
-  ElementType type;
-  uint32_t dimensions;
-  ComponentType componentType;
-  size_t size;
-  size_t byteLength;
-  size_t offset;
-  size_t index;
+  ElementType type = ElementType::AttrPosition;
+  uint32_t dimensions = 0;
+  ComponentType componentType = ComponentType::Float;
+  size_t size = 0;
+  size_t byteLength = 0;
+  size_t offset = 0;
+  size_t index = 0;
 };
 
 struct MaterialDesc
@@ -68,11 +69,18 @@ struct MaterialDesc
   bool isDoubleSided = false;
 };
 
+struct SkinDesc
+{
+  std::vector<unsigned long> nodeIndices;
+  BufferDesc inverseBindMatricesBuffer;
+};
+
 struct MeshDesc
 {
   std::vector<BufferDesc> buffers;
   MaterialDesc material;
   Mat4x4f transform;
+  SkinDesc skin;
 };
 
 struct NodeDesc
@@ -82,37 +90,24 @@ struct NodeDesc
   std::vector<NodeDesc> children;
 };
 
-enum class TransformationType
-{
-  Rotation,
-  Translation,
-  Scale
-};
-
 struct AnimationChannelDesc
 {
-  size_t joint;
-  TransformationType type;
-  std::vector<float> times;
-  std::vector<Vec4f> values;
+  size_t nodeIndex;
+  size_t timesBufferIndex;
+  size_t transformsBufferIndex;
 };
 
 struct AnimationDesc
 {
+  std::string name;
   std::vector<AnimationChannelDesc> channels;
-};
-
-struct SkinDesc
-{
-  std::vector<unsigned long> joints;
-  BufferDesc inverseBindMatricesBuffer;
+  std::vector<BufferDesc> buffers;
 };
 
 struct ArmatureDesc
 {
   NodeDesc root;
   std::vector<AnimationDesc> animations;
-  SkinDesc skin;
 };
 
 struct ModelDesc

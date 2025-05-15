@@ -43,6 +43,25 @@ Vec3f parseVec3f(const std::string s)
   };
 }
 
+std::string getStringValue(const ObjectData& data, const std::string& name,
+  const std::string& defaultValue)
+{
+  auto i = data.values.find(name);
+  if (i == data.values.end()) {
+    return defaultValue;
+  }
+  return i->second;
+}
+
+float_t getFloatValue(const ObjectData& data, const std::string& name, const float_t& defaultValue)
+{
+  auto i = data.values.find(name);
+  if (i == data.values.end()) {
+    return defaultValue;
+  }
+  return std::stof(i->second);
+}
+
 void customiseMaterial(Material& material, const MaterialCustomisation& props)
 {
   material.featureSet.flags.set(MaterialFeatures::HasTransparency, props.hasTransparency);
@@ -156,7 +175,8 @@ void EntityFactoryImpl::loadModels(const XmlNode& modelsData)
 
 EntityId EntityFactoryImpl::constructEntity(const ObjectData& data, const Mat4x4f& transform) const
 {
-  EntityId id = System::nextId();
+  std::string name = getStringValue(data, "name", "");
+  EntityId id = name.empty() ? System::nextId() : System::idFromString(name);
 
   const auto& root = *m_definitions.at(data.name);
 
@@ -203,30 +223,6 @@ Mat4x4f EntityFactoryImpl::parseTransform(const XmlNode& node) const
   return createTransform(metresToWorldUnits(pos), ori) * scaleMatrix<float_t, 4>(scale, true);
 }
 
-template<typename T>
-T getValue(const ObjectData& data, const std::string& name, const T& defaultValue);
-
-template<>
-std::string getValue(const ObjectData& data, const std::string& name,
-  const std::string& defaultValue)
-{
-  auto i = data.values.find(name);
-  if (i == data.values.end()) {
-    return defaultValue;
-  }
-  return i->second;
-}
-
-template<>
-float_t getValue(const ObjectData& data, const std::string& name, const float_t& defaultValue)
-{
-  auto i = data.values.find(name);
-  if (i == data.values.end()) {
-    return defaultValue;
-  }
-  return std::stof(i->second);
-}
-
 void EntityFactoryImpl::constructSpatialComponent(EntityId entityId, const XmlNode& node,
   const ObjectData& data, const Mat4x4f& fromMapTransform) const
 {
@@ -236,8 +232,8 @@ void EntityFactoryImpl::constructSpatialComponent(EntityId entityId, const XmlNo
   auto i = node.child("transform");
   auto typeTransform = i != node.end() ? parseTransform(*i) : identityMatrix<float_t, 4>();
 
-  float_t height = metresToWorldUnits(getValue<float_t>(data, "height", 0));
-  float_t tilt = degreesToRadians(getValue<float_t>(data, "tilt", 0));
+  float_t height = metresToWorldUnits(getFloatValue(data, "height", 0));
+  float_t tilt = degreesToRadians(getFloatValue(data, "tilt", 0));
   auto instanceTransform = createTransform(Vec3f{ 0, height, 0 }, Vec3f{ tilt, 0, 0 });
 
   auto transform = fromMapTransform * instanceTransform * typeTransform;

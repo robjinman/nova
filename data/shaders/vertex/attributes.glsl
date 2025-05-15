@@ -11,7 +11,7 @@ layout(location = 2) in vec2 inTexCoord;
 layout(location = 3) in vec3 inTangent;
 #endif
 #ifdef ATTR_JOINTS
-layout(location = 4) in vec4 inJoints;
+layout(location = 4) in uvec4 inJoints;
 #endif
 #ifdef ATTR_WEIGHTS
 layout(location = 5) in vec4 inWeights;

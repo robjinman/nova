@@ -443,6 +443,19 @@ Matrix<T, M, M> scaleMatrix(T scale, bool homogeneous)
 };
 
 template<typename T, size_t M>
+Matrix<T, M, M> scaleMatrix(const Vector<T, M - 1>& scale, bool homogeneous)
+{
+  Matrix<T, M, M> m;
+  for (size_t i = 0; i < M - 1; ++i) {
+    m.set(i, i, scale[i]);
+  }
+  if (homogeneous) {
+    m.set(M - 1, M - 1, 1);
+  }
+  return m;
+};
+
+template<typename T, size_t M>
 Matrix<T, M, M> identityMatrix()
 {
   return scaleMatrix<T, M>(1, false);

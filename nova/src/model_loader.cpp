@@ -3,6 +3,7 @@
 #include "file_system.hpp"
 #include "utils.hpp"
 #include <set>
+#include <iostream> // TODO
 
 using render::Buffer;
 using render::BufferUsage;
@@ -52,15 +53,20 @@ size_t convert(const char* src, gltf::ElementType elementType, gltf::ComponentTy
   uint32_t n, char* dest)
 {
   switch (elementType) {
-    case gltf::ElementType::AttrPosition:
-    case gltf::ElementType::AttrNormal:
-    case gltf::ElementType::AttrTexCoord:
-    case gltf::ElementType::AttrJointWeights:
-      return convert<float_t>(src, srcType, n, dest);
     case gltf::ElementType::AttrJointIndices:
       return convert<uint8_t>(src, srcType, n, dest);
     case gltf::ElementType::VertexIndex:
       return convert<uint16_t>(src, srcType, n, dest);
+    case gltf::ElementType::AttrPosition:
+    case gltf::ElementType::AttrNormal:
+    case gltf::ElementType::AttrTexCoord:
+    case gltf::ElementType::AttrJointWeights:
+    case gltf::ElementType::AnimationTimestamps:
+    case gltf::ElementType::JointRotation:
+    case gltf::ElementType::JointScale:
+    case gltf::ElementType::JointTranslation:
+    case gltf::ElementType::JointInverseBindMatrices:
+      return convert<float_t>(src, srcType, n, dest);
     default:
       EXCEPTION("Cannot convert element type");
   }
@@ -183,11 +189,22 @@ void computeMeshTangents(Mesh& mesh)
 
 MeshFeatureSet createMeshFeatureSet(const gltf::MeshDesc& meshDesc)
 {
+  auto hasAttribute = [&](gltf::ElementType type) {
+    for (auto& buf : meshDesc.buffers) {
+      if (buf.type == type) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   bool hasTangents = !meshDesc.material.normalMap.empty();
+  bool isAnimated = hasAttribute(gltf::ElementType::AttrJointIndices);
 
   MeshFeatures::Flags flags{};
   flags.set(MeshFeatures::CastsShadow, true);
   flags.set(MeshFeatures::HasTangents, hasTangents);
+  flags.set(MeshFeatures::IsAnimated, isAnimated);
 
   MeshFeatureSet features{
     .vertexLayout = getVertexLayout(meshDesc, hasTangents),
@@ -329,6 +346,99 @@ MaterialHandle ModelLoaderImpl::loadMaterial(MaterialPtr material)
   return m_renderSystem.addMaterial(std::move(material));
 }
 
+uint32_t extractSkeleton(const gltf::NodeDesc& node, std::vector<Joint>& joints,
+  std::map<uint32_t, uint32_t>& nodeMap)
+{
+  uint32_t index = static_cast<uint32_t>(joints.size());
+  nodeMap[node.nodeIndex] = index;
+
+  Joint joint;
+  joint.transform = node.transform;
+
+  for (auto& child : node.children) {
+    joint.children.push_back(extractSkeleton(child, joints, nodeMap));
+  }
+
+  joints.push_back(joint);
+
+  return index;
+}
+
+SkeletonPtr extractSkeleton(const gltf::NodeDesc& node, std::map<uint32_t, uint32_t>& nodeMap)
+{
+  auto skeleton = std::make_unique<Skeleton>();
+  extractSkeleton(node, skeleton->joints, nodeMap);
+
+  // TODO
+  std::cout << "Skeleton:\n";
+  for (size_t i = 0; i < skeleton->joints.size(); ++i) {
+    std::cout << "Joint " << i << "\n";
+    std::cout << skeleton->joints[i].transform << "\n";
+  }
+
+  return skeleton;
+}
+
+SkinPtr constructSkin(const std::vector<std::vector<char>>& dataBuffers,
+  const gltf::SkinDesc& skinDesc, const std::map<uint32_t, uint32_t>& nodeMap)
+{
+  auto skin = std::make_unique<Skin>();
+
+  skin->inverseBindMatrices.resize(skinDesc.inverseBindMatricesBuffer.size);
+  copyToBuffer(dataBuffers, reinterpret_cast<char*>(skin->inverseBindMatrices.data()),
+    skinDesc.inverseBindMatricesBuffer);
+
+  for (auto nodeNumber : skinDesc.nodeIndices) {
+    skin->joints.push_back(nodeMap.at(nodeNumber));
+  }
+
+  return skin;
+}
+
+std::vector<Transform> constructJointTransformsBuffer(const std::vector<float_t>& data,
+  gltf::ElementType elementType)
+{
+  size_t stride = 0;
+  TransformType type = TransformType::Rotation;
+
+  switch (elementType) {
+    case gltf::ElementType::JointRotation:
+      stride = 4;
+      type = TransformType::Rotation;
+      std::cout << "ROTATION\n";
+      break;
+    case gltf::ElementType::JointScale:
+      stride = 3;
+      type = TransformType::Scale;
+      std::cout << "SCALE\n";
+      break;
+    case gltf::ElementType::JointTranslation:
+      stride = 3;
+      type = TransformType::Translation;
+      std::cout << "TRANSLATION\n";
+      break;
+    default:
+      EXCEPTION("Unexpected element type");
+  }
+  ASSERT(data.size() % stride == 0, "Stride doesn't divide buffer size");
+
+  std::vector<Transform> buffer;
+
+  for (size_t i = 0; i < data.size(); i += stride) {
+    Transform transform;
+    transform.type = type;
+
+    for (size_t j = 0; j < stride; ++j) {
+      transform.data[j] = data[i + j];
+    }
+
+    std::cout << transform.data << "\n";
+    buffer.push_back(transform);
+  }
+
+  return buffer;
+}
+
 ModelDataPtr ModelLoaderImpl::loadModelData(const std::string& filePath) const
 {
   auto modelDesc = gltf::extractModel(m_fileSystem.readFile(filePath));
@@ -339,18 +449,65 @@ ModelDataPtr ModelLoaderImpl::loadModelData(const std::string& filePath) const
     dataBuffers.push_back(m_fileSystem.readFile(binPath));
   }
 
+  // Map node numbers to positions in skeleton's joints array
+  std::map<uint32_t, uint32_t> nodeMap;
+
+  bool hasAnimations = modelDesc.armature.animations.size() > 0;
   auto model = std::make_unique<ModelData>();
+  if (hasAnimations) {
+    model->animations = std::make_unique<AnimationSet>();
+    model->animations->skeleton = extractSkeleton(modelDesc.armature.root, nodeMap);
+  }
 
   for (auto& meshDesc : modelDesc.meshes) {
     auto submodel = std::make_unique<SubmodelData>();
     submodel->mesh = constructMesh(meshDesc, dataBuffers);
     submodel->material = constructMaterial(meshDesc.material);
+    if (hasAnimations) {
+      submodel->skin = constructSkin(dataBuffers, meshDesc.skin, nodeMap);
+    }
 
     if (submodel->mesh->featureSet.flags.test(MeshFeatures::HasTangents)) {
       computeMeshTangents(*submodel->mesh);
     }
 
     model->submodels.push_back(std::move(submodel));
+  }
+
+  for (auto& animationDesc : modelDesc.armature.animations) {
+    std::map<size_t, std::vector<float_t>> buffers;
+
+    auto getBuffer = [&](size_t index) -> std::vector<float_t>& {
+      auto i = buffers.find(index);
+      if (i != buffers.end()) {
+        return i->second;
+      }
+      auto& bufferDesc = animationDesc.buffers[index];
+      DBG_ASSERT(bufferDesc.componentType == gltf::ComponentType::Float, "Expected float buffer");
+      std::vector<float_t> buffer(bufferDesc.size * bufferDesc.dimensions);
+      copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), bufferDesc);
+      buffers[index] = std::move(buffer);
+      return buffers.at(index);
+    };
+
+    auto animation = std::make_unique<Animation>();
+    animation->name = animationDesc.name;
+
+    for (auto& channelDesc : animationDesc.channels) {
+      auto& transformBufferDesc = animationDesc.buffers[channelDesc.transformsBufferIndex];
+      auto& transformsBuffer = getBuffer(channelDesc.transformsBufferIndex);
+
+      std::vector<Transform> transforms = constructJointTransformsBuffer(transformsBuffer,
+        transformBufferDesc.type);
+
+      animation->channels.push_back(AnimationChannel{
+        .jointIndex = channelDesc.nodeIndex, // TODO
+        .timestamps = getBuffer(channelDesc.timesBufferIndex),
+        .transforms = std::move(transforms)
+      });
+    }
+
+    model->animations->animations[animation->name] = std::move(animation);
   }
 
   return model;

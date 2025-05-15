@@ -333,13 +333,13 @@ void TerrainImpl::constructWall(const ObjectData& obj, const Mat4x4f& parentTran
     mesh->featureSet = m_meshFeatures;
     auto positions = getConstBufferData<Vec3f>(mesh->attributeBuffers[0]);
     float_t radius = computeRadius(positions);
-    render->submodels = {
+    render->submodels.push_back(
       Submodel{
         .mesh = m_renderSystem.addMesh(std::move(mesh)),
         .material = m_wallMaterial,
-        .skin = {}
+        .skin = nullptr
       }
-    };
+    );
     m_renderSystem.addComponent(std::move(render));
 
     CSpatialPtr spatial = std::make_unique<CSpatial>(entityId,
@@ -383,13 +383,13 @@ Mat4x4f TerrainImpl::constructZone(const ObjectData& obj, const Mat4x4f& parentT
   float_t radius = computeRadius(positions);
 
   CRenderModelPtr render = std::make_unique<CRenderModel>(entityId);
-  render->submodels = {
+  render->submodels.push_back(
     Submodel{
       .mesh = m_renderSystem.addMesh(std::move(mesh)),
       .material = m_groundMaterial,
-      .skin = {}
+      .skin = nullptr
     }
-  };
+  );
   m_renderSystem.addComponent(std::move(render));
 
   CSpatialPtr spatial = std::make_unique<CSpatial>(entityId, transform, radius);

@@ -166,7 +166,7 @@ Application::Application()
     *m_mapParser, *m_fileSystem, *m_logger);
 
   m_renderSystem->start();
-  m_game = createGame(std::move(player), *m_collisionSystem, *m_logger);
+  m_game = createGame(std::move(player), *m_renderSystem, *m_collisionSystem, *m_logger);
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);
 }

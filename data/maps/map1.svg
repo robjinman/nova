@@ -7,7 +7,7 @@
    viewBox="0 0 210 297"
    version="1.1"
    id="svg1"
-   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
+   inkscape:version="1.4 (e7c3feb1, 2024-10-09)"
    sodipodi:docname="map1.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -24,13 +24,13 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="3.4893621"
-     inkscape:cx="449.65239"
-     inkscape:cy="183.27132"
-     inkscape:window-width="1920"
-     inkscape:window-height="990"
+     inkscape:cx="174.38718"
+     inkscape:cy="194.01827"
+     inkscape:window-width="1200"
+     inkscape:window-height="965"
      inkscape:window-x="0"
-     inkscape:window-y="1108"
-     inkscape:window-maximized="1"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
      inkscape:current-layer="g5"
      inkscape:pageshadow="2"
      showgrid="false"
@@ -54,8 +54,8 @@
        id="text1"
        style="text-align:start;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect1);display:inline;fill:#000000"><tspan
          x="357.96094"
-         y="880.23047"
-         id="tspan16067">8</tspan></text>
+         y="880.56125"
+         id="tspan1">8</tspan></text>
     <g
        id="g5">
       <text
@@ -119,6 +119,17 @@
              style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
              x="23.180428"
              y="26.306543">type=bendy</tspan></text>
+        <text
+           xml:space="preserve"
+           style="font-size:1.5006px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505;stroke-opacity:1"
+           x="23.290356"
+           y="28.165487"
+           id="text3-3-7-8"><tspan
+             sodipodi:role="line"
+             id="tspan3-9-53-02"
+             style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.12505"
+             x="23.290356"
+             y="28.165487">name=richard</tspan></text>
       </g>
       <g
          id="g4-5-8-6-5"
