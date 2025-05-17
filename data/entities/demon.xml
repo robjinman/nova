@@ -1,9 +1,9 @@
-<entity name="bendy">
+<entity name="demon">
   <spatial-component radius="1.0">
-    <transform scale="10">
+    <transform scale="1500">
       <pos x="0" y="0" z="0"/>
       <ori x="0" y="0" z="0"/>
     </transform>
   </spatial-component>
-  <render-component model="bendy" type="model"/>
+  <render-component model="demon" type="model"/>
 </entity>

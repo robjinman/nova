@@ -1,11 +1,13 @@
 vec4 computeVertexPosition(mat4 modelMatrix)
 {
 #ifdef FEATURE_VERTEX_SKINNING
-  mat4 transform = mat4(1.0);
-  for (int i = 0; i < 4; ++i) {
-    transform += inWeights[i] * joints.transforms[inJoints[i]];
-  }
-  return transform * modelMatrix * vec4(inPos, 1.0);
+  mat4 transform =
+    inWeights[0] * joints.transforms[inJoints[0]] +
+    inWeights[1] * joints.transforms[inJoints[1]] +
+    inWeights[2] * joints.transforms[inJoints[2]] +
+    inWeights[3] * joints.transforms[inJoints[3]];
+
+  return modelMatrix * transform * vec4(inPos, 1.0);
 #else
   return modelMatrix * vec4(inPos, 1.0);
 #endif

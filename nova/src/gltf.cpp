@@ -206,23 +206,40 @@ void extractMeshHierarchy(const nlohmann::json& root, unsigned long nodeIndex,
   }
 }
 
-NodeDesc extractNodeHierarchy(const nlohmann::json& nodes, unsigned long nodeIndex)
+std::vector<NodeDesc> extractNodeHierarchy(const nlohmann::json& root)
 {
-  auto& node = nodes[nodeIndex];
+  std::vector<NodeDesc> nodeDescs;
+  auto& nodes = root.at("nodes");
 
-  NodeDesc NodeDesc;
-  NodeDesc.nodeIndex = nodeIndex;
-  NodeDesc.transform = extractTransform(node);
+  for (auto& node : nodes) {
+    NodeDesc nodeDesc;
+    nodeDesc.transform = extractTransform(node);
 
-  auto iChildren = node.find("children");
-  if (iChildren != node.end()) {
-    auto& children = *iChildren;
-    for (auto index : children) {
-      NodeDesc.children.push_back(extractNodeHierarchy(nodes, index));
+    auto iChildren = node.find("children");
+    if (iChildren != node.end()) {
+      auto& children = *iChildren;
+      for (auto index : children) {
+        nodeDesc.children.push_back(index);
+      }
     }
+
+    nodeDescs.push_back(nodeDesc);
   }
 
-  return NodeDesc;
+  return nodeDescs;
+}
+
+Interpolation parseInterpolation(const std::string& s)
+{
+  if (s == "STEP") {
+    return Interpolation::Step;
+  }
+  else if (s == "LINEAR") {
+    return Interpolation::Linear;
+  }
+  else {
+    EXCEPTION("Error parsing interpolation '" << s << "'");
+  }
 }
 
 std::vector<AnimationDesc> extractAnimations(const nlohmann::json& root)
@@ -279,6 +296,7 @@ std::vector<AnimationDesc> extractAnimations(const nlohmann::json& root)
       channelDesc.timesBufferIndex = bufferIndices.at(timesAccessorIndex);
       channelDesc.transformsBufferIndex = bufferIndices.at(transformsAccessorIndex);
       channelDesc.nodeIndex = target.at("node").get<unsigned long>();
+      channelDesc.interpolation = parseInterpolation(sampler.at("interpolation"));
 
       animDesc.channels.push_back(std::move(channelDesc));
     }
@@ -291,10 +309,9 @@ std::vector<AnimationDesc> extractAnimations(const nlohmann::json& root)
 
 ArmatureDesc extractArmature(const nlohmann::json& root, unsigned long rootNodeIndex)
 {
-  auto& nodes = root.at("nodes");
-
   ArmatureDesc armatureDesc;
-  armatureDesc.root = extractNodeHierarchy(nodes, rootNodeIndex);
+  armatureDesc.rootNodeIndex = rootNodeIndex;
+  armatureDesc.nodes = extractNodeHierarchy(root);
 
   if (root.contains("animations")) {
     armatureDesc.animations = extractAnimations(root);

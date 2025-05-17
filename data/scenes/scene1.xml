@@ -12,6 +12,7 @@
     <model name="dinosaur" casts-shadow="true" instanced="false"/>
     <model name="cottage" casts-shadow="true" instanced="false"/>
     <model name="bendy" casts-shadow="true" instanced="false"/>
+    <model name="demon" casts-shadow="true" instanced="false"/>
   </models>
   <entities>
     <entity name="light"/>
@@ -23,5 +24,6 @@
     <entity name="dinosaur"/>
     <entity name="cottage"/>
     <entity name="bendy"/>
+    <entity name="demon"/>
   </entities>
 </scene>

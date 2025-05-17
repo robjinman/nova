@@ -24,6 +24,37 @@ using render::RenderPass;
 
 CRender::~CRender() {}
 
+Mat4x4f Transform::toMatrix() const
+{
+  Mat4x4f m = identityMatrix<float_t, 4>();
+  if (scale.has_value()) {
+    m = scaleMatrix4x4(scale.value());
+  }
+  if (rotation.has_value()) {
+    m = rotationMatrix4x4(rotation.value()) * m;
+  }
+  if (translation.has_value()) {
+    m = translationMatrix4x4(translation.value()) * m;
+  }
+  return m;
+}
+
+void Transform::mix(const Transform& T)
+{
+  if (T.rotation.has_value()) {
+    DBG_ASSERT(!rotation.has_value(), "Transform already has rotation");
+    rotation = T.rotation;
+  }
+  if (T.translation.has_value()) {
+    DBG_ASSERT(!translation.has_value(), "Transform already has translation");
+    translation = T.translation;
+  }
+  if (T.scale.has_value()) {
+    DBG_ASSERT(!scale.has_value(), "Transform already has scale");
+    scale = T.scale;
+  }
+}
+
 namespace
 {
 
@@ -237,7 +268,10 @@ MaterialHandle RenderSystemImpl::addMaterial(MaterialPtr material)
 
 MeshHandle RenderSystemImpl::addMesh(MeshPtr mesh)
 {
-  return m_renderer.addMesh(std::move(mesh));
+  auto handle = m_renderer.addMesh(std::move(mesh));
+
+
+  return handle;
 }
 
 void RenderSystemImpl::removeTexture(RenderItemId id)
@@ -392,96 +426,95 @@ void RenderSystemImpl::doMainPass()
 
 Mat4x4f interpolate(const Transform& A, const Transform& B, float_t t)
 {
-  assert(A.type == B.type);
+  // TODO
+}
 
-  std::cout << "Interpolate, type = " << static_cast<int>(A.type) << "\n";
-  std::cout << "A: " << A.data << "\n";
-  std::cout << "B: " << B.data << "\n";
-  std::cout << "t = " << t << "\n";
+struct PosedJoint
+{
+  Transform transform;
+  std::vector<size_t> children;
+};
 
-  Vec4f C = A.data + (B.data - A.data) * t;
-  std::cout << "C: " << C << "\n";
-
-  switch (A.type) {
-    case TransformType::Rotation: return rotationMatrix4x4(Vec4f{ C[3], C[0], C[1], C[2] });
-    case TransformType::Translation: return translationMatrix4x4(C.sub<3>());
-    case TransformType::Scale: return scaleMatrix<float_t, 4>(C.sub<3>(), true);
+void computeAbsoluteJointTransforms(const Skeleton& skeleton, const std::vector<PosedJoint>& pose,
+  std::vector<Mat4x4f>& absTransforms, const Mat4x4f& parentTransform, size_t index)
+{
+  absTransforms[index] = parentTransform * skeleton.joints[index].transform
+    * pose[index].transform.toMatrix();
+  for (size_t i : skeleton.joints[index].children) {
+    computeAbsoluteJointTransforms(skeleton, pose, absTransforms, absTransforms[index], i);
   }
 }
 
-void computeAbsoluteJointTransforms(std::vector<Joint>& joints, const Mat4x4f& parentTransform,
-  size_t index)
+void computeAbsoluteJointTransforms(const Skeleton& skeleton, const std::vector<PosedJoint>& pose,
+  std::vector<Mat4x4f>& absTransforms)
 {
-  auto& joint = joints[index];
-  joint.absTransform = parentTransform * joint.transform;
-  for (auto child : joint.children) {
-    computeAbsoluteJointTransforms(joints, joint.absTransform, child);
-  }
-}
-
-void computeAbsoluteJointTransforms(std::vector<Joint>& joints)
-{
-  computeAbsoluteJointTransforms(joints, identityMatrix<float_t, 4>(), 0);
+  computeAbsoluteJointTransforms(skeleton, pose, absTransforms, identityMatrix<float_t, 4>(),
+    skeleton.rootNodeIndex);
 }
 
 // TODO: Optimise
 std::vector<Mat4x4f> computeJointTransforms(const Skeleton& skeleton, const Skin& skin,
   const Animation& animation, AnimationState& state)
 {
-  Skeleton pose = skeleton;
+  std::vector<PosedJoint> pose(skeleton.joints.size());
+  for (size_t i = 0; i < skeleton.joints.size(); ++i) {
+    pose[i].children = skeleton.joints[i].children;
+  }
 
   if (state.channels.empty()) {
     state.channels.resize(animation.channels.size());
   }
 
+  // Returns true if channel is finished
+  auto advanceFrame = [](float_t time, const AnimationChannel& channel, size_t& frame,
+    size_t numFrames) {
+
+    // Loop until the next frame is in the future
+    while (channel.timestamps[frame + 1] <= time) {
+      ++frame;
+      if (frame + 1 == numFrames) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   for (size_t i = 0; i < animation.channels.size(); ++i) {
     auto& channel = animation.channels[i];
+    size_t& frame = state.channels[i].frame;
+    auto& joint = pose[channel.jointIndex];
+
     if (state.channels[i].stopped) {
+      joint.transform = channel.transforms[frame];
       continue;
     }
 
-    auto& joint = pose.joints[skin.joints[channel.jointIndex]];
-
     size_t numFrames = channel.timestamps.size();
     float_t time = static_cast<float_t>(state.timer.elapsed());
-    size_t& frame = state.channels[i].frame;
 
     assert(frame + 1 < numFrames);
 
-    while (time >= channel.timestamps[frame + 1]) {
-      ++frame;
-      if (frame + 1 == numFrames) {
-        frame = 0;
-        state.channels[i].stopped = true;
-        break;
-      }
+    if (advanceFrame(time, channel, frame, numFrames)) {
+      state.channels[i].stopped = true;
+      joint.transform.mix(channel.transforms[frame]);
+      continue;
+    }
+    else if (frame == 0 && time < channel.timestamps[0]) {
+      continue; // TODO: Is this correct?
     }
 
     float_t frameDuration = channel.timestamps[frame + 1] - channel.timestamps[frame];
     float_t t = (time - channel.timestamps[frame]) / frameDuration;
     assert(t >= 0.f && t <= 1.f);
 
-    const Transform& currentTransform = channel.transforms[frame];
-    Transform prevTransform;
-    prevTransform.type = channel.transforms[frame].type;
-    if (frame > 1) {
-      prevTransform.data = channel.transforms[frame - 1].data;
-    }
-    else {
-      prevTransform.data = prevTransform.type == TransformType::Scale ?
-        Vec4f{ 1.f, 1.f, 1.f, 0.f } :
-        Vec4f{ 0.f, 0.f, 0.f, 0.f };
-    }
+    const Transform& prevTransform = channel.transforms[frame];
+    const Transform& nextTransform = channel.transforms[frame + 1];
 
-    Mat4x4f transform = interpolate(prevTransform, currentTransform, t);
-    joint.transform = joint.transform * transform;
+    joint.transform.mix(prevTransform);
   }
 
-  computeAbsoluteJointTransforms(pose.joints);
-  std::vector<Mat4x4f> absTransforms;
-  for (auto& j : pose.joints) {
-    absTransforms.push_back(j.absTransform);
-  }
+  std::vector<Mat4x4f> absTransforms(skeleton.joints.size());
+  computeAbsoluteJointTransforms(skeleton, pose, absTransforms);
 
   std::cout << "Final transforms:\n";
 
@@ -508,7 +541,7 @@ void RenderSystemImpl::updateAnimations()
 
     for (auto& submodel : model.submodels) {
       auto& skeleton = *animationSet.skeleton;
-      auto joints = computeJointTransforms(skeleton, *submodel.skin, animation, state); // TODO: Don't modify state for every submodel
+      auto joints = computeJointTransforms(skeleton, *submodel.skin, animation, state);
       m_renderer.updateJointTransforms(submodel.mesh.id, joints);
     }
   }

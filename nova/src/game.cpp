@@ -92,10 +92,16 @@ void GameImpl::onKeyDown(KeyboardKey key)
       m_logger.info(STR("Freefly mode: " << (m_freeflyMode ? "ON" : "OFF")));
       break;
     }
-    case KeyboardKey::M: {
+    case KeyboardKey::R: {
       m_logger.info("Playing 'bend' animation on 'richard' entity");
       EntityId richard = System::idFromString("richard");
       m_renderSystem.playAnimation(richard, "bend");
+      break;
+    }
+    case KeyboardKey::J: {
+      m_logger.info("Playing 'Attack' animation on 'james' entity");
+      EntityId james = System::idFromString("james");
+      m_renderSystem.playAnimation(james, "Attack");
       break;
     }
     default: break;

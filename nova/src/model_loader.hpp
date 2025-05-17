@@ -7,7 +7,7 @@ struct SubmodelData
 {
   render::MeshPtr mesh;
   render::MaterialPtr material;
-  SkinPtr skin;
+  SkinPtr skin; // TODO: Share skins between submodels
 };
 
 using SubmodelDataPtr = std::unique_ptr<SubmodelData>;

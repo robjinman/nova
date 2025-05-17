@@ -85,9 +85,14 @@ struct MeshDesc
 
 struct NodeDesc
 {
-  unsigned long nodeIndex;
   Mat4x4f transform;
-  std::vector<NodeDesc> children;
+  std::vector<size_t> children;
+};
+
+enum class Interpolation
+{
+  Step,
+  Linear
 };
 
 struct AnimationChannelDesc
@@ -95,6 +100,7 @@ struct AnimationChannelDesc
   size_t nodeIndex;
   size_t timesBufferIndex;
   size_t transformsBufferIndex;
+  Interpolation interpolation;
 };
 
 struct AnimationDesc
@@ -106,7 +112,8 @@ struct AnimationDesc
 
 struct ArmatureDesc
 {
-  NodeDesc root;
+  size_t rootNodeIndex = 0;
+  std::vector<NodeDesc> nodes;
   std::vector<AnimationDesc> animations;
 };
 

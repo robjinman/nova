@@ -8,23 +8,20 @@
 
 struct Skin
 {
-  std::vector<uint32_t> joints; // Indices into skeleton joints
+  std::vector<size_t> joints; // Indices into skeleton joints
   std::vector<Mat4x4f> inverseBindMatrices;
 };
 
 using SkinPtr = std::unique_ptr<Skin>;
 
-enum class TransformType
-{
-  Rotation,
-  Translation,
-  Scale
-};
-
 struct Transform
 {
-  TransformType type;
-  Vec4f data;
+  std::optional<Vec4f> rotation;
+  std::optional<Vec3f> translation;
+  std::optional<Vec3f> scale;
+
+  Mat4x4f toMatrix() const;
+  void mix(const Transform& T);
 };
 
 struct AnimationChannel
@@ -46,12 +43,12 @@ using AnimationPtr = std::unique_ptr<Animation>;
 struct Joint
 {
   Mat4x4f transform;
-  Mat4x4f absTransform;
-  std::vector<uint32_t> children;
+  std::vector<size_t> children;
 };
 
 struct Skeleton
 {
+  size_t rootNodeIndex = 0;
   std::vector<Joint> joints;
 };
 

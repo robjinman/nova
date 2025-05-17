@@ -346,28 +346,17 @@ MaterialHandle ModelLoaderImpl::loadMaterial(MaterialPtr material)
   return m_renderSystem.addMaterial(std::move(material));
 }
 
-uint32_t extractSkeleton(const gltf::NodeDesc& node, std::vector<Joint>& joints,
-  std::map<uint32_t, uint32_t>& nodeMap)
-{
-  uint32_t index = static_cast<uint32_t>(joints.size());
-  nodeMap[node.nodeIndex] = index;
-
-  Joint joint;
-  joint.transform = node.transform;
-
-  for (auto& child : node.children) {
-    joint.children.push_back(extractSkeleton(child, joints, nodeMap));
-  }
-
-  joints.push_back(joint);
-
-  return index;
-}
-
-SkeletonPtr extractSkeleton(const gltf::NodeDesc& node, std::map<uint32_t, uint32_t>& nodeMap)
+SkeletonPtr extractSkeleton(const gltf::ArmatureDesc& armature)
 {
   auto skeleton = std::make_unique<Skeleton>();
-  extractSkeleton(node, skeleton->joints, nodeMap);
+  skeleton->rootNodeIndex = armature.rootNodeIndex;
+
+  for (auto& node : armature.nodes) {
+    skeleton->joints.push_back(Joint{
+      .transform = node.transform,
+      .children = node.children
+    });
+  }
 
   // TODO
   std::cout << "Skeleton:\n";
@@ -380,7 +369,7 @@ SkeletonPtr extractSkeleton(const gltf::NodeDesc& node, std::map<uint32_t, uint3
 }
 
 SkinPtr constructSkin(const std::vector<std::vector<char>>& dataBuffers,
-  const gltf::SkinDesc& skinDesc, const std::map<uint32_t, uint32_t>& nodeMap)
+  const gltf::SkinDesc& skinDesc)
 {
   auto skin = std::make_unique<Skin>();
 
@@ -389,7 +378,7 @@ SkinPtr constructSkin(const std::vector<std::vector<char>>& dataBuffers,
     skinDesc.inverseBindMatricesBuffer);
 
   for (auto nodeNumber : skinDesc.nodeIndices) {
-    skin->joints.push_back(nodeMap.at(nodeNumber));
+    skin->joints.push_back(nodeNumber);
   }
 
   return skin;
@@ -398,45 +387,66 @@ SkinPtr constructSkin(const std::vector<std::vector<char>>& dataBuffers,
 std::vector<Transform> constructJointTransformsBuffer(const std::vector<float_t>& data,
   gltf::ElementType elementType)
 {
-  size_t stride = 0;
-  TransformType type = TransformType::Rotation;
-
-  switch (elementType) {
-    case gltf::ElementType::JointRotation:
-      stride = 4;
-      type = TransformType::Rotation;
-      std::cout << "ROTATION\n";
-      break;
-    case gltf::ElementType::JointScale:
-      stride = 3;
-      type = TransformType::Scale;
-      std::cout << "SCALE\n";
-      break;
-    case gltf::ElementType::JointTranslation:
-      stride = 3;
-      type = TransformType::Translation;
-      std::cout << "TRANSLATION\n";
-      break;
-    default:
-      EXCEPTION("Unexpected element type");
-  }
-  ASSERT(data.size() % stride == 0, "Stride doesn't divide buffer size");
-
   std::vector<Transform> buffer;
 
-  for (size_t i = 0; i < data.size(); i += stride) {
+  for (size_t i = 0; i < data.size();) {
     Transform transform;
-    transform.type = type;
 
-    for (size_t j = 0; j < stride; ++j) {
-      transform.data[j] = data[i + j];
+    switch (elementType) {
+      case gltf::ElementType::JointRotation: {
+        std::cout << "ROTATION\n";
+        transform.rotation = { data[i + 3], data[i + 0], data[i + 1], data[i + 2] };
+        i += 4;
+        break;
+      }
+      case gltf::ElementType::JointScale:
+        std::cout << "SCALE\n";
+        transform.scale = { data[i + 0], data[i + 1], data[i + 2] };
+        i += 3;
+        break;
+      case gltf::ElementType::JointTranslation:
+        std::cout << "TRANSLATION\n";
+        transform.translation = { data[i + 0], data[i + 1], data[i + 1] };
+        i += 3;
+        break;
+      default:
+        EXCEPTION("Unexpected element type");
     }
 
-    std::cout << transform.data << "\n";
     buffer.push_back(transform);
   }
 
   return buffer;
+}
+
+void dbg_printAnimationData(const Animation& animation)
+{
+  std::cout << "Animation " << animation.name << "\n";
+  for (auto& channel : animation.channels) {
+    std::cout << "Channel for joint " << channel.jointIndex << "\n";
+    ASSERT(channel.transforms.size() == channel.timestamps.size(), "Hello");
+    for (size_t i = 0; i < channel.timestamps.size(); ++i) {
+      auto& M = channel.transforms[i];
+      std::cout << "Timestamp: " << channel.timestamps[i] << "\n";
+      std::cout << "Translation: " << (M.translation ? STR(M.translation.value()) : "None") << "\n";
+      std::cout << "Rotation: " << (M.rotation ? STR(M.rotation.value()) : "None") << "\n";
+      std::cout << "Scale: " << (M.scale ? STR(M.scale.value()) : "None") << "\n";
+    }
+  }
+}
+
+void dbg_dumpMesh(const Mesh& mesh)
+{
+  auto& data = mesh.attributeBuffers[0].data;
+  std::cout << "VERTICES\n";
+  for (size_t i = 0; i < mesh.attributeBuffers[0].numElements(); ++i) {
+    const char* ptr = data.data() + i * sizeof(float_t) * 3;
+    Vec3f P{};
+    memcpy(&P[0], ptr + sizeof(float_t) * 0, sizeof(float_t));
+    memcpy(&P[1], ptr + sizeof(float_t) * 1, sizeof(float_t));
+    memcpy(&P[2], ptr + sizeof(float_t) * 2, sizeof(float_t));
+    std::cout << P << "\n";
+  }
 }
 
 ModelDataPtr ModelLoaderImpl::loadModelData(const std::string& filePath) const
@@ -449,22 +459,20 @@ ModelDataPtr ModelLoaderImpl::loadModelData(const std::string& filePath) const
     dataBuffers.push_back(m_fileSystem.readFile(binPath));
   }
 
-  // Map node numbers to positions in skeleton's joints array
-  std::map<uint32_t, uint32_t> nodeMap;
-
   bool hasAnimations = modelDesc.armature.animations.size() > 0;
   auto model = std::make_unique<ModelData>();
   if (hasAnimations) {
     model->animations = std::make_unique<AnimationSet>();
-    model->animations->skeleton = extractSkeleton(modelDesc.armature.root, nodeMap);
+    model->animations->skeleton = extractSkeleton(modelDesc.armature);
   }
 
   for (auto& meshDesc : modelDesc.meshes) {
     auto submodel = std::make_unique<SubmodelData>();
     submodel->mesh = constructMesh(meshDesc, dataBuffers);
+    if (hasAnimations) dbg_dumpMesh(*submodel->mesh);
     submodel->material = constructMaterial(meshDesc.material);
     if (hasAnimations) {
-      submodel->skin = constructSkin(dataBuffers, meshDesc.skin, nodeMap);
+      submodel->skin = constructSkin(dataBuffers, meshDesc.skin);
     }
 
     if (submodel->mesh->featureSet.flags.test(MeshFeatures::HasTangents)) {
@@ -501,12 +509,13 @@ ModelDataPtr ModelLoaderImpl::loadModelData(const std::string& filePath) const
         transformBufferDesc.type);
 
       animation->channels.push_back(AnimationChannel{
-        .jointIndex = channelDesc.nodeIndex, // TODO
+        .jointIndex = channelDesc.nodeIndex,
         .timestamps = getBuffer(channelDesc.timesBufferIndex),
         .transforms = std::move(transforms)
       });
     }
 
+    dbg_printAnimationData(*animation);
     model->animations->animations[animation->name] = std::move(animation);
   }
 

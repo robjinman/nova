@@ -442,18 +442,16 @@ Matrix<T, M, M> scaleMatrix(T scale, bool homogeneous)
   return m;
 };
 
-template<typename T, size_t M>
-Matrix<T, M, M> scaleMatrix(const Vector<T, M - 1>& scale, bool homogeneous)
+template<typename T>
+Matrix<T, 4, 4> scaleMatrix4x4(const Vector<T, 3>& scale)
 {
-  Matrix<T, M, M> m;
-  for (size_t i = 0; i < M - 1; ++i) {
-    m.set(i, i, scale[i]);
-  }
-  if (homogeneous) {
-    m.set(M - 1, M - 1, 1);
-  }
-  return m;
-};
+  return Matrix<T, 4, 4>{
+    scale[0], 0.f, 0.f, 0.f,
+    0.f, scale[1], 0.f, 0.f,
+    0.f, 0.f, scale[2], 0.f,
+    0.f, 0.f, 0.f, 1.f
+  };
+}
 
 template<typename T, size_t M>
 Matrix<T, M, M> identityMatrix()
