@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <set>
+#include <string>
 
 using EntityId = size_t;
 
