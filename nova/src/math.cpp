@@ -241,3 +241,34 @@ Mat2x2f inverse(const Mat2x2f& M)
 {
   return adjoint(M) / determinant(M);
 }
+
+Mat4x4f Transform::toMatrix() const
+{
+  Mat4x4f m = identityMatrix<float_t, 4>();
+  if (scale.has_value()) {
+    m = scaleMatrix4x4(scale.value());
+  }
+  if (rotation.has_value()) {
+    m = rotationMatrix4x4(rotation.value()) * m;
+  }
+  if (translation.has_value()) {
+    m = translationMatrix4x4(translation.value()) * m;
+  }
+  return m;
+}
+
+void Transform::mix(const Transform& T)
+{
+  if (T.rotation.has_value()) {
+    //DBG_ASSERT(!rotation.has_value(), "Transform already has rotation");
+    rotation = T.rotation;
+  }
+  if (T.translation.has_value()) {
+    //DBG_ASSERT(!translation.has_value(), "Transform already has translation");
+    translation = T.translation;
+  }
+  if (T.scale.has_value()) {
+    //DBG_ASSERT(!scale.has_value(), "Transform already has scale");
+    scale = T.scale;
+  }
+}

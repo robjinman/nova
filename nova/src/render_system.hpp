@@ -14,16 +14,6 @@ struct Skin
 
 using SkinPtr = std::unique_ptr<Skin>;
 
-struct Transform
-{
-  std::optional<Vec4f> rotation;
-  std::optional<Vec3f> translation;
-  std::optional<Vec3f> scale;
-
-  Mat4x4f toMatrix() const;
-  void mix(const Transform& T);
-};
-
 struct AnimationChannel
 {
   size_t jointIndex;  // Index into skin
@@ -42,7 +32,7 @@ using AnimationPtr = std::unique_ptr<Animation>;
 
 struct Joint
 {
-  Mat4x4f transform;
+  Transform transform;
   std::vector<size_t> children;
 };
 

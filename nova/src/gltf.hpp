@@ -85,7 +85,7 @@ struct MeshDesc
 
 struct NodeDesc
 {
-  Mat4x4f transform;
+  Transform transform;
   std::vector<size_t> children;
 };
 

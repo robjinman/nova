@@ -640,7 +640,7 @@ void RendererImpl::finishFrame()
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &m_commandBuffers[m_imageIndex];
 
-  VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_currentFrame] };
+  VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_imageIndex] };
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -732,7 +732,7 @@ VkPresentModeKHR RendererImpl::chooseSwapChainPresentMode(
 {
   for (auto& mode : availableModes) {
     if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-      return mode;
+      //return mode;
     }
   }
 
@@ -1423,7 +1423,7 @@ void RendererImpl::createSyncObjects()
   DBG_TRACE(m_logger);
 
   m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-  m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+  m_renderFinishedSemaphores.resize(m_swapchainImages.size());
   m_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
 
   VkSemaphoreCreateInfo semaphoreInfo{};
@@ -1436,10 +1436,12 @@ void RendererImpl::createSyncObjects()
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     VK_CHECK(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]),
       "Failed to create semaphore");
-    VK_CHECK(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphores[i]),
-      "Failed to create semaphore");
     VK_CHECK(vkCreateFence(m_device, &fenceInfo, nullptr, &m_inFlightFences[i]),
       "Failed to create fence");
+  }
+  for (size_t i = 0; i < m_swapchainImages.size(); ++i) {
+    VK_CHECK(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphores[i]),
+      "Failed to create semaphore");
   }
 }
 
@@ -1616,8 +1618,10 @@ void RendererImpl::cleanUp()
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     vkDestroySemaphore(m_device, m_imageAvailableSemaphores[i], nullptr);
-    vkDestroySemaphore(m_device, m_renderFinishedSemaphores[i], nullptr);
     vkDestroyFence(m_device, m_inFlightFences[i], nullptr);
+  }
+  for (size_t i = 0; i < m_renderFinishedSemaphores.size(); ++i) {
+    vkDestroySemaphore(m_device, m_renderFinishedSemaphores[i], nullptr);
   }
   vkDestroyCommandPool(m_device, m_commandPool, nullptr);
   m_pipelines.clear();

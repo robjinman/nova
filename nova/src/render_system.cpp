@@ -9,7 +9,6 @@
 #include <map>
 #include <cassert>
 #include <functional>
-#include <iostream> // TODO
 
 using render::Renderer;
 using render::MeshPtr;
@@ -23,37 +22,6 @@ using render::TexturePtr;
 using render::RenderPass;
 
 CRender::~CRender() {}
-
-Mat4x4f Transform::toMatrix() const
-{
-  Mat4x4f m = identityMatrix<float_t, 4>();
-  if (scale.has_value()) {
-    m = scaleMatrix4x4(scale.value());
-  }
-  if (rotation.has_value()) {
-    m = rotationMatrix4x4(rotation.value()) * m;
-  }
-  if (translation.has_value()) {
-    m = translationMatrix4x4(translation.value()) * m;
-  }
-  return m;
-}
-
-void Transform::mix(const Transform& T)
-{
-  if (T.rotation.has_value()) {
-    DBG_ASSERT(!rotation.has_value(), "Transform already has rotation");
-    rotation = T.rotation;
-  }
-  if (T.translation.has_value()) {
-    DBG_ASSERT(!translation.has_value(), "Transform already has translation");
-    translation = T.translation;
-  }
-  if (T.scale.has_value()) {
-    DBG_ASSERT(!scale.has_value(), "Transform already has scale");
-    scale = T.scale;
-  }
-}
 
 namespace
 {
@@ -70,6 +38,8 @@ struct AnimationState
   std::string animationName;
   Timer timer;
   std::vector<AnimationChannelState> channels;
+  size_t channelsComplete = 0;
+  size_t postRenders = 5; // TODO: Hack to prevent rendering from stale UBOs. Must fix properly
 };
 
 class RenderSystemImpl : public RenderSystem
@@ -424,9 +394,73 @@ void RenderSystemImpl::doMainPass()
   m_renderer.endPass();
 }
 
-Mat4x4f interpolate(const Transform& A, const Transform& B, float_t t)
+Vec4f interpolateRotation(const Vec4f& A_, const Vec4f& B_, float_t t)
 {
-  // TODO
+  Vec4f A = A_;
+  Vec4f B = B_;
+
+  float_t dotProduct = A.dot(B);
+  if (dotProduct < 0.f) {
+    B = -B;
+    dotProduct = -dotProduct;
+  }
+  
+  if (dotProduct > 0.9955f) {
+    return (A + (B - A) * t).normalise();
+  }
+
+  float_t theta0 = acos(dotProduct);
+  float_t theta = t * theta0;
+  float_t sinTheta = sin(theta);
+  float_t sinTheta0 = sin(theta0);
+
+  float_t scaleA = cos(theta) - dotProduct * sinTheta / sinTheta0;
+  float_t scaleB = sinTheta / sinTheta0;
+
+  return A * scaleA + B * scaleB;
+}
+
+Vec3f interpolateTranslation(const Vec3f& A, const Vec3f& B, float_t t)
+{
+  return A + (B - A) * t;
+}
+
+Vec3f interpolateScale(const Vec3f& A, const Vec3f& B, float_t t)
+{
+  return A + (B - A) * t;
+}
+
+Transform interpolate(const Transform& A, const Transform& B, float_t t)
+{
+  Transform C;
+  if (!A.rotation.has_value()) {
+    C.rotation = B.rotation;
+  }
+  else if (!B.rotation.has_value()) {
+    C.rotation = A.rotation;
+  }
+  else if (A.rotation.has_value() && B.rotation.has_value()) {
+    C.rotation = interpolateRotation(A.rotation.value(), B.rotation.value(), t);
+  }
+  if (!A.translation.has_value()) {
+    C.translation = B.translation;
+  }
+  else if (!B.translation.has_value()) {
+    C.translation = A.translation;
+  }
+  else if (A.translation.has_value() && B.translation.has_value()) {
+    C.translation = interpolateTranslation(A.translation.value(), B.translation.value(), t);
+  }
+  if (!A.scale.has_value()) {
+    C.scale = B.scale;
+  }
+  else if (!B.scale.has_value()) {
+    C.scale = A.scale;
+  }
+  else if (A.scale.has_value() && B.scale.has_value()) {
+    C.scale = interpolateScale(A.scale.value(), B.scale.value(), t);
+  }
+  return C;
 }
 
 struct PosedJoint
@@ -435,21 +469,13 @@ struct PosedJoint
   std::vector<size_t> children;
 };
 
-void computeAbsoluteJointTransforms(const Skeleton& skeleton, const std::vector<PosedJoint>& pose,
+void computeAbsoluteJointTransforms(const std::vector<PosedJoint>& pose,
   std::vector<Mat4x4f>& absTransforms, const Mat4x4f& parentTransform, size_t index)
 {
-  absTransforms[index] = parentTransform * skeleton.joints[index].transform
-    * pose[index].transform.toMatrix();
-  for (size_t i : skeleton.joints[index].children) {
-    computeAbsoluteJointTransforms(skeleton, pose, absTransforms, absTransforms[index], i);
+  absTransforms[index] = parentTransform * pose[index].transform.toMatrix();
+  for (size_t i : pose[index].children) {
+    computeAbsoluteJointTransforms(pose, absTransforms, absTransforms[index], i);
   }
-}
-
-void computeAbsoluteJointTransforms(const Skeleton& skeleton, const std::vector<PosedJoint>& pose,
-  std::vector<Mat4x4f>& absTransforms)
-{
-  computeAbsoluteJointTransforms(skeleton, pose, absTransforms, identityMatrix<float_t, 4>(),
-    skeleton.rootNodeIndex);
 }
 
 // TODO: Optimise
@@ -460,6 +486,7 @@ std::vector<Mat4x4f> computeJointTransforms(const Skeleton& skeleton, const Skin
   for (size_t i = 0; i < skeleton.joints.size(); ++i) {
     pose[i].children = skeleton.joints[i].children;
   }
+  pose[skeleton.rootNodeIndex].transform = skeleton.joints[skeleton.rootNodeIndex].transform;
 
   if (state.channels.empty()) {
     state.channels.resize(animation.channels.size());
@@ -485,7 +512,7 @@ std::vector<Mat4x4f> computeJointTransforms(const Skeleton& skeleton, const Skin
     auto& joint = pose[channel.jointIndex];
 
     if (state.channels[i].stopped) {
-      joint.transform = channel.transforms[frame];
+      joint.transform.mix(channel.transforms[frame]);
       continue;
     }
 
@@ -496,11 +523,13 @@ std::vector<Mat4x4f> computeJointTransforms(const Skeleton& skeleton, const Skin
 
     if (advanceFrame(time, channel, frame, numFrames)) {
       state.channels[i].stopped = true;
+      ++state.channelsComplete;
       joint.transform.mix(channel.transforms[frame]);
       continue;
     }
     else if (frame == 0 && time < channel.timestamps[0]) {
-      continue; // TODO: Is this correct?
+      joint.transform.mix(channel.transforms[frame]);
+      continue;
     }
 
     float_t frameDuration = channel.timestamps[frame + 1] - channel.timestamps[frame];
@@ -510,19 +539,17 @@ std::vector<Mat4x4f> computeJointTransforms(const Skeleton& skeleton, const Skin
     const Transform& prevTransform = channel.transforms[frame];
     const Transform& nextTransform = channel.transforms[frame + 1];
 
-    joint.transform.mix(prevTransform);
+    joint.transform.mix(interpolate(prevTransform, nextTransform, t));
   }
 
   std::vector<Mat4x4f> absTransforms(skeleton.joints.size());
-  computeAbsoluteJointTransforms(skeleton, pose, absTransforms);
-
-  std::cout << "Final transforms:\n";
+  computeAbsoluteJointTransforms(pose, absTransforms, identityMatrix<float_t, 4>(),
+    skeleton.rootNodeIndex);
 
   std::vector<Mat4x4f> finalTransforms;
   assert(skin.joints.size() == skin.inverseBindMatrices.size());
   for (size_t i = 0; i < skin.joints.size(); ++i) {
     finalTransforms.push_back(absTransforms[skin.joints[i]] * skin.inverseBindMatrices[i]);
-    std::cout << finalTransforms.back() << "\n";
   }
 
   return finalTransforms;
@@ -530,12 +557,12 @@ std::vector<Mat4x4f> computeJointTransforms(const Skeleton& skeleton, const Skin
 
 void RenderSystemImpl::updateAnimations()
 {
-  for (auto& entry : m_animationStates) {
-    auto& component = *m_components.at(entry.first);
+  for (auto i = m_animationStates.begin(); i != m_animationStates.end();) {
+    auto& component = *m_components.at(i->first);
     DBG_ASSERT(component.type == CRenderType::Model, "Can only play animation on models");
 
     auto& model = dynamic_cast<const CRenderModel&>(component);
-    auto& state = entry.second;
+    auto& state = i->second;
     auto& animationSet = *m_animationSets.at(state.animationSet);
     auto& animation = *animationSet.animations.at(state.animationName); // TODO: Slow?
 
@@ -543,6 +570,19 @@ void RenderSystemImpl::updateAnimations()
       auto& skeleton = *animationSet.skeleton;
       auto joints = computeJointTransforms(skeleton, *submodel.skin, animation, state);
       m_renderer.updateJointTransforms(submodel.mesh.id, joints);
+    }
+
+    if (state.channelsComplete == state.channels.size()) {
+      // TODO
+      if (state.postRenders-- == 0) {
+        i = m_animationStates.erase(i++);
+      }
+      else {
+        ++i;
+      }
+    }
+    else {
+      ++i;
     }
   }
 }

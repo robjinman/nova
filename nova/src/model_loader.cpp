@@ -3,7 +3,6 @@
 #include "file_system.hpp"
 #include "utils.hpp"
 #include <set>
-#include <iostream> // TODO
 
 using render::Buffer;
 using render::BufferUsage;
@@ -358,13 +357,6 @@ SkeletonPtr extractSkeleton(const gltf::ArmatureDesc& armature)
     });
   }
 
-  // TODO
-  std::cout << "Skeleton:\n";
-  for (size_t i = 0; i < skeleton->joints.size(); ++i) {
-    std::cout << "Joint " << i << "\n";
-    std::cout << skeleton->joints[i].transform << "\n";
-  }
-
   return skeleton;
 }
 
@@ -394,19 +386,16 @@ std::vector<Transform> constructJointTransformsBuffer(const std::vector<float_t>
 
     switch (elementType) {
       case gltf::ElementType::JointRotation: {
-        std::cout << "ROTATION\n";
         transform.rotation = { data[i + 3], data[i + 0], data[i + 1], data[i + 2] };
         i += 4;
         break;
       }
       case gltf::ElementType::JointScale:
-        std::cout << "SCALE\n";
         transform.scale = { data[i + 0], data[i + 1], data[i + 2] };
         i += 3;
         break;
       case gltf::ElementType::JointTranslation:
-        std::cout << "TRANSLATION\n";
-        transform.translation = { data[i + 0], data[i + 1], data[i + 1] };
+        transform.translation = { data[i + 0], data[i + 1], data[i + 2] };
         i += 3;
         break;
       default:
@@ -417,36 +406,6 @@ std::vector<Transform> constructJointTransformsBuffer(const std::vector<float_t>
   }
 
   return buffer;
-}
-
-void dbg_printAnimationData(const Animation& animation)
-{
-  std::cout << "Animation " << animation.name << "\n";
-  for (auto& channel : animation.channels) {
-    std::cout << "Channel for joint " << channel.jointIndex << "\n";
-    ASSERT(channel.transforms.size() == channel.timestamps.size(), "Hello");
-    for (size_t i = 0; i < channel.timestamps.size(); ++i) {
-      auto& M = channel.transforms[i];
-      std::cout << "Timestamp: " << channel.timestamps[i] << "\n";
-      std::cout << "Translation: " << (M.translation ? STR(M.translation.value()) : "None") << "\n";
-      std::cout << "Rotation: " << (M.rotation ? STR(M.rotation.value()) : "None") << "\n";
-      std::cout << "Scale: " << (M.scale ? STR(M.scale.value()) : "None") << "\n";
-    }
-  }
-}
-
-void dbg_dumpMesh(const Mesh& mesh)
-{
-  auto& data = mesh.attributeBuffers[0].data;
-  std::cout << "VERTICES\n";
-  for (size_t i = 0; i < mesh.attributeBuffers[0].numElements(); ++i) {
-    const char* ptr = data.data() + i * sizeof(float_t) * 3;
-    Vec3f P{};
-    memcpy(&P[0], ptr + sizeof(float_t) * 0, sizeof(float_t));
-    memcpy(&P[1], ptr + sizeof(float_t) * 1, sizeof(float_t));
-    memcpy(&P[2], ptr + sizeof(float_t) * 2, sizeof(float_t));
-    std::cout << P << "\n";
-  }
 }
 
 ModelDataPtr ModelLoaderImpl::loadModelData(const std::string& filePath) const
@@ -469,7 +428,6 @@ ModelDataPtr ModelLoaderImpl::loadModelData(const std::string& filePath) const
   for (auto& meshDesc : modelDesc.meshes) {
     auto submodel = std::make_unique<SubmodelData>();
     submodel->mesh = constructMesh(meshDesc, dataBuffers);
-    if (hasAnimations) dbg_dumpMesh(*submodel->mesh);
     submodel->material = constructMaterial(meshDesc.material);
     if (hasAnimations) {
       submodel->skin = constructSkin(dataBuffers, meshDesc.skin);
@@ -515,7 +473,6 @@ ModelDataPtr ModelLoaderImpl::loadModelData(const std::string& filePath) const
       });
     }
 
-    dbg_printAnimationData(*animation);
     model->animations->animations[animation->name] = std::move(animation);
   }
 

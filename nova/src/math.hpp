@@ -5,6 +5,7 @@
 #include <cmath>
 #include <sstream>
 #include <vector>
+#include <optional>
 
 using float_t = float;
 
@@ -620,6 +621,16 @@ struct Line
   float_t a;
   float_t b;
   float_t c;
+};
+
+struct Transform
+{
+  std::optional<Vec4f> rotation;
+  std::optional<Vec3f> translation;
+  std::optional<Vec3f> scale;
+
+  Mat4x4f toMatrix() const;
+  void mix(const Transform& T);
 };
 
 Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre);
