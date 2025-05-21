@@ -1,9 +1,8 @@
 #include "vulkan/render_resources.hpp"
-#include "vulkan/vulkan_utils.hpp"
+#include "vulkan/ubo.hpp"
 #include "logger.hpp"
 #include "trace.hpp"
 #include "utils.hpp"
-#include "triple_buffer.hpp"
 #include <map>
 #include <array>
 #include <cstring>
@@ -13,15 +12,6 @@ namespace render
 {
 namespace
 {
-
-struct UboResources
-{
-  VkBuffer buffer = VK_NULL_HANDLE;
-  VkDeviceMemory memory = VK_NULL_HANDLE;
-  void* mapped = nullptr;
-};
-
-using BufferedUbo = std::array<UboResources, MAX_FRAMES_IN_FLIGHT>;
 
 struct MeshData
 {
@@ -34,7 +24,7 @@ struct MeshData
   VkDeviceMemory instanceBufferMemory = VK_NULL_HANDLE;
   uint32_t numInstances = 0;
   std::vector<VkDescriptorSet> objectDescriptorSets;
-  BufferedUbo jointTransformsUbo;
+  BufferedUboPtr jointTransformsUbo;
 };
 
 using MeshDataPtr = std::unique_ptr<MeshData>;
@@ -176,12 +166,11 @@ class RenderResourcesImpl : public RenderResources
 
     BufferedUbo m_cameraTransformsUbo;
     BufferedUbo m_lightTransformsUbo;
-  
+    BufferedUbo m_lightingUbo;
+
     VkSampler m_textureSampler;
     VkSampler m_normalMapSampler;
     VkSampler m_cubeMapSampler;
-
-    BufferedUbo m_lightingUbo;
 
     VkExtent2D m_shadowMapSize{ SHADOW_MAP_W, SHADOW_MAP_H };
     VkImage m_shadowMapImage;
@@ -202,7 +191,6 @@ class RenderResourcesImpl : public RenderResources
     void createNormalMapSampler();
     void createCubeMapSampler();
     VkBuffer createIndexBuffer(const Buffer& indexBuffer, VkDeviceMemory& indexBufferMemory);
-    void createBufferedUbo(size_t size, BufferedUbo& ubo);
     void createUbo(size_t size, VkBuffer& buffer, VkDeviceMemory& memory, void*& mapping);
     void createDescriptorPool();
     void addSamplerToDescriptorSet(VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler,
@@ -230,6 +218,9 @@ RenderResourcesImpl::RenderResourcesImpl(VkPhysicalDevice physicalDevice, VkDevi
   , m_device(device)
   , m_graphicsQueue(graphicsQueue)
   , m_commandPool(commandPool)
+  , m_cameraTransformsUbo(physicalDevice, device, sizeof(CameraTransformsUbo))
+  , m_lightTransformsUbo(physicalDevice, device, sizeof(LightTransformsUbo))
+  , m_lightingUbo(physicalDevice, device, sizeof(LightingUbo))
 {
   DBG_TRACE(m_logger);
 
@@ -403,13 +394,12 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
   }
 
   if (data->mesh->featureSet.flags.test(MeshFeatures::IsAnimated)) {
-    createBufferedUbo(sizeof(JointTransformsUbo), data->jointTransformsUbo);
+    data->jointTransformsUbo = std::make_unique<BufferedUbo>(m_physicalDevice, m_device,
+      sizeof(JointTransformsUbo));
 
     std::vector<Mat4x4f> joints(MAX_JOINTS, identityMatrix<float_t, 4>());
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-      JointTransformsUbo* ubo =
-        reinterpret_cast<JointTransformsUbo*>(data->jointTransformsUbo[i].mapped);
-      memcpy(ubo->transforms->data(), joints.data(), joints.size() * sizeof(Mat4x4f));
+      data->jointTransformsUbo->write(i, joints.data(), joints.size() * sizeof(Mat4x4f));
     }
 
     std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_objectDescriptorSetLayout);
@@ -428,7 +418,7 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
       VkDescriptorBufferInfo bufferInfo{
-        .buffer = data->jointTransformsUbo[i].buffer,
+        .buffer = data->jointTransformsUbo->buffer(i),
         .offset = 0,
         .range = sizeof(JointTransformsUbo)
       };
@@ -471,10 +461,6 @@ void RenderResourcesImpl::removeMesh(RenderItemId id)
     vkDestroyBuffer(m_device, i->second->instanceBuffer, nullptr);
     vkFreeMemory(m_device, i->second->instanceBufferMemory, nullptr);
   }
-  for (size_t j = 0; j < i->second->jointTransformsUbo.size(); ++j) {
-    vkDestroyBuffer(m_device, i->second->jointTransformsUbo[j].buffer, nullptr);
-    vkFreeMemory(m_device, i->second->jointTransformsUbo[j].memory, nullptr);
-  }
 
   m_meshes.erase(i);
 }
@@ -513,19 +499,7 @@ void RenderResourcesImpl::updateJointTransforms(RenderItemId id, const std::vect
   DBG_ASSERT(joints.size() <= MAX_JOINTS, "Max number of joints exceeded");
 
   auto& mesh = *m_meshes.at(id);
-
-  auto p = mesh.jointTransformsUbo[currentFrame].mapped;
-  JointTransformsUbo* ubo = reinterpret_cast<JointTransformsUbo*>(p);
-  memcpy(ubo->transforms, joints.data(), joints.size() * sizeof(Mat4x4f));
-  // TODO: Remove
-  VkMappedMemoryRange range{
-    .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
-    .pNext = nullptr,
-    .memory = mesh.jointTransformsUbo[currentFrame].memory,
-    .offset = 0,
-    .size = sizeof(JointTransformsUbo)
-  };
-  VK_CHECK(vkFlushMappedMemoryRanges(m_device, 1, &range), "Failed to flush memory ranges");
+  mesh.jointTransformsUbo->write(currentFrame, joints.data(), joints.size() * sizeof(Mat4x4f));
 }
 
 const MeshFeatureSet& RenderResourcesImpl::getMeshFeatures(RenderItemId id) const
@@ -670,13 +644,13 @@ const MaterialFeatureSet& RenderResourcesImpl::getMaterialFeatures(RenderItemId 
 void RenderResourcesImpl::updateCameraTransformsUbo(const CameraTransformsUbo& ubo,
   size_t currentFrame)
 {
-  memcpy(m_cameraTransformsUbo[currentFrame].mapped, &ubo, sizeof(ubo));
+  m_cameraTransformsUbo.write(currentFrame, &ubo, sizeof(ubo));
 }
 
 void RenderResourcesImpl::updateLightTransformsUbo(const LightTransformsUbo& ubo,
   size_t currentFrame)
 {
-  memcpy(m_lightTransformsUbo[currentFrame].mapped, &ubo, sizeof(ubo));
+  m_lightTransformsUbo.write(currentFrame, &ubo, sizeof(ubo));
 }
 
 VkDescriptorSetLayout RenderResourcesImpl::getDescriptorSetLayout(DescriptorSetNumber number) const
@@ -697,7 +671,7 @@ VkDescriptorSet RenderResourcesImpl::getGlobalDescriptorSet(size_t currentFrame)
 
 void RenderResourcesImpl::updateLightingUbo(const LightingUbo& ubo, size_t currentFrame)
 {
-  memcpy(m_lightingUbo[currentFrame].mapped, &ubo, sizeof(ubo));
+  m_lightingUbo.write(currentFrame, &ubo, sizeof(ubo));
 }
 
 VkDescriptorSet RenderResourcesImpl::getRenderPassDescriptorSet(RenderPass renderPass,
@@ -938,18 +912,6 @@ void RenderResourcesImpl::createUbo(size_t size, VkBuffer& buffer, VkDeviceMemor
   vkMapMemory(m_device, memory, 0, size, 0, &mapping);
 }
 
-void RenderResourcesImpl::createBufferedUbo(size_t size, BufferedUbo& ubo)
-{
-  DBG_TRACE(m_logger);
-
-  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-    createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-      ubo[i].buffer, ubo[i].memory);
-
-    vkMapMemory(m_device, ubo[i].memory, 0, size, 0, &ubo[i].mapped);
-  }
-}
-
 void RenderResourcesImpl::createGlobalDescriptorSetLayout()
 {
   DBG_TRACE(m_logger);
@@ -1134,9 +1096,6 @@ void RenderResourcesImpl::createGlobalDescriptorSet()
 {
   createGlobalDescriptorSetLayout();
 
-  createBufferedUbo(sizeof(CameraTransformsUbo), m_cameraTransformsUbo);
-  createBufferedUbo(sizeof(LightTransformsUbo), m_lightTransformsUbo);
-
   std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_globalDescriptorSetLayout);
 
   VkDescriptorSetAllocateInfo allocInfo{
@@ -1153,13 +1112,13 @@ void RenderResourcesImpl::createGlobalDescriptorSet()
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     VkDescriptorBufferInfo cameraBufferInfo{
-      .buffer = m_cameraTransformsUbo[i].buffer,
+      .buffer = m_cameraTransformsUbo.buffer(i),
       .offset = 0,
       .range = sizeof(CameraTransformsUbo)
     };
 
     VkDescriptorBufferInfo lightBufferInfo{
-      .buffer = m_lightTransformsUbo[i].buffer,
+      .buffer = m_lightTransformsUbo.buffer(i),
       .offset = 0,
       .range = sizeof(LightTransformsUbo)
     };
@@ -1191,14 +1150,13 @@ void RenderResourcesImpl::createGlobalDescriptorSet()
       }
     };
 
-    vkUpdateDescriptorSets(m_device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(descriptorWrites.size()),
+      descriptorWrites.data(), 0, nullptr);
   }
 }
 
 void RenderResourcesImpl::createMainPassDescriptorSet()
 {
-  createBufferedUbo(sizeof(LightingUbo), m_lightingUbo);
-
   VkFormat depthFormat = findDepthFormat(m_physicalDevice);
 
   createImage(m_physicalDevice, m_device, m_shadowMapSize.width, m_shadowMapSize.height,
@@ -1249,7 +1207,7 @@ void RenderResourcesImpl::createMainPassDescriptorSet()
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     VkDescriptorBufferInfo bufferInfo{
-      .buffer = m_lightingUbo[i].buffer,
+      .buffer = m_lightingUbo.buffer(i),
       .offset = 0,
       .range = sizeof(LightingUbo)
     };
@@ -1287,7 +1245,8 @@ void RenderResourcesImpl::createMainPassDescriptorSet()
       }
     };
   
-    vkUpdateDescriptorSets(m_device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(descriptorWrites.size()),
+      descriptorWrites.data(), 0, nullptr);
   }
 }
 
@@ -1489,17 +1448,6 @@ void RenderResourcesImpl::createCubeMapSampler()
 
 RenderResourcesImpl::~RenderResourcesImpl()
 {
-  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-    vkDestroyBuffer(m_device, m_cameraTransformsUbo[i].buffer, nullptr);
-    vkFreeMemory(m_device, m_cameraTransformsUbo[i].memory, nullptr);
-
-    vkDestroyBuffer(m_device, m_lightTransformsUbo[i].buffer, nullptr);
-    vkFreeMemory(m_device, m_lightTransformsUbo[i].memory, nullptr);
-
-    vkDestroyBuffer(m_device, m_lightingUbo[i].buffer, nullptr);
-    vkFreeMemory(m_device, m_lightingUbo[i].memory, nullptr);
-  }
-
   vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_globalDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_renderPassDescriptorSetLayout, nullptr);
