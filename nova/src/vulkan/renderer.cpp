@@ -86,7 +86,6 @@ class RendererImpl : public Renderer
     // Meshes
     //
     MeshHandle addMesh(MeshPtr mesh) override;
-    void updateJointTransforms(RenderItemId meshId, const std::vector<Mat4x4f>& joints) override;
     void removeMesh(RenderItemId id) override;
 
     // Materials
@@ -100,6 +99,8 @@ class RendererImpl : public Renderer
     void beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix) override;
     void drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
+    void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
+      const std::vector<Mat4x4f>& jointTransforms) override;
     void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
       const Mat4x4f& transform) override;
     void drawSkybox(MeshHandle mesh, MaterialHandle material) override;
@@ -142,15 +143,18 @@ class RendererImpl : public Renderer
     void doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void updateLightingUbo();
-    void updateInstanceBuffers(RenderPass renderPass);
     void updateLightTransformsUbo();
     void updateCameraTransformsUbo();
     void finishFrame();
     void createSyncObjects();
     void renderLoop();
     void cleanUp();
+    void recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
+      VkCommandBuffer commandBuffer);
     RenderGraph::Key generateRenderGraphKey(MeshHandle mesh, MaterialHandle material) const;
     Pipeline& choosePipeline(RenderPass renderPass, const RenderNode& node);
+    void drawModelInternal(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
+      const std::optional<std::vector<Mat4x4f>>& jointTransforms);
 
     ViewParams m_viewParams;
     const FileSystem& m_fileSystem;
@@ -379,11 +383,6 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(MeshHandle mesh,
   }
 }
 
-void RendererImpl::updateJointTransforms(RenderItemId meshId, const std::vector<Mat4x4f>& joints)
-{
-  m_resources->updateJointTransforms(meshId, joints, m_currentFrame);
-}
-
 void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
@@ -409,7 +408,21 @@ void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const 
   node->instances.push_back(MeshInstance{transform * mesh.transform});
 }
 
+void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
+  const std::vector<Mat4x4f>& jointTransforms)
+{
+  drawModelInternal(mesh, material, transform, jointTransforms);
+}
+
 void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform)
+{
+  //DBG_TRACE(m_logger);
+
+  drawModelInternal(mesh, material, transform, std::nullopt);
+}
+
+void RendererImpl::drawModelInternal(MeshHandle mesh, MaterialHandle material,
+  const Mat4x4f& transform, const std::optional<std::vector<Mat4x4f>>& jointTransforms)
 {
   //DBG_TRACE(m_logger);
 
@@ -421,6 +434,7 @@ void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat
   node->mesh = mesh;
   node->material = material;
   node->modelMatrix = transform;
+  node->jointTransforms = jointTransforms;
 
   auto key = generateRenderGraphKey(mesh, material);
 
@@ -561,7 +575,6 @@ void RendererImpl::updateCameraTransformsUbo()
 void RendererImpl::updateLightTransformsUbo()
 {
   auto& frameState = m_frameStates.getReadable();
-  auto& renderPassState = frameState.renderPasses.at(RenderPass::Shadow);
 
   // TODO: Currently only the first light can cast shadows
   const LightState& light = frameState.lighting.lights[0];
@@ -570,25 +583,6 @@ void RendererImpl::updateLightTransformsUbo()
     .projMatrix = orthographic(PIf / 2.f, PIf / 2.f, 0.f, light.zFar)
   };
   m_resources->updateLightTransformsUbo(lightTransformsUbo, m_currentFrame);
-}
-
-void RendererImpl::updateInstanceBuffers(RenderPass renderPass)
-{
-  auto& frameState = m_frameStates.getReadable();
-  auto& renderPassState = frameState.renderPasses.at(renderPass);
-  auto& renderGraph = renderPassState.graph;
-
-  for (auto& node : renderGraph) {
-    switch (node->type) {
-      case RenderNodeType::InstancedModel: {
-        auto& nodeData = dynamic_cast<const InstancedModelNode&>(*node);
-        m_resources->updateMeshInstances(nodeData.mesh.id, nodeData.instances);
-
-        break;
-      }
-      default: break;
-    }
-  }
 }
 
 void RendererImpl::updateLightingUbo()
@@ -732,7 +726,7 @@ VkPresentModeKHR RendererImpl::chooseSwapChainPresentMode(
 {
   for (auto& mode : availableModes) {
     if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-      //return mode;
+      return mode;
     }
   }
 
@@ -1136,9 +1130,34 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
   return *i->second;
 };
 
+void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
+  VkCommandBuffer commandBuffer)
+{
+  BindState bindState{};
+  for (auto& node : renderGraph) {
+    switch (node->type) {
+      case RenderNodeType::DefaultModel: {
+        auto& modelNode = dynamic_cast<const DefaultModelNode&>(*node);
+        if (modelNode.jointTransforms.has_value()) {
+          auto& joints = modelNode.jointTransforms.value();
+          m_resources->updateJointTransforms(modelNode.mesh.id, joints, m_currentFrame);
+        }
+        break;
+      }
+      case RenderNodeType::InstancedModel: {
+        auto& instancedNode = dynamic_cast<const InstancedModelNode&>(*node);
+        m_resources->updateMeshInstances(instancedNode.mesh.id, instancedNode.instances);
+        break;
+      }
+    }
+
+    auto& pipeline = choosePipeline(renderPass, *node);
+    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
+  }
+}
+
 void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
 {
-  updateInstanceBuffers(RenderPass::Shadow);
   updateLightTransformsUbo();
 
   VkImageMemoryBarrier barrier1{
@@ -1200,14 +1219,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
   auto& renderPassState = frameState.renderPasses.at(RenderPass::Shadow);
   const auto& renderGraph = renderPassState.graph;
 
-  BindState bindState{};
-  for (auto& node : renderGraph) {
-    DBG_ASSERT(node->mesh.features.flags.test(MeshFeatures::CastsShadow),
-      "Attempt to draw non-shadow-casting object during shadow pass");
-
-    auto& pipeline = choosePipeline(RenderPass::Shadow, *node);
-    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
-  }
+  recordCommandBuffer(RenderPass::Shadow, renderGraph, commandBuffer);
 
   vkCmdEndRenderingFn(commandBuffer);
 
@@ -1236,7 +1248,6 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
 
 void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
-  updateInstanceBuffers(RenderPass::Main);
   updateCameraTransformsUbo();
   updateLightingUbo();
 
@@ -1314,11 +1325,7 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
   auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
   const auto& renderGraph = renderPassState.graph;
 
-  BindState bindState{};
-  for (auto& node : renderGraph) {
-    auto& pipeline = choosePipeline(RenderPass::Main, *node);
-    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
-  }
+  recordCommandBuffer(RenderPass::Main, renderGraph, commandBuffer);
 
   vkCmdEndRenderingFn(commandBuffer);
 

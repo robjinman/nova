@@ -39,7 +39,11 @@ struct AnimationState
   Timer timer;
   std::vector<AnimationChannelState> channels;
   size_t channelsComplete = 0;
-  size_t postRenders = 5; // TODO: Hack to prevent rendering from stale UBOs. Must fix properly
+
+  bool finished()
+  {
+    return channelsComplete == channels.size();
+  }
 };
 
 class RenderSystemImpl : public RenderSystem
@@ -312,20 +316,27 @@ void RenderSystemImpl::drawEntities(const std::unordered_set<EntityId>& entities
       continue;
     }
 
-    const auto& component = *entry->second;
+    auto& component = *entry->second;
     const auto& spatial = m_spatialSystem.getComponent(id);
 
     switch(component.type) {
       case CRenderType::Model: {
-        auto& model = dynamic_cast<const CRenderModel&>(component);
+        auto& model = dynamic_cast<CRenderModel&>(component);
         for (auto& submodel : model.submodels) {
           if (filter(submodel)) {
             if (model.isInstanced) {
               m_renderer.drawInstance(submodel.mesh, submodel.material, spatial.absTransform());
             }
             else {
-              m_renderer.drawModel(submodel.mesh, submodel.material,
-                spatial.absTransform() * submodel.mesh.transform);
+              if (submodel.jointTransformsDirty) {
+                m_renderer.drawModel(submodel.mesh, submodel.material,
+                  spatial.absTransform() * submodel.mesh.transform, submodel.jointTransforms);
+                submodel.jointTransformsDirty = false;
+              }
+              else {
+                m_renderer.drawModel(submodel.mesh, submodel.material,
+                  spatial.absTransform() * submodel.mesh.transform);
+              }
             }
           }
         }
@@ -561,25 +572,19 @@ void RenderSystemImpl::updateAnimations()
     auto& component = *m_components.at(i->first);
     DBG_ASSERT(component.type == CRenderType::Model, "Can only play animation on models");
 
-    auto& model = dynamic_cast<const CRenderModel&>(component);
+    auto& model = dynamic_cast<CRenderModel&>(component);
     auto& state = i->second;
     auto& animationSet = *m_animationSets.at(state.animationSet);
     auto& animation = *animationSet.animations.at(state.animationName); // TODO: Slow?
 
     for (auto& submodel : model.submodels) {
       auto& skeleton = *animationSet.skeleton;
-      auto joints = computeJointTransforms(skeleton, *submodel.skin, animation, state);
-      m_renderer.updateJointTransforms(submodel.mesh.id, joints);
+      submodel.jointTransforms = computeJointTransforms(skeleton, *submodel.skin, animation, state);
+      submodel.jointTransformsDirty = true;
     }
 
-    if (state.channelsComplete == state.channels.size()) {
-      // TODO
-      if (state.postRenders-- == 0) {
-        i = m_animationStates.erase(i++);
-      }
-      else {
-        ++i;
-      }
+    if (state.finished()) {
+      i = m_animationStates.erase(i++);
     }
     else {
       ++i;

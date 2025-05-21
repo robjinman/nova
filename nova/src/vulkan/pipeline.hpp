@@ -51,6 +51,7 @@ struct DefaultModelNode : public RenderNode
   {}
 
   Mat4x4f modelMatrix;
+  std::optional<std::vector<Mat4x4f>> jointTransforms;
 };
 
 struct InstancedModelNode : public RenderNode

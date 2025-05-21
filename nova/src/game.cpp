@@ -104,6 +104,18 @@ void GameImpl::onKeyDown(KeyboardKey key)
       m_renderSystem.playAnimation(james, "Attack");
       break;
     }
+    case KeyboardKey::K: {
+      m_logger.info("Playing 'Idle' animation on 'james' entity");
+      EntityId james = System::idFromString("james");
+      m_renderSystem.playAnimation(james, "Idle");
+      break;
+    }
+    case KeyboardKey::L: {
+      m_logger.info("Playing 'Walk' animation on 'james' entity");
+      EntityId james = System::idFromString("james");
+      m_renderSystem.playAnimation(james, "Walk");
+      break;
+    }
     default: break;
   }
 }

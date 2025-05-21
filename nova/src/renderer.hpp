@@ -47,7 +47,6 @@ class Renderer
     // Meshes
     //
     virtual MeshHandle addMesh(MeshPtr mesh) = 0;
-    virtual void updateJointTransforms(RenderItemId meshId, const std::vector<Mat4x4f>& joints) = 0;
     virtual void removeMesh(RenderItemId id) = 0;
 
     // Materials
@@ -61,6 +60,8 @@ class Renderer
     virtual void beginPass(RenderPass renderPass, const Vec3f& viewPos,
       const Mat4x4f& viewMatrix) = 0;
     virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) = 0;
+    virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
+      const std::vector<Mat4x4f>& jointTransforms) = 0;
     virtual void drawInstance(MeshHandle mesh, MaterialHandle material,
       const Mat4x4f& transform) = 0;
     virtual void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,

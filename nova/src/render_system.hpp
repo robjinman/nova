@@ -79,6 +79,10 @@ struct Submodel
   render::MeshHandle mesh;
   render::MaterialHandle material;
   SkinPtr skin;
+
+  // TODO: Make these private?
+  bool jointTransformsDirty = false;
+  std::vector<Mat4x4f> jointTransforms;
 };
 
 struct CRenderModel : public CRender
