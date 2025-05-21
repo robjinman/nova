@@ -23,6 +23,8 @@ KeyboardKey buttonToKey(GamepadButton button)
   switch (button) {
     case GamepadButton::A: return KeyboardKey::E;
     case GamepadButton::Y: return KeyboardKey::F;
+    case GamepadButton::X: return KeyboardKey::K;
+    case GamepadButton::B: return KeyboardKey::R;
     // ...
     default: return KeyboardKey::Unknown;
   }

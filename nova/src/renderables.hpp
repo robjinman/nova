@@ -197,7 +197,6 @@ struct Mesh
   std::vector<Buffer> attributeBuffers;
   Buffer indexBuffer;
   uint32_t maxInstances = 0;
-  std::vector<Mat4x4f> bindPose;
 };
 
 using MeshPtr = std::unique_ptr<Mesh>;
