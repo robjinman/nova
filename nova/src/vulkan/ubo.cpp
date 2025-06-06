@@ -1,4 +1,5 @@
 #include "vulkan/ubo.hpp"
+#include <cstring>
 
 namespace render
 {
