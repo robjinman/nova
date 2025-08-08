@@ -518,7 +518,7 @@ void RendererImpl::renderLoop()
       VK_CHECK(vkResetFences(m_device, 1, &m_inFlightFences[m_currentFrame]),
         "Error resetting fence");
 
-      vkResetCommandBuffer(m_commandBuffers[m_imageIndex], 0);
+      vkResetCommandBuffer(m_commandBuffers[m_currentFrame], 0);
 
       VkCommandBufferBeginInfo beginInfo{
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -527,7 +527,7 @@ void RendererImpl::renderLoop()
         .pInheritanceInfo = nullptr
       };
 
-      auto commandBuffer = m_commandBuffers[m_imageIndex];
+      auto commandBuffer = m_commandBuffers[m_currentFrame];
 
       VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo),
         "Failed to begin recording command buffer");
@@ -632,7 +632,7 @@ void RendererImpl::finishFrame()
   VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
   submitInfo.pWaitDstStageMask = waitStages;
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &m_commandBuffers[m_imageIndex];
+  submitInfo.pCommandBuffers = &m_commandBuffers[m_currentFrame];
 
   VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_imageIndex] };
   submitInfo.signalSemaphoreCount = 1;
@@ -1361,7 +1361,7 @@ void RendererImpl::createCommandBuffers()
 {
   DBG_TRACE(m_logger);
 
-  m_commandBuffers.resize(m_swapchainImages.size());
+  m_commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 
   VkCommandBufferAllocateInfo allocInfo{
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
